@@ -42,6 +42,37 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const userEmail = userData.user.email;
+    
+    // Check user notification preferences
+    const { data: preferencesData, error: preferencesError } = await supabase
+      .from("user_preferences")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (preferencesError) {
+      console.error("Error fetching preferences:", preferencesError);
+      // Continue with email if we can't fetch preferences (default to sending)
+    }
+
+    // Determine if we should send email based on preferences
+    const shouldSendEmail = preferencesData 
+      ? (status === "completed" 
+          ? preferencesData.email_on_scheduled_job_complete 
+          : preferencesData.email_on_scheduled_job_failure)
+      : true; // Default to sending if no preferences found
+
+    if (!shouldSendEmail) {
+      console.log("Email notification disabled by user preferences");
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "User preferences" }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      });
+    }
+
     const formatScrapeType = (type: string) => {
       return type.split("_").map(word => 
         word.charAt(0).toUpperCase() + word.slice(1)
