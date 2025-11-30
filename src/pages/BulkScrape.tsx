@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
-import { Download, FileJson, FileSpreadsheet, Loader2, Upload } from "lucide-react";
+import { Download, FileJson, FileSpreadsheet, Loader2, Upload, FileText, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 const formSchema = z.object({
   urls: z.string().min(1, "Please enter at least one URL"),
@@ -37,6 +38,8 @@ const BulkScrape = () => {
   const [jobResults, setJobResults] = useState<JobResult[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -60,6 +63,127 @@ const BulkScrape = () => {
           return false;
         }
       });
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 20MB)
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 20MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ['text/plain', 'text/csv', 'application/csv'];
+    const fileExtension = file.name.toLowerCase().split('.').pop();
+    
+    if (!validTypes.includes(file.type) && !['csv', 'txt'].includes(fileExtension || '')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a CSV or TXT file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadedFile(file);
+
+    try {
+      const text = await file.text();
+      let urls: string[] = [];
+
+      if (file.name.endsWith('.csv')) {
+        // Parse CSV - assume URLs are in the first column or look for a URL column
+        const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+        
+        // Check if first line is a header
+        const firstLine = lines[0].toLowerCase();
+        const hasHeader = firstLine.includes('url') || firstLine.includes('link') || firstLine.includes('website');
+        const startIndex = hasHeader ? 1 : 0;
+
+        // Try to find URL column index
+        let urlColumnIndex = 0;
+        if (hasHeader) {
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          const urlHeaderIndex = headers.findIndex(h => 
+            h.includes('url') || h.includes('link') || h.includes('website') || h.includes('domain')
+          );
+          if (urlHeaderIndex !== -1) {
+            urlColumnIndex = urlHeaderIndex;
+          }
+        }
+
+        // Extract URLs from the identified column
+        for (let i = startIndex; i < lines.length; i++) {
+          const columns = lines[i].split(',').map(col => col.trim().replace(/^["']|["']$/g, ''));
+          const potentialUrl = columns[urlColumnIndex];
+          
+          if (potentialUrl) {
+            try {
+              new URL(potentialUrl);
+              urls.push(potentialUrl);
+            } catch {
+              // Not a valid URL, skip
+            }
+          }
+        }
+      } else {
+        // Parse TXT - one URL per line
+        urls = text.split('\n')
+          .map(line => line.trim())
+          .filter(line => {
+            try {
+              new URL(line);
+              return true;
+            } catch {
+              return false;
+            }
+          });
+      }
+
+      if (urls.length === 0) {
+        toast({
+          title: "No valid URLs found",
+          description: "The file doesn't contain any valid URLs",
+          variant: "destructive",
+        });
+        setUploadedFile(null);
+        return;
+      }
+
+      // Update the form with extracted URLs
+      form.setValue('urls', urls.join('\n'));
+      
+      toast({
+        title: "File uploaded successfully",
+        description: `Imported ${urls.length} valid URL(s)`,
+      });
+
+    } catch (error) {
+      console.error('Error reading file:', error);
+      toast({
+        title: "Error reading file",
+        description: "Could not parse the uploaded file",
+        variant: "destructive",
+      });
+      setUploadedFile(null);
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setUploadedFile(null);
+    form.setValue('urls', '');
   };
 
   const onSubmit = async (data: FormData) => {
@@ -334,6 +458,52 @@ const BulkScrape = () => {
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <div className="space-y-3">
+                      <Label>Import URLs</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isProcessing}
+                          className="flex-1"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload CSV/TXT
+                        </Button>
+                        <Input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".csv,.txt,text/plain,text/csv,application/csv"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </div>
+
+                      {uploadedFile && (
+                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border/50">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">{uploadedFile.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(uploadedFile.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRemoveFile}
+                            disabled={isProcessing}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
                     <FormField
                       control={form.control}
                       name="urls"
@@ -342,7 +512,7 @@ const BulkScrape = () => {
                           <FormLabel>URLs (one per line)</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="https://example.com&#10;https://another-site.com&#10;https://third-site.com"
+                              placeholder="https://example.com&#10;https://another-site.com&#10;https://third-site.com&#10;&#10;Or upload a CSV/TXT file above"
                               {...field}
                               className="bg-background/50 min-h-[200px] font-mono text-sm"
                               disabled={isProcessing}
