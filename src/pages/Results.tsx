@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Eye, Plus, Loader2, Clock, RefreshCw } from "lucide-react";
+import { Eye, Plus, Loader2, Clock, RefreshCw, StopCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
@@ -186,6 +186,32 @@ export default function Results() {
     }
   };
 
+  const handleCancelJob = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from("scraping_jobs")
+        .update({ 
+          status: "failed",
+          results: [{ message: "Job cancelled by user" }]
+        })
+        .eq("id", jobId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Job cancelled",
+        description: "The scraping job has been stopped",
+      });
+    } catch (error) {
+      console.error("Error cancelling job:", error);
+      toast({
+        title: "Failed to cancel",
+        description: "Could not stop the scraping job",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -283,6 +309,17 @@ export default function Results() {
                           >
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Retry
+                          </Button>
+                        )}
+                        {(job.status === "processing" || job.status === "pending" || job.status === "in_progress") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancelJob(job.id)}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          >
+                            <StopCircle className="mr-2 h-4 w-4" />
+                            Cancel
                           </Button>
                         )}
                       </div>
