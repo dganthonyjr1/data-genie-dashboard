@@ -1,0 +1,531 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Progress } from "@/components/ui/progress";
+import { Download, FileJson, FileSpreadsheet, Loader2, Upload } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+const formSchema = z.object({
+  urls: z.string().min(1, "Please enter at least one URL"),
+  scrapeType: z.enum(["emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
+  aiInstructions: z.string().optional(),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+interface JobResult {
+  id: string;
+  url: string;
+  status: string;
+  results: any[];
+  error?: string;
+}
+
+const BulkScrape = () => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [jobResults, setJobResults] = useState<JobResult[]>([]);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const { toast } = useToast();
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      urls: "",
+      scrapeType: "custom_ai_extraction",
+      aiInstructions: "",
+    },
+  });
+
+  const parseUrls = (urlText: string): string[] => {
+    return urlText
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => {
+        try {
+          new URL(url);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+  };
+
+  const onSubmit = async (data: FormData) => {
+    const urls = parseUrls(data.urls);
+    
+    if (urls.length === 0) {
+      toast({
+        title: "Invalid URLs",
+        description: "Please enter at least one valid URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setProgress(0);
+    setJobResults([]);
+    setCompletedCount(0);
+    setTotalCount(urls.length);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to create jobs",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create all jobs
+      const jobPromises = urls.map(url => 
+        supabase.from("scraping_jobs").insert({
+          url,
+          scrape_type: data.scrapeType,
+          ai_instructions: data.aiInstructions || null,
+          user_id: user.id,
+          status: "pending",
+        }).select().single()
+      );
+
+      const jobCreationResults = await Promise.all(jobPromises);
+      const createdJobs = jobCreationResults
+        .filter(result => !result.error)
+        .map(result => result.data!);
+
+      if (createdJobs.length === 0) {
+        throw new Error("Failed to create any jobs");
+      }
+
+      toast({
+        title: "Jobs created",
+        description: `Created ${createdJobs.length} scraping job(s). Processing...`,
+      });
+
+      // Process each job and track progress
+      const results: JobResult[] = [];
+      
+      for (let i = 0; i < createdJobs.length; i++) {
+        const job = createdJobs[i];
+        
+        try {
+          // Trigger scraping
+          const { error: scrapeError } = await supabase.functions.invoke('process-scrape', {
+            body: { jobId: job.id }
+          });
+
+          if (scrapeError) {
+            results.push({
+              id: job.id,
+              url: job.url,
+              status: 'failed',
+              results: [],
+              error: scrapeError.message
+            });
+          } else {
+            // Poll for completion (simplified - in production, use realtime subscriptions)
+            let attempts = 0;
+            let jobData = job;
+            
+            while (attempts < 30 && jobData.status === 'pending' || jobData.status === 'processing') {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              const { data: updatedJob } = await supabase
+                .from('scraping_jobs')
+                .select('*')
+                .eq('id', job.id)
+                .single();
+              
+              if (updatedJob) {
+                jobData = updatedJob;
+              }
+              attempts++;
+            }
+
+            results.push({
+              id: jobData.id,
+              url: jobData.url,
+              status: jobData.status,
+              results: Array.isArray(jobData.results) ? jobData.results : []
+            });
+          }
+        } catch (error) {
+          results.push({
+            id: job.id,
+            url: job.url,
+            status: 'failed',
+            results: [],
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+
+        setCompletedCount(i + 1);
+        setProgress(((i + 1) / createdJobs.length) * 100);
+      }
+
+      setJobResults(results);
+
+      const successCount = results.filter(r => r.status === 'completed').length;
+      toast({
+        title: "Bulk scraping completed",
+        description: `Successfully completed ${successCount} out of ${results.length} job(s)`,
+      });
+
+    } catch (error) {
+      console.error("Error in bulk scrape:", error);
+      toast({
+        title: "Error processing jobs",
+        description: error instanceof Error ? error.message : "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const exportToCSV = () => {
+    if (jobResults.length === 0) return;
+
+    // For business data extraction
+    if (form.getValues('scrapeType') === 'custom_ai_extraction') {
+      const headers = [
+        'URL',
+        'Status',
+        'Business Name',
+        'Full Address',
+        'Phone Number',
+        'Email',
+        'Website',
+        'Facebook',
+        'Instagram',
+        'TikTok',
+        'LinkedIn',
+        'YouTube',
+        'Hours',
+        'Google Maps URL',
+        'Place ID',
+        'Latitude',
+        'Longitude',
+        'Services/Products',
+        'Description'
+      ];
+
+      const rows = jobResults.map(job => {
+        const result = job.results[0] || {};
+        return [
+          job.url,
+          job.status,
+          result.business_name || '',
+          result.full_address || '',
+          result.phone_number || '',
+          result.email_address || '',
+          result.website_url || '',
+          result.social_links?.facebook || '',
+          result.social_links?.instagram || '',
+          result.social_links?.tiktok || '',
+          result.social_links?.linkedin || '',
+          result.social_links?.youtube || '',
+          result.hours_of_operation || '',
+          result.google_maps_embed_url || '',
+          result.google_maps_place_id || '',
+          result.coordinates?.latitude || '',
+          result.coordinates?.longitude || '',
+          result.services_or_products || '',
+          result.about_or_description || ''
+        ];
+      });
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      downloadFile(csvContent, `bulk-scrape-${Date.now()}.csv`, 'text/csv');
+    } else {
+      // Generic CSV for other scrape types
+      const headers = ['URL', 'Status', 'Results Count', 'Data'];
+      const rows = jobResults.map(job => [
+        job.url,
+        job.status,
+        job.results.length,
+        JSON.stringify(job.results)
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      downloadFile(csvContent, `bulk-scrape-${Date.now()}.csv`, 'text/csv');
+    }
+
+    toast({
+      title: "Exported to CSV",
+      description: `Successfully exported ${jobResults.length} result(s)`,
+    });
+  };
+
+  const exportToJSON = () => {
+    if (jobResults.length === 0) return;
+
+    const json = JSON.stringify(jobResults, null, 2);
+    downloadFile(json, `bulk-scrape-${Date.now()}.json`, 'application/json');
+
+    toast({
+      title: "Exported to JSON",
+      description: `Successfully exported ${jobResults.length} result(s)`,
+    });
+  };
+
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const formatScrapeType = (type: string) => {
+    return type.split("_").map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(" ");
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="min-h-screen p-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
+              Bulk Scraping
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Process multiple URLs at once and export results
+            </p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="bg-card/80 backdrop-blur-sm border-border/50">
+              <CardHeader>
+                <CardTitle>Bulk Job Configuration</CardTitle>
+                <CardDescription>
+                  Enter multiple URLs (one per line) to scrape simultaneously
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="urls"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URLs (one per line)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="https://example.com&#10;https://another-site.com&#10;https://third-site.com"
+                              {...field}
+                              className="bg-background/50 min-h-[200px] font-mono text-sm"
+                              disabled={isProcessing}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="scrapeType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Scrape Type</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                            disabled={isProcessing}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="bg-background/50">
+                                <SelectValue placeholder="Select scrape type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-popover z-50">
+                              <SelectItem value="emails">Email Addresses</SelectItem>
+                              <SelectItem value="phone_numbers">Phone Numbers</SelectItem>
+                              <SelectItem value="text_content">Text Content</SelectItem>
+                              <SelectItem value="tables">Tables</SelectItem>
+                              <SelectItem value="custom_ai_extraction">Custom AI Extraction</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch("scrapeType") === "custom_ai_extraction" && (
+                      <FormField
+                        control={form.control}
+                        name="aiInstructions"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>AI Instructions (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Custom instructions for AI extraction..."
+                                className="bg-background/50 min-h-[100px]"
+                                {...field}
+                                disabled={isProcessing}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    <Button
+                      type="submit"
+                      disabled={isProcessing}
+                      className="w-full bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 transition-opacity"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing {completedCount}/{totalCount}
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Start Bulk Scrape
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/80 backdrop-blur-sm border-border/50">
+              <CardHeader>
+                <CardTitle>Progress & Results</CardTitle>
+                <CardDescription>
+                  Monitor scraping progress and export results
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {isProcessing && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Processing...</span>
+                      <span className="font-medium">{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Completed: {completedCount} / {totalCount}
+                    </p>
+                  </div>
+                )}
+
+                {jobResults.length > 0 && (
+                  <>
+                    <div className="space-y-3">
+                      <Label>Results Summary</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Card className="p-3 bg-green-500/10 border-green-500/20">
+                          <div className="text-sm text-muted-foreground">Completed</div>
+                          <div className="text-2xl font-bold text-green-400">
+                            {jobResults.filter(r => r.status === 'completed').length}
+                          </div>
+                        </Card>
+                        <Card className="p-3 bg-red-500/10 border-red-500/20">
+                          <div className="text-sm text-muted-foreground">Failed</div>
+                          <div className="text-2xl font-bold text-red-400">
+                            {jobResults.filter(r => r.status === 'failed').length}
+                          </div>
+                        </Card>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Export Results</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={exportToCSV}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          CSV
+                        </Button>
+                        <Button
+                          onClick={exportToJSON}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          <FileJson className="mr-2 h-4 w-4" />
+                          JSON
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      <Label>Job Status</Label>
+                      {jobResults.map((result, index) => (
+                        <div
+                          key={result.id}
+                          className="flex items-start justify-between p-3 bg-background/50 rounded-lg border border-border/50"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{result.url}</p>
+                            {result.error && (
+                              <p className="text-xs text-red-400 mt-1">{result.error}</p>
+                            )}
+                          </div>
+                          <Badge
+                            variant={result.status === 'completed' ? 'default' : 'destructive'}
+                            className="ml-2 shrink-0"
+                          >
+                            {result.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {!isProcessing && jobResults.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Upload className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Submit URLs to start bulk scraping</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default BulkScrape;
