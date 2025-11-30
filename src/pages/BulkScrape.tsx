@@ -39,6 +39,7 @@ const BulkScrape = () => {
   const [completedCount, setCompletedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -65,8 +66,7 @@ const BulkScrape = () => {
       });
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const processFile = async (file: File) => {
     if (!file) return;
 
     // Validate file size (max 20MB)
@@ -178,6 +178,36 @@ const BulkScrape = () => {
     // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      await processFile(file);
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+      await processFile(files[0]);
     }
   };
 
@@ -460,24 +490,50 @@ const BulkScrape = () => {
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <div className="space-y-3">
                       <Label>Import URLs</Label>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isProcessing}
-                          className="flex-1"
-                        >
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload CSV/TXT
-                        </Button>
-                        <Input
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".csv,.txt,text/plain,text/csv,application/csv"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
+                      
+                      {/* Drag and Drop Zone */}
+                      <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`relative border-2 border-dashed rounded-lg transition-all ${
+                          isDragging
+                            ? 'border-primary bg-primary/5 scale-[1.02]'
+                            : 'border-border/50 bg-background/30'
+                        } ${isProcessing ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}
+                        onClick={() => !isProcessing && fileInputRef.current?.click()}
+                      >
+                        <div className="p-8 text-center">
+                          <Upload className={`h-12 w-12 mx-auto mb-4 transition-colors ${
+                            isDragging ? 'text-primary' : 'text-muted-foreground'
+                          }`} />
+                          <p className="text-sm font-medium mb-1">
+                            {isDragging ? 'Drop file here' : 'Drag & drop file here'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Supported formats: CSV, TXT (max 20MB)
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              fileInputRef.current?.click();
+                            }}
+                            disabled={isProcessing}
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            Browse Files
+                          </Button>
+                          <Input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv,.txt,text/plain,text/csv,application/csv"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                        </div>
                       </div>
 
                       {uploadedFile && (
