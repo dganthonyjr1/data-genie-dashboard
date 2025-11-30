@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { Eye, Plus, Loader2, Clock, RefreshCw, StopCircle, Trash2, Filter, Search } from "lucide-react";
@@ -51,6 +52,7 @@ export default function Results() {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -216,6 +218,57 @@ export default function Results() {
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1);
+  };
+
+  const toggleJobSelection = (jobId: string) => {
+    const newSelected = new Set(selectedJobs);
+    if (newSelected.has(jobId)) {
+      newSelected.delete(jobId);
+    } else {
+      newSelected.add(jobId);
+    }
+    setSelectedJobs(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedJobs.size === paginatedJobs.length) {
+      setSelectedJobs(new Set());
+    } else {
+      setSelectedJobs(new Set(paginatedJobs.map(job => job.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedJobs.size === 0) return;
+
+    try {
+      const deletePromises = Array.from(selectedJobs).map(jobId =>
+        supabase.from("scraping_jobs").delete().eq("id", jobId)
+      );
+
+      const results = await Promise.all(deletePromises);
+      const errors = results.filter(r => r.error);
+
+      if (errors.length > 0) {
+        throw new Error(`Failed to delete ${errors.length} job(s)`);
+      }
+
+      toast({
+        title: "Jobs deleted",
+        description: `Successfully deleted ${selectedJobs.size} job(s)`,
+      });
+
+      setSelectedJobs(new Set());
+      setDeleteDialogOpen(false);
+      setJobToDelete(null);
+    } catch (error) {
+      console.error("Error deleting jobs:", error);
+      toast({
+        title: "Failed to delete",
+        description: error instanceof Error ? error.message : "Could not delete all jobs",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRetryJob = async (jobId: string) => {
@@ -464,10 +517,41 @@ export default function Results() {
           </div>
         ) : (
           <>
+            {selectedJobs.size > 0 && (
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <Checkbox
+                    checked={selectedJobs.size === paginatedJobs.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span className="text-sm font-medium">
+                    {selectedJobs.size} job(s) selected
+                  </span>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setJobToDelete(null);
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected
+                </Button>
+              </div>
+            )}
+
             <div className="border border-border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedJobs.size === paginatedJobs.length && paginatedJobs.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>URL</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
@@ -479,6 +563,12 @@ export default function Results() {
                 <TableBody>
                   {paginatedJobs.map((job) => (
                   <TableRow key={job.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedJobs.has(job.id)}
+                        onCheckedChange={() => toggleJobSelection(job.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium max-w-xs truncate">
                       {job.url}
                     </TableCell>
@@ -614,12 +704,17 @@ export default function Results() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the scraping job and all its results.
+                {selectedJobs.size > 0 && !jobToDelete
+                  ? `This action cannot be undone. This will permanently delete ${selectedJobs.size} job(s) and all their results.`
+                  : "This action cannot be undone. This will permanently delete the scraping job and all its results."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteJob} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction 
+                onClick={selectedJobs.size > 0 && !jobToDelete ? handleBulkDelete : handleDeleteJob}
+                className="bg-destructive hover:bg-destructive/90"
+              >
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
