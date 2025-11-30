@@ -7,7 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2 } from "lucide-react";
 
 interface Job {
   id: string;
@@ -21,6 +31,8 @@ const Jobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -189,6 +201,39 @@ const Jobs = () => {
     }
   };
 
+  const openDeleteDialog = (jobId: string) => {
+    setJobToDelete(jobId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteJob = async () => {
+    if (!jobToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("scraping_jobs")
+        .delete()
+        .eq("id", jobToDelete);
+
+      if (error) throw error;
+
+      toast({
+        title: "Job deleted",
+        description: "The scraping job has been removed",
+      });
+
+      setDeleteDialogOpen(false);
+      setJobToDelete(null);
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      toast({
+        title: "Failed to delete",
+        description: "Could not remove the scraping job",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -262,7 +307,7 @@ const Jobs = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -294,12 +339,38 @@ const Jobs = () => {
                         Cancel
                       </Button>
                     )}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => openDeleteDialog(job.id)}
+                      className="flex-1 sm:flex-none border-destructive/50 hover:bg-destructive/10 text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the scraping job and all its results.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteJob} className="bg-destructive hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
