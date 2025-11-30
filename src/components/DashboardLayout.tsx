@@ -82,16 +82,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-            <div className="relative w-8 h-8">
-              <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-lg rotate-6 opacity-80"></div>
-              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-pink-500 rounded-lg -rotate-6 opacity-60"></div>
+            <div className="relative w-9 h-9">
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-xl rotate-6 opacity-80"></div>
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-pink-500 rounded-xl -rotate-6 opacity-60"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white drop-shadow-lg" fill="currentColor">
-                  <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm-1-10v5l4.25 2.52.75-1.23-3.5-2.08V10H11z" />
+                <svg viewBox="0 0 24 24" className="w-6 h-6 text-white drop-shadow-lg" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.29 7 12 12 20.71 7"/>
+                  <line x1="12" y1="22" x2="12" y2="12"/>
                 </svg>
               </div>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
+            <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent drop-shadow-sm">
               ScrapeX
             </span>
           </div>
