@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -19,11 +20,17 @@ interface Job {
 const Jobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(Date.now());
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchJobs();
+
+    // Update elapsed time every second
+    const timeInterval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
 
     // Subscribe to realtime updates
     const channel = supabase
@@ -50,6 +57,7 @@ const Jobs = () => {
       .subscribe();
 
     return () => {
+      clearInterval(timeInterval);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -105,6 +113,22 @@ const Jobs = () => {
     ).join(" ");
   };
 
+  const getElapsedTime = (createdAt: string) => {
+    const elapsed = Math.floor((currentTime - new Date(createdAt).getTime()) / 1000);
+    
+    if (elapsed < 60) {
+      return `${elapsed}s`;
+    } else if (elapsed < 3600) {
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      return `${minutes}m ${seconds}s`;
+    } else {
+      const hours = Math.floor(elapsed / 3600);
+      const minutes = Math.floor((elapsed % 3600) / 60);
+      return `${hours}h ${minutes}m`;
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -154,8 +178,19 @@ const Jobs = () => {
                         <ExternalLink className="h-4 w-4 text-muted-foreground" />
                         {job.url}
                       </CardTitle>
-                      <CardDescription className="mt-2">
-                        {formatScrapeType(job.scrape_type)} • Created {new Date(job.created_at).toLocaleDateString()}
+                      <CardDescription className="mt-2 flex items-center gap-2 flex-wrap">
+                        <span>{formatScrapeType(job.scrape_type)}</span>
+                        <span>•</span>
+                        <span>Created {new Date(job.created_at).toLocaleDateString()}</span>
+                        {(job.status === "in_progress" || job.status === "pending") && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 text-primary">
+                              <Clock className="h-3 w-3" />
+                              {getElapsedTime(job.created_at)} elapsed
+                            </span>
+                          </>
+                        )}
                       </CardDescription>
                     </div>
                     <Badge className={getStatusColor(job.status)}>

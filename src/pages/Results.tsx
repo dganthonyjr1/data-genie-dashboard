@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Eye, Plus, Loader2 } from "lucide-react";
+import { Eye, Plus, Loader2, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
@@ -22,9 +22,15 @@ export default function Results() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
     fetchJobs();
+
+    // Update elapsed time every second
+    const timeInterval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
 
     // Subscribe to realtime updates
     const channel = supabase
@@ -60,6 +66,7 @@ export default function Results() {
       .subscribe();
 
     return () => {
+      clearInterval(timeInterval);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -129,6 +136,22 @@ export default function Results() {
       .join(" ");
   };
 
+  const getElapsedTime = (createdAt: string) => {
+    const elapsed = Math.floor((currentTime - new Date(createdAt).getTime()) / 1000);
+    
+    if (elapsed < 60) {
+      return `${elapsed}s`;
+    } else if (elapsed < 3600) {
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      return `${minutes}m ${seconds}s`;
+    } else {
+      const hours = Math.floor(elapsed / 3600);
+      const minutes = Math.floor((elapsed % 3600) / 60);
+      return `${hours}h ${minutes}m`;
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -189,6 +212,12 @@ export default function Results() {
                         )}
                         {job.status}
                       </Badge>
+                      {(job.status === "processing" || job.status === "pending" || job.status === "in_progress") && (
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {getElapsedTime(job.created_at)}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       {job.results.length > 0 ? (
