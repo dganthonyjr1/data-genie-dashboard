@@ -117,7 +117,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </div>
             </div>
             <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent drop-shadow-sm">
-              SCRAPEX
+              ScrapeX
             </span>
           </div>
 
