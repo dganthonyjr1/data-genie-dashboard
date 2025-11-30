@@ -82,17 +82,37 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-            <div className="relative w-9 h-9">
-              <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-xl rotate-6 opacity-80"></div>
-              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-pink-500 rounded-xl -rotate-6 opacity-60"></div>
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-lg rotate-45 opacity-20 blur-sm"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-6 h-6 text-white drop-shadow-lg" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6"/>
-                  <line x1="8" y1="12" x2="21" y2="12"/>
-                  <line x1="8" y1="18" x2="21" y2="18"/>
-                  <line x1="3" y1="6" x2="3.01" y2="6"/>
-                  <line x1="3" y1="12" x2="3.01" y2="12"/>
-                  <line x1="3" y1="18" x2="3.01" y2="18"/>
+                <svg viewBox="0 0 40 40" className="w-10 h-10" fill="none">
+                  {/* Outer frame */}
+                  <path d="M8 4 L32 4 L36 8 L36 32 L32 36 L8 36 L4 32 L4 8 Z" 
+                    stroke="url(#gradient1)" 
+                    strokeWidth="2" 
+                    fill="none"
+                    className="animate-pulse"/>
+                  {/* Inner X shape */}
+                  <path d="M14 14 L26 26 M26 14 L14 26" 
+                    stroke="url(#gradient2)" 
+                    strokeWidth="3" 
+                    strokeLinecap="round"/>
+                  {/* Corner accents */}
+                  <circle cx="8" cy="8" r="2" fill="url(#gradient1)"/>
+                  <circle cx="32" cy="8" r="2" fill="url(#gradient1)"/>
+                  <circle cx="32" cy="32" r="2" fill="url(#gradient1)"/>
+                  <circle cx="8" cy="32" r="2" fill="url(#gradient1)"/>
+                  
+                  <defs>
+                    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#ec4899"/>
+                      <stop offset="100%" stopColor="#06b6d4"/>
+                    </linearGradient>
+                    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#06b6d4"/>
+                      <stop offset="100%" stopColor="#ec4899"/>
+                    </linearGradient>
+                  </defs>
                 </svg>
               </div>
             </div>
