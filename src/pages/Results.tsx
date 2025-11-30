@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Eye, Plus } from "lucide-react";
+import { Eye, Plus, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
@@ -184,6 +184,9 @@ export default function Results() {
                     <TableCell>{formatScrapeType(job.scrape_type)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={getStatusColor(job.status)}>
+                        {(job.status === "processing" || job.status === "pending" || job.status === "in_progress") && (
+                          <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                        )}
                         {job.status}
                       </Badge>
                     </TableCell>
