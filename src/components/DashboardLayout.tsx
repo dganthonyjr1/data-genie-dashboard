@@ -82,10 +82,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary" />
-            <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              DataGeniePro
+            <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
+              ScrapeX
             </span>
+            <div className="relative w-8 h-8 ml-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-lg rotate-6 opacity-80"></div>
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-pink-500 rounded-lg -rotate-6 opacity-60"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white drop-shadow-lg" fill="currentColor">
+                  <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm-1-10v5l4.25 2.52.75-1.23-3.5-2.08V10H11z" />
+                </svg>
+              </div>
+            </div>
           </div>
 
           {/* Navigation */}
