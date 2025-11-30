@@ -570,6 +570,99 @@ const BulkScrape = () => {
     URL.revokeObjectURL(url);
   };
 
+  const exportValidationReportTXT = () => {
+    if (!validationResult) return;
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const lines: string[] = [];
+    
+    lines.push('URL VALIDATION REPORT');
+    lines.push('='.repeat(60));
+    lines.push('');
+    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push('');
+    
+    lines.push('SUMMARY');
+    lines.push('-'.repeat(60));
+    lines.push(`Total URLs: ${validationResult.totalUrls}`);
+    lines.push(`Valid URLs: ${validationResult.valid.length}`);
+    lines.push(`Invalid URLs: ${validationResult.invalid.length}`);
+    lines.push(`Duplicate URLs: ${validationResult.duplicates.length}`);
+    lines.push('');
+    
+    if (validationResult.valid.length > 0) {
+      lines.push('VALID URLs');
+      lines.push('-'.repeat(60));
+      validationResult.valid.forEach((url, index) => {
+        lines.push(`${index + 1}. ${url}`);
+      });
+      lines.push('');
+    }
+    
+    if (validationResult.duplicates.length > 0) {
+      lines.push('DUPLICATE URLs');
+      lines.push('-'.repeat(60));
+      validationResult.duplicates.forEach((dup, index) => {
+        lines.push(`${index + 1}. ${dup.url} (found ${dup.count} times)`);
+      });
+      lines.push('');
+    }
+    
+    if (validationResult.invalid.length > 0) {
+      lines.push('INVALID URLs');
+      lines.push('-'.repeat(60));
+      validationResult.invalid.forEach((invalid, index) => {
+        lines.push(`${index + 1}. ${invalid.url}`);
+        lines.push(`   Reason: ${invalid.reason}`);
+        lines.push('');
+      });
+    }
+    
+    const content = lines.join('\n');
+    downloadFile(content, `url-validation-report-${timestamp}.txt`, 'text/plain');
+    
+    toast({
+      title: "Report exported",
+      description: "Validation report saved as TXT file",
+    });
+  };
+
+  const exportValidationReportCSV = () => {
+    if (!validationResult) return;
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const rows: string[][] = [];
+    
+    // Add header
+    rows.push(['URL', 'Status', 'Details', 'Category']);
+    
+    // Add valid URLs
+    validationResult.valid.forEach(url => {
+      rows.push([url, 'Valid', '', 'Valid']);
+    });
+    
+    // Add duplicates
+    validationResult.duplicates.forEach(dup => {
+      rows.push([dup.url, 'Duplicate', `Found ${dup.count} times`, 'Duplicate']);
+    });
+    
+    // Add invalid URLs
+    validationResult.invalid.forEach(invalid => {
+      rows.push([invalid.url, 'Invalid', invalid.reason, 'Invalid']);
+    });
+    
+    const csvContent = rows.map(row => 
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    
+    downloadFile(csvContent, `url-validation-report-${timestamp}.csv`, 'text/csv');
+    
+    toast({
+      title: "Report exported",
+      description: "Validation report saved as CSV file",
+    });
+  };
+
   const formatScrapeType = (type: string) => {
     return type.split("_").map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
@@ -790,6 +883,28 @@ const BulkScrape = () => {
               <CardContent className="space-y-6">
                 {showValidation && validationResult && (
                   <div className="space-y-4">
+                    {/* Export Buttons */}
+                    <div className="flex gap-2 pb-4 border-b border-border/50">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exportValidationReportTXT}
+                        className="flex-1"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export TXT
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exportValidationReportCSV}
+                        className="flex-1"
+                      >
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        Export CSV
+                      </Button>
+                    </div>
+
                     {/* Summary Cards */}
                     <div className="grid grid-cols-3 gap-3">
                       <Card className="p-3 bg-blue-500/10 border-blue-500/20">
