@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
@@ -49,6 +50,7 @@ const Jobs = () => {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -193,6 +195,57 @@ const Jobs = () => {
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setCurrentPage(1);
+  };
+
+  const toggleJobSelection = (jobId: string) => {
+    const newSelected = new Set(selectedJobs);
+    if (newSelected.has(jobId)) {
+      newSelected.delete(jobId);
+    } else {
+      newSelected.add(jobId);
+    }
+    setSelectedJobs(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedJobs.size === paginatedJobs.length) {
+      setSelectedJobs(new Set());
+    } else {
+      setSelectedJobs(new Set(paginatedJobs.map(job => job.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedJobs.size === 0) return;
+
+    try {
+      const deletePromises = Array.from(selectedJobs).map(jobId =>
+        supabase.from("scraping_jobs").delete().eq("id", jobId)
+      );
+
+      const results = await Promise.all(deletePromises);
+      const errors = results.filter(r => r.error);
+
+      if (errors.length > 0) {
+        throw new Error(`Failed to delete ${errors.length} job(s)`);
+      }
+
+      toast({
+        title: "Jobs deleted",
+        description: `Successfully deleted ${selectedJobs.size} job(s)`,
+      });
+
+      setSelectedJobs(new Set());
+      setDeleteDialogOpen(false);
+      setJobToDelete(null);
+    } catch (error) {
+      console.error("Error deleting jobs:", error);
+      toast({
+        title: "Failed to delete",
+        description: error instanceof Error ? error.message : "Could not delete all jobs",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRetryJob = async (jobId: string) => {
@@ -451,16 +504,47 @@ const Jobs = () => {
           </Card>
         ) : (
           <>
+            {selectedJobs.size > 0 && (
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Checkbox
+                    checked={selectedJobs.size === paginatedJobs.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span className="text-sm font-medium">
+                    {selectedJobs.size} job(s) selected
+                  </span>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setJobToDelete(null);
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected
+                </Button>
+              </div>
+            )}
+
             <div className="grid gap-4">
               {paginatedJobs.map((job) => (
               <Card key={job.id} className="bg-card/50 border-border/50 hover:bg-card/70 transition-colors">
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                        {job.url}
-                      </CardTitle>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <Checkbox
+                        checked={selectedJobs.has(job.id)}
+                        onCheckedChange={() => toggleJobSelection(job.id)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          {job.url}
+                        </CardTitle>
                       <CardDescription className="mt-2 flex items-center gap-2 flex-wrap">
                         <span>{formatScrapeType(job.scrape_type)}</span>
                         <span>•</span>
@@ -475,6 +559,7 @@ const Jobs = () => {
                           </>
                         )}
                       </CardDescription>
+                    </div>
                     </div>
                     <Badge className={getStatusColor(job.status)}>
                       {(job.status === "in_progress" || job.status === "pending") && (
@@ -589,12 +674,17 @@ const Jobs = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the scraping job and all its results.
+                {selectedJobs.size > 0 && !jobToDelete
+                  ? `This action cannot be undone. This will permanently delete ${selectedJobs.size} job(s) and all their results.`
+                  : "This action cannot be undone. This will permanently delete the scraping job and all its results."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteJob} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogAction 
+                onClick={selectedJobs.size > 0 && !jobToDelete ? handleBulkDelete : handleDeleteJob}
+                className="bg-destructive hover:bg-destructive/90"
+              >
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
