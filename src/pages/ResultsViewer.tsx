@@ -23,6 +23,30 @@ export default function ResultsViewer() {
 
   useEffect(() => {
     fetchJobResults();
+
+    // Subscribe to realtime updates for this specific job
+    const channel = supabase
+      .channel(`job_${id}_changes`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'scraping_jobs',
+          filter: `id=eq.${id}`
+        },
+        (payload) => {
+          setJob({
+            ...payload.new,
+            results: Array.isArray(payload.new.results) ? payload.new.results : []
+          } as Job);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   const fetchJobResults = async () => {
