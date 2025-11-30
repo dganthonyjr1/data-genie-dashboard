@@ -14,7 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      scraping_jobs: {
+        Row: {
+          ai_instructions: string | null
+          created_at: string
+          id: string
+          scrape_type: string
+          status: string
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          ai_instructions?: string | null
+          created_at?: string
+          id?: string
+          scrape_type: string
+          status?: string
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          ai_instructions?: string | null
+          created_at?: string
+          id?: string
+          scrape_type?: string
+          status?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
