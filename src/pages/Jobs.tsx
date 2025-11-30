@@ -34,7 +34,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter, Search } from "lucide-react";
+import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter, Search, Download, FileJson, FileSpreadsheet } from "lucide-react";
 
 interface Job {
   id: string;
@@ -341,6 +341,70 @@ const Jobs = () => {
     }
   };
 
+  const convertToCSV = (jobsData: Job[]) => {
+    const headers = ['ID', 'URL', 'Type', 'Status', 'Created At'];
+    const rows = jobsData.map(job => [
+      job.id,
+      job.url,
+      formatScrapeType(job.scrape_type),
+      job.status,
+      new Date(job.created_at).toISOString()
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    return csvContent;
+  };
+
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCSV = (jobIds?: string[]) => {
+    const jobsToExport = jobIds 
+      ? jobs.filter(job => jobIds.includes(job.id))
+      : jobs.filter(job => selectedJobs.has(job.id));
+    
+    if (jobsToExport.length === 0) return;
+    
+    const csv = convertToCSV(jobsToExport);
+    const timestamp = new Date().toISOString().split('T')[0];
+    downloadFile(csv, `jobs-export-${timestamp}.csv`, 'text/csv');
+    
+    toast({
+      title: "Export successful",
+      description: `Exported ${jobsToExport.length} job(s) to CSV`,
+    });
+  };
+
+  const handleExportJSON = (jobIds?: string[]) => {
+    const jobsToExport = jobIds 
+      ? jobs.filter(job => jobIds.includes(job.id))
+      : jobs.filter(job => selectedJobs.has(job.id));
+    
+    if (jobsToExport.length === 0) return;
+    
+    const json = JSON.stringify(jobsToExport, null, 2);
+    const timestamp = new Date().toISOString().split('T')[0];
+    downloadFile(json, `jobs-export-${timestamp}.json`, 'application/json');
+    
+    toast({
+      title: "Export successful",
+      description: `Exported ${jobsToExport.length} job(s) to JSON`,
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -541,17 +605,35 @@ const Jobs = () => {
                     {selectedJobs.size} job(s) selected
                   </span>
                 </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    setJobToDelete(null);
-                    setDeleteDialogOpen(true);
-                  }}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Selected
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportCSV()}
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Export CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportJSON()}
+                  >
+                    <FileJson className="mr-2 h-4 w-4" />
+                    Export JSON
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      setJobToDelete(null);
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Selected
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -605,6 +687,15 @@ const Jobs = () => {
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       View Results
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleExportCSV([job.id])}
+                      className="flex-1 sm:flex-none"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export
                     </Button>
                     {job.status === "failed" && (
                       <Button 
