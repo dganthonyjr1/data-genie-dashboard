@@ -19,7 +19,12 @@ export type Database = {
           ai_instructions: string | null
           created_at: string
           id: string
+          last_run_at: string | null
+          next_run_at: string | null
           results: Json | null
+          schedule_enabled: boolean | null
+          schedule_frequency: string | null
+          schedule_interval: number | null
           scrape_type: string
           status: string
           updated_at: string
@@ -30,7 +35,12 @@ export type Database = {
           ai_instructions?: string | null
           created_at?: string
           id?: string
+          last_run_at?: string | null
+          next_run_at?: string | null
           results?: Json | null
+          schedule_enabled?: boolean | null
+          schedule_frequency?: string | null
+          schedule_interval?: number | null
           scrape_type: string
           status?: string
           updated_at?: string
@@ -41,7 +51,12 @@ export type Database = {
           ai_instructions?: string | null
           created_at?: string
           id?: string
+          last_run_at?: string | null
+          next_run_at?: string | null
           results?: Json | null
+          schedule_enabled?: boolean | null
+          schedule_frequency?: string | null
+          schedule_interval?: number | null
           scrape_type?: string
           status?: string
           updated_at?: string
