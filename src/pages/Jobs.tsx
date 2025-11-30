@@ -17,7 +17,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter } from "lucide-react";
 
 interface Job {
   id: string;
@@ -33,6 +40,8 @@ const Jobs = () => {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -141,6 +150,14 @@ const Jobs = () => {
     }
   };
 
+  const filteredJobs = jobs.filter(job => {
+    const matchesStatus = statusFilter === "all" || job.status === statusFilter;
+    const matchesType = typeFilter === "all" || job.scrape_type === typeFilter;
+    return matchesStatus && matchesType;
+  });
+
+  const uniqueScrapeTypes = Array.from(new Set(jobs.map(job => job.scrape_type)));
+
   const handleRetryJob = async (jobId: string) => {
     try {
       // Update job status to pending
@@ -237,29 +254,79 @@ const Jobs = () => {
   return (
     <DashboardLayout>
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
-              Scraping Jobs
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Manage and monitor your web scraping tasks
-            </p>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
+                Scraping Jobs
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Manage and monitor your web scraping tasks
+              </p>
+            </div>
+            <Button
+              onClick={() => navigate("/new-job")}
+              className="bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 transition-opacity"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Job
+            </Button>
           </div>
-          <Button
-            onClick={() => navigate("/new-job")}
-            className="bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 transition-opacity"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New Job
-          </Button>
+
+          <div className="flex gap-4 items-center flex-wrap">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filters:</span>
+            </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px] bg-card/50 border-border/50">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border z-50">
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[180px] bg-card/50 border-border/50">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border z-50">
+                <SelectItem value="all">All Types</SelectItem>
+                {uniqueScrapeTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {formatScrapeType(type)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(statusFilter !== "all" || typeFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setTypeFilter("all");
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
         </div>
 
         {loading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading jobs...</p>
           </div>
-        ) : jobs.length === 0 ? (
+        ) : filteredJobs.length === 0 && jobs.length === 0 ? (
           <Card className="bg-card/50 border-border/50">
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground mb-4">No scraping jobs yet</p>
@@ -272,9 +339,25 @@ const Jobs = () => {
               </Button>
             </CardContent>
           </Card>
+        ) : filteredJobs.length === 0 ? (
+          <Card className="bg-card/50 border-border/50">
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground mb-4">No jobs match your filters</p>
+              <Button
+                onClick={() => {
+                  setStatusFilter("all");
+                  setTypeFilter("all");
+                }}
+                variant="outline"
+                className="border-pink-500/50 hover:bg-pink-500/10"
+              >
+                Clear Filters
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid gap-4">
-            {jobs.map((job) => (
+            {filteredJobs.map((job) => (
               <Card key={job.id} className="bg-card/50 border-border/50 hover:bg-card/70 transition-colors">
                 <CardHeader>
                   <div className="flex justify-between items-start">
