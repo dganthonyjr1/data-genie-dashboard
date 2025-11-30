@@ -13,6 +13,7 @@ import Jobs from "./pages/Jobs";
 import ScheduledJobs from "./pages/ScheduledJobs";
 import Results from "./pages/Results";
 import ResultsViewer from "./pages/ResultsViewer";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/scheduled-jobs" element={<ScheduledJobs />} />
           <Route path="/results" element={<Results />} />
           <Route path="/results/:id" element={<ResultsViewer />} />
+          <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
