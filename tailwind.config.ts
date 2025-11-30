@@ -62,6 +62,9 @@ export default {
         'gradient-primary': 'var(--gradient-primary)',
         'gradient-secondary': 'var(--gradient-secondary)',
       },
+      fontFamily: {
+        'orbitron': ['Orbitron', 'sans-serif'],
+      },
       boxShadow: {
         'glow': 'var(--shadow-glow)',
       },

@@ -117,7 +117,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </svg>
               </div>
             </div>
-            <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent drop-shadow-sm group-hover:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)] transition-all duration-300">
+            <span className="text-2xl font-black tracking-tight font-orbitron bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent drop-shadow-sm group-hover:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)] transition-all duration-300">
               ScrapeX
             </span>
           </div>
