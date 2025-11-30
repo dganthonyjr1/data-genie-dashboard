@@ -19,6 +19,7 @@ export type Database = {
           ai_instructions: string | null
           created_at: string
           id: string
+          results: Json | null
           scrape_type: string
           status: string
           updated_at: string
@@ -29,6 +30,7 @@ export type Database = {
           ai_instructions?: string | null
           created_at?: string
           id?: string
+          results?: Json | null
           scrape_type: string
           status?: string
           updated_at?: string
@@ -39,6 +41,7 @@ export type Database = {
           ai_instructions?: string | null
           created_at?: string
           id?: string
+          results?: Json | null
           scrape_type?: string
           status?: string
           updated_at?: string
