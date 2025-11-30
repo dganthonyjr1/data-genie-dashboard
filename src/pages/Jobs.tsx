@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus, ExternalLink } from "lucide-react";
+import { Plus, ExternalLink, Eye } from "lucide-react";
 
 interface Job {
   id: string;
@@ -135,6 +135,17 @@ const Jobs = () => {
                     </Badge>
                   </div>
                 </CardHeader>
+                <CardContent>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate(`/results/${job.id}`)}
+                    className="w-full sm:w-auto"
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Results
+                  </Button>
+                </CardContent>
               </Card>
             ))}
           </div>
