@@ -51,20 +51,34 @@ const NewJob = () => {
         return;
       }
 
-      const { error } = await supabase.from("scraping_jobs").insert({
+      const { data: jobData, error } = await supabase.from("scraping_jobs").insert({
         url: data.url,
         scrape_type: data.scrapeType,
         ai_instructions: data.aiInstructions || null,
         user_id: user.id,
         status: "pending",
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      toast({
-        title: "Job created successfully",
-        description: "Your scraping job has been queued",
+      // Trigger the scraping process
+      const { error: scrapeError } = await supabase.functions.invoke('process-scrape', {
+        body: { jobId: jobData.id }
       });
+
+      if (scrapeError) {
+        console.error('Error starting scrape:', scrapeError);
+        toast({
+          title: "Job created but scraping failed",
+          description: "The job was created but could not be processed",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Job created successfully",
+          description: "Your scraping job is being processed",
+        });
+      }
 
       navigate("/jobs");
     } catch (error) {
