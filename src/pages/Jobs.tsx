@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus, ExternalLink, Eye } from "lucide-react";
+import { Plus, ExternalLink, Eye, Loader2 } from "lucide-react";
 
 interface Job {
   id: string;
@@ -159,6 +159,9 @@ const Jobs = () => {
                       </CardDescription>
                     </div>
                     <Badge className={getStatusColor(job.status)}>
+                      {(job.status === "in_progress" || job.status === "pending") && (
+                        <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                      )}
                       {job.status}
                     </Badge>
                   </div>
