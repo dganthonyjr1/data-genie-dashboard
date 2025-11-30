@@ -9,6 +9,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import NewJob from "./pages/NewJob";
 import Jobs from "./pages/Jobs";
+import Results from "./pages/Results";
 import ResultsViewer from "./pages/ResultsViewer";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/new-job" element={<NewJob />} />
           <Route path="/jobs" element={<Jobs />} />
+          <Route path="/results" element={<Results />} />
           <Route path="/results/:id" element={<ResultsViewer />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
