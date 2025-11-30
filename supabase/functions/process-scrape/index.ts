@@ -96,6 +96,28 @@ serve(async (req) => {
         console.error('Failed to send notification email:', emailError);
       }
 
+      // Create in-app notification for failure
+      try {
+        const formatScrapeType = (type: string) => {
+          return type.split("_").map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(" ");
+        };
+
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: job.user_id,
+            job_id: jobId,
+            type: job.schedule_enabled ? 'scheduled_job_failed' : 'job_failed',
+            title: `Scraping Job Failed`,
+            message: `${formatScrapeType(job.scrape_type)} failed for ${job.url.substring(0, 50)}...`
+          });
+        console.log('In-app failure notification created');
+      } catch (notifError) {
+        console.error('Failed to create in-app notification:', notifError);
+      }
+
       return new Response(
         JSON.stringify({ error: 'Scraping failed', details: errorText }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -161,6 +183,28 @@ serve(async (req) => {
     } catch (emailError) {
       console.error('Failed to send notification email:', emailError);
       // Don't fail the job if email fails
+    }
+
+    // Create in-app notification
+    try {
+      const formatScrapeType = (type: string) => {
+        return type.split("_").map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(" ");
+      };
+
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: job.user_id,
+          job_id: jobId,
+          type: job.schedule_enabled ? 'scheduled_job_complete' : 'job_complete',
+          title: `Scraping Job Completed`,
+          message: `${formatScrapeType(job.scrape_type)} completed with ${results.length} results from ${job.url.substring(0, 50)}...`
+        });
+      console.log('In-app notification created');
+    } catch (notifError) {
+      console.error('Failed to create in-app notification:', notifError);
     }
 
     return new Response(
