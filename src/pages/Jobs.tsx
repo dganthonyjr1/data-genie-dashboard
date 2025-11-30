@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus, ExternalLink, Eye, Loader2, RefreshCw } from "lucide-react";
+import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle } from "lucide-react";
 
 interface Job {
   id: string;
@@ -163,6 +163,32 @@ const Jobs = () => {
     }
   };
 
+  const handleCancelJob = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from("scraping_jobs")
+        .update({ 
+          status: "failed",
+          results: [{ message: "Job cancelled by user" }]
+        })
+        .eq("id", jobId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Job cancelled",
+        description: "The scraping job has been stopped",
+      });
+    } catch (error) {
+      console.error("Error cancelling job:", error);
+      toast({
+        title: "Failed to cancel",
+        description: "Could not stop the scraping job",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -255,6 +281,17 @@ const Jobs = () => {
                       >
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Retry
+                      </Button>
+                    )}
+                    {(job.status === "in_progress" || job.status === "pending") && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleCancelJob(job.id)}
+                        className="flex-1 sm:flex-none border-red-500/50 hover:bg-red-500/10 text-red-400"
+                      >
+                        <StopCircle className="mr-2 h-4 w-4" />
+                        Cancel
                       </Button>
                     )}
                   </div>
