@@ -377,21 +377,47 @@ const Jobs = () => {
           <div className="flex gap-4 items-center flex-wrap">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filters:</span>
+              <span className="text-sm font-medium">Status:</span>
             </div>
             
-            <Select value={statusFilter} onValueChange={(value) => handleFilterChange('status', value)}>
-              <SelectTrigger className="w-[180px] bg-card/50 border-border/50">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border z-50">
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Button
+                variant={statusFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleFilterChange('status', 'all')}
+                className={statusFilter === "all" ? "bg-primary" : ""}
+              >
+                All
+              </Button>
+              <Button
+                variant={statusFilter === "pending" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleFilterChange('status', 'pending')}
+                className={statusFilter === "pending" ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+              >
+                Pending
+              </Button>
+              <Button
+                variant={statusFilter === "completed" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleFilterChange('status', 'completed')}
+                className={statusFilter === "completed" ? "bg-green-500 hover:bg-green-600" : ""}
+              >
+                Completed
+              </Button>
+              <Button
+                variant={statusFilter === "failed" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleFilterChange('status', 'failed')}
+                className={statusFilter === "failed" ? "bg-red-500 hover:bg-red-600" : ""}
+              >
+                Failed
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Type:</span>
+            </div>
 
             <Select value={typeFilter} onValueChange={(value) => handleFilterChange('type', value)}>
               <SelectTrigger className="w-[180px] bg-card/50 border-border/50">
