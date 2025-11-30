@@ -81,11 +81,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border bg-sidebar">
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-            <div className="relative w-10 h-10">
-              <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-lg rotate-45 opacity-20 blur-sm"></div>
+          <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6 group cursor-pointer">
+            <div className="relative w-10 h-10 transition-all duration-300 group-hover:scale-110">
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-lg rotate-45 opacity-20 blur-sm group-hover:opacity-40 group-hover:blur-md transition-all duration-300"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <svg viewBox="0 0 40 40" className="w-10 h-10" fill="none">
+                <svg viewBox="0 0 40 40" className="w-10 h-10 transition-all duration-300" fill="none">
                   {/* Outer frame */}
                   <path d="M8 4 L32 4 L36 8 L36 32 L32 36 L8 36 L4 32 L4 8 Z" 
                     stroke="url(#gradient1)" 
@@ -96,12 +96,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   <path d="M14 14 L26 26 M26 14 L14 26" 
                     stroke="url(#gradient2)" 
                     strokeWidth="3" 
-                    strokeLinecap="round"/>
+                    strokeLinecap="round"
+                    className="group-hover:drop-shadow-[0_0_8px_rgba(236,72,153,0.6)] transition-all duration-300"/>
                   {/* Corner accents */}
-                  <circle cx="8" cy="8" r="2" fill="url(#gradient1)"/>
-                  <circle cx="32" cy="8" r="2" fill="url(#gradient1)"/>
-                  <circle cx="32" cy="32" r="2" fill="url(#gradient1)"/>
-                  <circle cx="8" cy="32" r="2" fill="url(#gradient1)"/>
+                  <circle cx="8" cy="8" r="2" fill="url(#gradient1)" className="group-hover:drop-shadow-[0_0_4px_rgba(6,182,212,0.8)]"/>
+                  <circle cx="32" cy="8" r="2" fill="url(#gradient1)" className="group-hover:drop-shadow-[0_0_4px_rgba(6,182,212,0.8)]"/>
+                  <circle cx="32" cy="32" r="2" fill="url(#gradient1)" className="group-hover:drop-shadow-[0_0_4px_rgba(6,182,212,0.8)]"/>
+                  <circle cx="8" cy="32" r="2" fill="url(#gradient1)" className="group-hover:drop-shadow-[0_0_4px_rgba(6,182,212,0.8)]"/>
                   
                   <defs>
                     <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -116,7 +117,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </svg>
               </div>
             </div>
-            <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent drop-shadow-sm">
+            <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent drop-shadow-sm group-hover:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)] transition-all duration-300">
               ScrapeX
             </span>
           </div>
