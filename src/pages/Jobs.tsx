@@ -24,6 +24,34 @@ const Jobs = () => {
 
   useEffect(() => {
     fetchJobs();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('scraping_jobs_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'scraping_jobs'
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setJobs(prev => [payload.new as Job, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setJobs(prev => prev.map(job => 
+              job.id === payload.new.id ? payload.new as Job : job
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setJobs(prev => prev.filter(job => job.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchJobs = async () => {
