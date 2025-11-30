@@ -99,8 +99,8 @@ const Signup = () => {
         <CardHeader className="space-y-3">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-lg bg-gradient-primary" />
-            <CardTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              DataGeniePro
+            <CardTitle className="text-3xl font-bold font-orbitron bg-gradient-primary bg-clip-text text-transparent">
+              ScrapeX
             </CardTitle>
           </div>
           <CardDescription className="text-muted-foreground">

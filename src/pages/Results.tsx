@@ -474,7 +474,7 @@ export default function Results() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Results</h1>
+            <h1 className="text-3xl font-bold font-orbitron">Results</h1>
             <p className="text-muted-foreground mt-2">View and manage your scraping results</p>
           </div>
           <Button onClick={() => navigate("/new-job")}>

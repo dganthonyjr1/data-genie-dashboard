@@ -126,7 +126,7 @@ const NewJob = () => {
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="w-full max-w-2xl bg-card/80 backdrop-blur-sm border-border/50">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
+            <CardTitle className="text-3xl font-bold font-orbitron bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
               Add New Scraping Job
             </CardTitle>
             <CardDescription>
