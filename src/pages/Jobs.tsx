@@ -24,6 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter } from "lucide-react";
 
 interface Job {
@@ -42,6 +50,8 @@ const Jobs = () => {
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -157,6 +167,22 @@ const Jobs = () => {
   });
 
   const uniqueScrapeTypes = Array.from(new Set(jobs.map(job => job.scrape_type)));
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = (filterType: 'status' | 'type', value: string) => {
+    setCurrentPage(1);
+    if (filterType === 'status') {
+      setStatusFilter(value);
+    } else {
+      setTypeFilter(value);
+    }
+  };
 
   const handleRetryJob = async (jobId: string) => {
     try {
@@ -279,7 +305,7 @@ const Jobs = () => {
               <span className="text-sm font-medium">Filters:</span>
             </div>
             
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => handleFilterChange('status', value)}>
               <SelectTrigger className="w-[180px] bg-card/50 border-border/50">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -292,7 +318,7 @@ const Jobs = () => {
               </SelectContent>
             </Select>
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={typeFilter} onValueChange={(value) => handleFilterChange('type', value)}>
               <SelectTrigger className="w-[180px] bg-card/50 border-border/50">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
@@ -313,12 +339,31 @@ const Jobs = () => {
                 onClick={() => {
                   setStatusFilter("all");
                   setTypeFilter("all");
+                  setCurrentPage(1);
                 }}
                 className="text-muted-foreground hover:text-foreground"
               >
                 Clear Filters
               </Button>
             )}
+
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Items per page:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(Number(value));
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="w-[100px] bg-card/50 border-border/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border z-50">
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -356,8 +401,9 @@ const Jobs = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {filteredJobs.map((job) => (
+          <>
+            <div className="grid gap-4">
+              {paginatedJobs.map((job) => (
               <Card key={job.id} className="bg-card/50 border-border/50 hover:bg-card/70 transition-colors">
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -435,7 +481,58 @@ const Jobs = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1}-{Math.min(endIndex, filteredJobs.length)} of {filteredJobs.length} jobs
+                </div>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            onClick={() => setCurrentPage(pageNum)}
+                            isActive={currentPage === pageNum}
+                            className="cursor-pointer"
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
         )}
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
