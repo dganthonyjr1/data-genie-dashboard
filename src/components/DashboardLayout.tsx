@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { NotificationBell } from "./NotificationBell";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -133,6 +134,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main Content */}
       <main className="pl-64">
         <div className="container mx-auto p-8">
+          <div className="flex justify-end mb-4">
+            <NotificationBell />
+          </div>
           {children}
         </div>
       </main>
