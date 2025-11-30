@@ -36,6 +36,9 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { JobDetailsModal } from "@/components/JobDetailsModal";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { DateRange } from "react-day-picker";
+import { isWithinInterval } from "date-fns";
 
 interface Job {
   id: string;
@@ -63,6 +66,7 @@ export default function Results() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedJobForDetails, setSelectedJobForDetails] = useState<Job | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
     fetchJobs();
@@ -199,7 +203,14 @@ export default function Results() {
       job.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.scrape_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
       formatScrapeType(job.scrape_type).toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesType && matchesSearch;
+    
+    const matchesDateRange = !dateRange?.from || (
+      dateRange.to 
+        ? isWithinInterval(new Date(job.created_at), { start: dateRange.from, end: dateRange.to })
+        : new Date(job.created_at).toDateString() === dateRange.from.toDateString()
+    );
+    
+    return matchesStatus && matchesType && matchesSearch && matchesDateRange;
   });
 
   const uniqueScrapeTypes = Array.from(new Set(jobs.map(job => job.scrape_type)));
@@ -222,6 +233,11 @@ export default function Results() {
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
     setCurrentPage(1);
   };
 
@@ -537,13 +553,19 @@ export default function Results() {
             </SelectContent>
           </Select>
 
-          {(statusFilter !== "all" || typeFilter !== "all") && (
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={handleDateRangeChange}
+          />
+
+          {(statusFilter !== "all" || typeFilter !== "all" || dateRange) && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setStatusFilter("all");
                 setTypeFilter("all");
+                setDateRange(undefined);
                 setCurrentPage(1);
               }}
               className="text-muted-foreground hover:text-foreground"
@@ -605,11 +627,12 @@ export default function Results() {
                   Clear Search
                 </Button>
               )}
-              {(statusFilter !== "all" || typeFilter !== "all") && (
+              {(statusFilter !== "all" || typeFilter !== "all" || dateRange) && (
                 <Button
                   onClick={() => {
                     setStatusFilter("all");
                     setTypeFilter("all");
+                    setDateRange(undefined);
                   }}
                   variant="outline"
                 >
