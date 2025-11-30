@@ -79,6 +79,23 @@ serve(async (req) => {
         })
         .eq('id', jobId);
 
+      // Send failure notification email
+      try {
+        await supabase.functions.invoke('send-job-notification', {
+          body: {
+            userId: job.user_id,
+            jobId: jobId,
+            jobUrl: job.url,
+            scrapeType: job.scrape_type,
+            status: 'failed',
+            errorMessage: errorText,
+          }
+        });
+        console.log('Failure notification sent');
+      } catch (emailError) {
+        console.error('Failed to send notification email:', emailError);
+      }
+
       return new Response(
         JSON.stringify({ error: 'Scraping failed', details: errorText }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -126,6 +143,24 @@ serve(async (req) => {
     if (updateError) {
       console.error('Error updating job:', updateError);
       throw updateError;
+    }
+
+    // Send success notification email
+    try {
+      await supabase.functions.invoke('send-job-notification', {
+        body: {
+          userId: job.user_id,
+          jobId: jobId,
+          jobUrl: job.url,
+          scrapeType: job.scrape_type,
+          status: 'completed',
+          resultsCount: results.length,
+        }
+      });
+      console.log('Success notification sent');
+    } catch (emailError) {
+      console.error('Failed to send notification email:', emailError);
+      // Don't fail the job if email fails
     }
 
     return new Response(
