@@ -184,7 +184,7 @@ export default function ResultsViewer() {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Jobs
             </Button>
-            <h1 className="text-3xl font-bold">Results Viewer</h1>
+            <h1 className="text-3xl font-bold font-orbitron">Results Viewer</h1>
             <p className="text-muted-foreground mt-2">{job.url}</p>
           </div>
           {hasResults && (
