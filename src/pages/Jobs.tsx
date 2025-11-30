@@ -35,6 +35,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter, Search, Download, FileJson, FileSpreadsheet } from "lucide-react";
+import { JobDetailsModal } from "@/components/JobDetailsModal";
 
 interface Job {
   id: string;
@@ -42,6 +43,9 @@ interface Job {
   scrape_type: string;
   status: string;
   created_at: string;
+  updated_at: string;
+  results: any[];
+  ai_instructions: string | null;
 }
 
 const Jobs = () => {
@@ -56,6 +60,8 @@ const Jobs = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedJobForDetails, setSelectedJobForDetails] = useState<Job | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -114,7 +120,10 @@ const Jobs = () => {
 
       if (error) throw error;
 
-      setJobs(data || []);
+      setJobs(data.map(job => ({
+        ...job,
+        results: Array.isArray(job.results) ? job.results : []
+      })) || []);
     } catch (error) {
       console.error("Error fetching jobs:", error);
       toast({
@@ -405,6 +414,14 @@ const Jobs = () => {
     });
   };
 
+  const handleViewDetails = async (jobId: string) => {
+    const job = jobs.find(j => j.id === jobId);
+    if (job) {
+      setSelectedJobForDetails(job);
+      setDetailsModalOpen(true);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -639,13 +656,18 @@ const Jobs = () => {
 
             <div className="grid gap-4">
               {paginatedJobs.map((job) => (
-              <Card key={job.id} className="bg-card/50 border-border/50 hover:bg-card/70 transition-colors">
+              <Card 
+                key={job.id} 
+                className="bg-card/50 border-border/50 hover:bg-card/70 transition-colors cursor-pointer"
+                onClick={() => handleViewDetails(job.id)}
+              >
                 <CardHeader>
                   <div className="flex justify-between items-start gap-4">
                     <div className="flex items-start gap-3 flex-1">
                       <Checkbox
                         checked={selectedJobs.has(job.id)}
                         onCheckedChange={() => toggleJobSelection(job.id)}
+                        onClick={(e) => e.stopPropagation()}
                         className="mt-1"
                       />
                       <div className="flex-1">
@@ -682,7 +704,10 @@ const Jobs = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => navigate(`/results/${job.id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/results/${job.id}`);
+                      }}
                       className="flex-1 sm:flex-none"
                     >
                       <Eye className="mr-2 h-4 w-4" />
@@ -691,7 +716,10 @@ const Jobs = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleExportCSV([job.id])}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExportCSV([job.id]);
+                      }}
                       className="flex-1 sm:flex-none"
                     >
                       <Download className="mr-2 h-4 w-4" />
@@ -701,7 +729,10 @@ const Jobs = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleRetryJob(job.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRetryJob(job.id);
+                        }}
                         className="flex-1 sm:flex-none border-green-500/50 hover:bg-green-500/10 text-green-400"
                       >
                         <RefreshCw className="mr-2 h-4 w-4" />
@@ -712,7 +743,10 @@ const Jobs = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleCancelJob(job.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelJob(job.id);
+                        }}
                         className="flex-1 sm:flex-none border-red-500/50 hover:bg-red-500/10 text-red-400"
                       >
                         <StopCircle className="mr-2 h-4 w-4" />
@@ -722,7 +756,10 @@ const Jobs = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => openDeleteDialog(job.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDeleteDialog(job.id);
+                      }}
                       className="flex-1 sm:flex-none border-destructive/50 hover:bg-destructive/10 text-destructive"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
@@ -785,6 +822,12 @@ const Jobs = () => {
             )}
           </>
         )}
+
+        <JobDetailsModal
+          job={selectedJobForDetails}
+          open={detailsModalOpen}
+          onOpenChange={setDetailsModalOpen}
+        />
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>

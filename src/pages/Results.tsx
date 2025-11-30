@@ -35,6 +35,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { JobDetailsModal } from "@/components/JobDetailsModal";
 
 interface Job {
   id: string;
@@ -42,7 +43,9 @@ interface Job {
   scrape_type: string;
   status: string;
   created_at: string;
+  updated_at: string;
   results: any[];
+  ai_instructions: string | null;
 }
 
 export default function Results() {
@@ -58,6 +61,8 @@ export default function Results() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedJobForDetails, setSelectedJobForDetails] = useState<Job | null>(null);
 
   useEffect(() => {
     fetchJobs();
@@ -122,7 +127,7 @@ export default function Results() {
 
       const { data, error } = await supabase
         .from("scraping_jobs")
-        .select("id, url, scrape_type, status, created_at, results")
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -429,6 +434,14 @@ export default function Results() {
     });
   };
 
+  const handleViewDetails = async (jobId: string) => {
+    const job = jobs.find(j => j.id === jobId);
+    if (job) {
+      setSelectedJobForDetails(job);
+      setDetailsModalOpen(true);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -670,11 +683,16 @@ export default function Results() {
                 </TableHeader>
                 <TableBody>
                   {paginatedJobs.map((job) => (
-                  <TableRow key={job.id}>
+                  <TableRow 
+                    key={job.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleViewDetails(job.id)}
+                  >
                     <TableCell>
                       <Checkbox
                         checked={selectedJobs.has(job.id)}
                         onCheckedChange={() => toggleJobSelection(job.id)}
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </TableCell>
                     <TableCell className="font-medium max-w-xs truncate">
@@ -710,7 +728,10 @@ export default function Results() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/results/${job.id}`)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/results/${job.id}`);
+                          }}
                           disabled={job.results.length === 0 && job.status !== "failed"}
                         >
                           <Eye className="mr-2 h-4 w-4" />
@@ -719,7 +740,10 @@ export default function Results() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleExportCSV([job.id])}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExportCSV([job.id]);
+                          }}
                         >
                           <Download className="mr-2 h-4 w-4" />
                           Export
@@ -728,7 +752,10 @@ export default function Results() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleRetryJob(job.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetryJob(job.id);
+                            }}
                             className="text-green-400 hover:text-green-300 hover:bg-green-500/10"
                           >
                             <RefreshCw className="mr-2 h-4 w-4" />
@@ -739,7 +766,10 @@ export default function Results() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleCancelJob(job.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelJob(job.id);
+                            }}
                             className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                           >
                             <StopCircle className="mr-2 h-4 w-4" />
@@ -749,7 +779,10 @@ export default function Results() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => openDeleteDialog(job.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeleteDialog(job.id);
+                          }}
                           className="text-destructive hover:text-destructive/80 hover:bg-destructive/10"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -814,6 +847,12 @@ export default function Results() {
             )}
           </>
         )}
+
+        <JobDetailsModal
+          job={selectedJobForDetails}
+          open={detailsModalOpen}
+          onOpenChange={setDetailsModalOpen}
+        />
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
