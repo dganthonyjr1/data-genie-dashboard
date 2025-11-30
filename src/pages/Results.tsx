@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Eye, Plus, Loader2, Clock, RefreshCw, StopCircle, Trash2, Filter } from "lucide-react";
+import { Eye, Plus, Loader2, Clock, RefreshCw, StopCircle, Trash2, Filter, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -52,6 +53,7 @@ export default function Results() {
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -186,7 +188,11 @@ export default function Results() {
   const filteredJobs = jobs.filter(job => {
     const matchesStatus = statusFilter === "all" || job.status === statusFilter;
     const matchesType = typeFilter === "all" || job.scrape_type === typeFilter;
-    return matchesStatus && matchesType;
+    const matchesSearch = searchQuery === "" || 
+      job.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.scrape_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      formatScrapeType(job.scrape_type).toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesType && matchesSearch;
   });
 
   const uniqueScrapeTypes = Array.from(new Set(jobs.map(job => job.scrape_type)));
@@ -205,6 +211,11 @@ export default function Results() {
     } else {
       setTypeFilter(value);
     }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
   };
 
   const handleRetryJob = async (jobId: string) => {
@@ -325,6 +336,17 @@ export default function Results() {
           </Button>
         </div>
 
+        <div className="space-y-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by URL or type..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 bg-card/50 border-border/50"
+            />
+          </div>
+
         <div className="flex gap-4 items-center flex-wrap">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
@@ -374,6 +396,17 @@ export default function Results() {
             </Button>
           )}
 
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleSearchChange("")}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Clear Search
+            </Button>
+          )}
+
           <div className="ml-auto flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Items per page:</span>
             <Select value={itemsPerPage.toString()} onValueChange={(value) => {
@@ -392,6 +425,7 @@ export default function Results() {
             </Select>
           </div>
         </div>
+        </div>
 
         {filteredJobs.length === 0 && jobs.length === 0 ? (
           <div className="text-center py-12 border border-border rounded-lg">
@@ -403,16 +437,30 @@ export default function Results() {
           </div>
         ) : filteredJobs.length === 0 ? (
           <div className="text-center py-12 border border-border rounded-lg">
-            <p className="text-muted-foreground mb-4">No jobs match your filters</p>
-            <Button
-              onClick={() => {
-                setStatusFilter("all");
-                setTypeFilter("all");
-              }}
-              variant="outline"
-            >
-              Clear Filters
-            </Button>
+            <p className="text-muted-foreground mb-4">
+              {searchQuery ? "No jobs match your search" : "No jobs match your filters"}
+            </p>
+            <div className="flex gap-2 justify-center">
+              {searchQuery && (
+                <Button
+                  onClick={() => handleSearchChange("")}
+                  variant="outline"
+                >
+                  Clear Search
+                </Button>
+              )}
+              {(statusFilter !== "all" || typeFilter !== "all") && (
+                <Button
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setTypeFilter("all");
+                  }}
+                  variant="outline"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <>

@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
@@ -32,7 +33,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter } from "lucide-react";
+import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter, Search } from "lucide-react";
 
 interface Job {
   id: string;
@@ -50,6 +51,7 @@ const Jobs = () => {
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const { toast } = useToast();
@@ -163,7 +165,11 @@ const Jobs = () => {
   const filteredJobs = jobs.filter(job => {
     const matchesStatus = statusFilter === "all" || job.status === statusFilter;
     const matchesType = typeFilter === "all" || job.scrape_type === typeFilter;
-    return matchesStatus && matchesType;
+    const matchesSearch = searchQuery === "" || 
+      job.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.scrape_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      formatScrapeType(job.scrape_type).toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesType && matchesSearch;
   });
 
   const uniqueScrapeTypes = Array.from(new Set(jobs.map(job => job.scrape_type)));
@@ -182,6 +188,11 @@ const Jobs = () => {
     } else {
       setTypeFilter(value);
     }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
   };
 
   const handleRetryJob = async (jobId: string) => {
@@ -296,7 +307,18 @@ const Jobs = () => {
             >
               <Plus className="mr-2 h-4 w-4" />
               New Job
-            </Button>
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by URL or type..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 bg-card/50 border-border/50"
+            />
           </div>
 
           <div className="flex gap-4 items-center flex-wrap">
@@ -347,6 +369,17 @@ const Jobs = () => {
               </Button>
             )}
 
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSearchChange("")}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Clear Search
+              </Button>
+            )}
+
             <div className="ml-auto flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Items per page:</span>
               <Select value={itemsPerPage.toString()} onValueChange={(value) => {
@@ -362,9 +395,10 @@ const Jobs = () => {
                   <SelectItem value="50">50</SelectItem>
                   <SelectItem value="100">100</SelectItem>
                 </SelectContent>
-              </Select>
-            </div>
+            </Select>
           </div>
+        </div>
+        </div>
         </div>
 
         {loading ? (
@@ -387,17 +421,32 @@ const Jobs = () => {
         ) : filteredJobs.length === 0 ? (
           <Card className="bg-card/50 border-border/50">
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground mb-4">No jobs match your filters</p>
-              <Button
-                onClick={() => {
-                  setStatusFilter("all");
-                  setTypeFilter("all");
-                }}
-                variant="outline"
-                className="border-pink-500/50 hover:bg-pink-500/10"
-              >
-                Clear Filters
-              </Button>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery ? "No jobs match your search" : "No jobs match your filters"}
+              </p>
+              <div className="flex gap-2 justify-center">
+                {searchQuery && (
+                  <Button
+                    onClick={() => handleSearchChange("")}
+                    variant="outline"
+                    className="border-pink-500/50 hover:bg-pink-500/10"
+                  >
+                    Clear Search
+                  </Button>
+                )}
+                {(statusFilter !== "all" || typeFilter !== "all") && (
+                  <Button
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setTypeFilter("all");
+                    }}
+                    variant="outline"
+                    className="border-pink-500/50 hover:bg-pink-500/10"
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         ) : (
