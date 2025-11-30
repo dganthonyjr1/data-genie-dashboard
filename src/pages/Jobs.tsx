@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Plus, ExternalLink, Eye, Loader2 } from "lucide-react";
+import { Plus, ExternalLink, Eye, Loader2, RefreshCw } from "lucide-react";
 
 interface Job {
   id: string;
@@ -129,6 +129,40 @@ const Jobs = () => {
     }
   };
 
+  const handleRetryJob = async (jobId: string) => {
+    try {
+      // Update job status to pending
+      const { error: updateError } = await supabase
+        .from("scraping_jobs")
+        .update({ 
+          status: "pending",
+          results: []
+        })
+        .eq("id", jobId);
+
+      if (updateError) throw updateError;
+
+      // Trigger the edge function to process the job
+      const { error: invokeError } = await supabase.functions.invoke("process-scrape", {
+        body: { jobId }
+      });
+
+      if (invokeError) throw invokeError;
+
+      toast({
+        title: "Job retrying",
+        description: "The scraping job has been restarted",
+      });
+    } catch (error) {
+      console.error("Error retrying job:", error);
+      toast({
+        title: "Failed to retry",
+        description: "Could not restart the scraping job",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -202,15 +236,28 @@ const Jobs = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => navigate(`/results/${job.id}`)}
-                    className="w-full sm:w-auto"
-                  >
-                    <Eye className="mr-2 h-4 w-4" />
-                    View Results
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate(`/results/${job.id}`)}
+                      className="flex-1 sm:flex-none"
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Results
+                    </Button>
+                    {job.status === "failed" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleRetryJob(job.id)}
+                        className="flex-1 sm:flex-none border-green-500/50 hover:bg-green-500/10 text-green-400"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Retry
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}

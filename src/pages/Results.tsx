@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Eye, Plus, Loader2, Clock } from "lucide-react";
+import { Eye, Plus, Loader2, Clock, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
@@ -152,6 +152,40 @@ export default function Results() {
     }
   };
 
+  const handleRetryJob = async (jobId: string) => {
+    try {
+      // Update job status to pending
+      const { error: updateError } = await supabase
+        .from("scraping_jobs")
+        .update({ 
+          status: "pending",
+          results: []
+        })
+        .eq("id", jobId);
+
+      if (updateError) throw updateError;
+
+      // Trigger the edge function to process the job
+      const { error: invokeError } = await supabase.functions.invoke("process-scrape", {
+        body: { jobId }
+      });
+
+      if (invokeError) throw invokeError;
+
+      toast({
+        title: "Job retrying",
+        description: "The scraping job has been restarted",
+      });
+    } catch (error) {
+      console.error("Error retrying job:", error);
+      toast({
+        title: "Failed to retry",
+        description: "Could not restart the scraping job",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -230,15 +264,28 @@ export default function Results() {
                       {new Date(job.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/results/${job.id}`)}
-                        disabled={job.results.length === 0}
-                      >
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/results/${job.id}`)}
+                          disabled={job.results.length === 0 && job.status !== "failed"}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </Button>
+                        {job.status === "failed" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRetryJob(job.id)}
+                            className="text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Retry
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
