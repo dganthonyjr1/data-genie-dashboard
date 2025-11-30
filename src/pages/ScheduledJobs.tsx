@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Calendar, Clock, RefreshCw } from "lucide-react";
+import { Calendar, Clock, RefreshCw, Play, Zap, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 
@@ -20,13 +21,23 @@ interface ScheduledJob {
   last_run_at: string | null;
   status: string;
   created_at: string;
+  ai_instructions: string | null;
 }
 
 const ScheduledJobs = () => {
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Update current time every second for live countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     fetchScheduledJobs();
@@ -63,7 +74,7 @@ const ScheduledJobs = () => {
 
       const { data, error } = await supabase
         .from("scraping_jobs")
-        .select("id, url, scrape_type, schedule_enabled, schedule_frequency, schedule_interval, next_run_at, last_run_at, status, created_at")
+        .select("id, url, scrape_type, schedule_enabled, schedule_frequency, schedule_interval, next_run_at, last_run_at, status, created_at, ai_instructions")
         .eq("user_id", user.id)
         .not("schedule_frequency", "is", null)
         .order("next_run_at", { ascending: true, nullsFirst: false });
@@ -113,6 +124,50 @@ const ScheduledJobs = () => {
     }
   };
 
+  const handleRunNow = async (job: ScheduledJob) => {
+    try {
+      // Create a new job run immediately
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: newJob, error: createError } = await supabase
+        .from("scraping_jobs")
+        .insert({
+          user_id: user.id,
+          url: job.url,
+          scrape_type: job.scrape_type,
+          ai_instructions: job.ai_instructions || null,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      // Trigger the scraping function
+      const { error: invokeError } = await supabase.functions.invoke(
+        "process-scrape",
+        { body: { jobId: newJob.id } }
+      );
+
+      if (invokeError) throw invokeError;
+
+      toast({
+        title: "Job started",
+        description: "The scraping job has been queued for immediate execution",
+      });
+
+      navigate("/jobs");
+    } catch (error) {
+      console.error("Error running job:", error);
+      toast({
+        title: "Failed to start job",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatScrapeType = (type: string) => {
     return type.split("_").map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
@@ -144,14 +199,18 @@ const ScheduledJobs = () => {
     if (!nextRunAt) return "bg-muted text-muted-foreground";
     
     const nextRun = new Date(nextRunAt);
-    const now = new Date();
     
-    if (nextRun < now) {
+    if (nextRun < currentTime) {
       return "bg-orange-500/20 text-orange-400 border-orange-500/50";
     }
     
     return "bg-green-500/20 text-green-400 border-green-500/50";
   };
+
+  // Calculate dashboard statistics
+  const activeJobs = jobs.filter(j => j.schedule_enabled).length;
+  const nextJob = jobs.find(j => j.schedule_enabled && j.next_run_at && new Date(j.next_run_at) > currentTime);
+  const overdueJobs = jobs.filter(j => j.schedule_enabled && j.next_run_at && new Date(j.next_run_at) < currentTime).length;
 
   if (loading) {
     return (
@@ -173,6 +232,52 @@ const ScheduledJobs = () => {
           <p className="text-muted-foreground mt-2">
             Manage your automated scraping schedules
           </p>
+        </div>
+
+        {/* Real-time Dashboard Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+              <Zap className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeJobs}</div>
+              <p className="text-xs text-muted-foreground">
+                {jobs.length} total scheduled jobs
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Next Run</CardTitle>
+              <Clock className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {nextJob ? formatNextRun(nextJob.next_run_at) : "None"}
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {nextJob ? nextJob.url : "No upcoming jobs"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Status</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {overdueJobs > 0 ? overdueJobs : "✓"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {overdueJobs > 0 ? "Overdue jobs" : "All on schedule"}
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {jobs.length === 0 ? (
@@ -202,6 +307,15 @@ const ScheduledJobs = () => {
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRunNow(job)}
+                        className="gap-2"
+                      >
+                        <Play className="h-4 w-4" />
+                        Run Now
+                      </Button>
                       <Switch
                         checked={job.schedule_enabled}
                         onCheckedChange={() => handleToggleSchedule(job.id, job.schedule_enabled)}
