@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { JobScheduleConfig } from "@/components/JobScheduleConfig";
 
 const formSchema = z.object({
   url: z.string().url({ message: "Please enter a valid URL" }),
@@ -24,6 +25,9 @@ type FormData = z.infer<typeof formSchema>;
 
 const NewJob = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleFrequency, setScheduleFrequency] = useState("daily");
+  const [scheduleInterval, setScheduleInterval] = useState(1);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -51,17 +55,39 @@ const NewJob = () => {
         return;
       }
 
+      // Calculate next run time if scheduling is enabled
+      let nextRunAt = null;
+      if (scheduleEnabled) {
+        const now = new Date();
+        switch (scheduleFrequency) {
+          case "hourly":
+            now.setHours(now.getHours() + scheduleInterval);
+            break;
+          case "daily":
+            now.setDate(now.getDate() + scheduleInterval);
+            break;
+          case "weekly":
+            now.setDate(now.getDate() + (scheduleInterval * 7));
+            break;
+        }
+        nextRunAt = now.toISOString();
+      }
+
       const { data: jobData, error } = await supabase.from("scraping_jobs").insert({
         url: data.url,
         scrape_type: data.scrapeType,
         ai_instructions: data.aiInstructions || null,
         user_id: user.id,
         status: "pending",
+        schedule_enabled: scheduleEnabled,
+        schedule_frequency: scheduleEnabled ? scheduleFrequency : null,
+        schedule_interval: scheduleEnabled ? scheduleInterval : null,
+        next_run_at: nextRunAt,
       }).select().single();
 
       if (error) throw error;
 
-      // Trigger the scraping process
+      // Trigger the scraping process for immediate execution
       const { error: scrapeError } = await supabase.functions.invoke('process-scrape', {
         body: { jobId: jobData.id }
       });
@@ -76,7 +102,9 @@ const NewJob = () => {
       } else {
         toast({
           title: "Job created successfully",
-          description: "Your scraping job is being processed",
+          description: scheduleEnabled 
+            ? `Your scraping job is being processed and will run ${scheduleFrequency}`
+            : "Your scraping job is being processed",
         });
       }
 
@@ -170,6 +198,15 @@ const NewJob = () => {
                     )}
                   />
                 )}
+
+                <JobScheduleConfig
+                  scheduleEnabled={scheduleEnabled}
+                  scheduleFrequency={scheduleFrequency}
+                  scheduleInterval={scheduleInterval}
+                  onScheduleEnabledChange={setScheduleEnabled}
+                  onScheduleFrequencyChange={setScheduleFrequency}
+                  onScheduleIntervalChange={setScheduleInterval}
+                />
 
                 <Button
                   type="submit"
