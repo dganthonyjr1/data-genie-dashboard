@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Eye, Plus, Loader2, Clock, RefreshCw, StopCircle, Trash2 } from "lucide-react";
+import { Eye, Plus, Loader2, Clock, RefreshCw, StopCircle, Trash2, Filter } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Job {
   id: string;
@@ -35,6 +42,8 @@ export default function Results() {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchJobs();
@@ -164,6 +173,14 @@ export default function Results() {
     }
   };
 
+  const filteredJobs = jobs.filter(job => {
+    const matchesStatus = statusFilter === "all" || job.status === statusFilter;
+    const matchesType = typeFilter === "all" || job.scrape_type === typeFilter;
+    return matchesStatus && matchesType;
+  });
+
+  const uniqueScrapeTypes = Array.from(new Set(jobs.map(job => job.scrape_type)));
+
   const handleRetryJob = async (jobId: string) => {
     try {
       // Update job status to pending
@@ -282,12 +299,74 @@ export default function Results() {
           </Button>
         </div>
 
-        {jobs.length === 0 ? (
+        <div className="flex gap-4 items-center flex-wrap">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters:</span>
+          </div>
+          
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px] bg-card/50 border-border/50">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border z-50">
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[180px] bg-card/50 border-border/50">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border z-50">
+              <SelectItem value="all">All Types</SelectItem>
+              {uniqueScrapeTypes.map(type => (
+                <SelectItem key={type} value={type}>
+                  {formatScrapeType(type)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {(statusFilter !== "all" || typeFilter !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setStatusFilter("all");
+                setTypeFilter("all");
+              }}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
+        {filteredJobs.length === 0 && jobs.length === 0 ? (
           <div className="text-center py-12 border border-border rounded-lg">
             <p className="text-muted-foreground mb-4">No jobs found. Create your first scraping job to get started!</p>
             <Button onClick={() => navigate("/new-job")}>
               <Plus className="mr-2 h-4 w-4" />
               Create Job
+            </Button>
+          </div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="text-center py-12 border border-border rounded-lg">
+            <p className="text-muted-foreground mb-4">No jobs match your filters</p>
+            <Button
+              onClick={() => {
+                setStatusFilter("all");
+                setTypeFilter("all");
+              }}
+              variant="outline"
+            >
+              Clear Filters
             </Button>
           </div>
         ) : (
@@ -304,7 +383,7 @@ export default function Results() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {jobs.map((job) => (
+                {filteredJobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell className="font-medium max-w-xs truncate">
                       {job.url}
