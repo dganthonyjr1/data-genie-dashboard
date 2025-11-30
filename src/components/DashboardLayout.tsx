@@ -82,10 +82,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
-            <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
-              ScrapeX
-            </span>
-            <div className="relative w-8 h-8 ml-1">
+            <div className="relative w-8 h-8">
               <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-lg rotate-6 opacity-80"></div>
               <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-pink-500 rounded-lg -rotate-6 opacity-60"></div>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -94,6 +91,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </svg>
               </div>
             </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
+              ScrapeX
+            </span>
           </div>
 
           {/* Navigation */}
