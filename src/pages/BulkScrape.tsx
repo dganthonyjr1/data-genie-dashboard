@@ -32,6 +32,13 @@ interface JobResult {
   error?: string;
 }
 
+interface ValidationResult {
+  valid: string[];
+  invalid: Array<{ url: string; reason: string }>;
+  duplicates: Array<{ url: string; count: number }>;
+  totalUrls: number;
+}
+
 const BulkScrape = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -40,6 +47,8 @@ const BulkScrape = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -52,18 +61,100 @@ const BulkScrape = () => {
     },
   });
 
-  const parseUrls = (urlText: string): string[] => {
-    return urlText
-      .split('\n')
-      .map(url => url.trim())
-      .filter(url => {
-        try {
-          new URL(url);
-          return true;
-        } catch {
-          return false;
+  const validateUrls = (urlText: string): ValidationResult => {
+    const lines = urlText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    const urlMap = new Map<string, number>();
+    const valid: string[] = [];
+    const invalid: Array<{ url: string; reason: string }> = [];
+
+    lines.forEach(line => {
+      // Check if empty
+      if (!line) return;
+
+      // Check if it's a valid URL
+      try {
+        const urlObj = new URL(line);
+        
+        // Check protocol
+        if (!['http:', 'https:'].includes(urlObj.protocol)) {
+          invalid.push({ url: line, reason: 'Invalid protocol (must be http or https)' });
+          return;
         }
+
+        // Check if domain exists
+        if (!urlObj.hostname || urlObj.hostname.length === 0) {
+          invalid.push({ url: line, reason: 'Missing domain' });
+          return;
+        }
+
+        // Track for duplicates
+        const normalizedUrl = line.toLowerCase();
+        urlMap.set(normalizedUrl, (urlMap.get(normalizedUrl) || 0) + 1);
+        
+        // Add to valid if first occurrence
+        if (urlMap.get(normalizedUrl) === 1) {
+          valid.push(line);
+        }
+      } catch (error) {
+        invalid.push({ url: line, reason: 'Invalid URL format' });
+      }
+    });
+
+    // Find duplicates
+    const duplicates: Array<{ url: string; count: number }> = [];
+    urlMap.forEach((count, url) => {
+      if (count > 1) {
+        // Find original case URL
+        const originalUrl = valid.find(v => v.toLowerCase() === url) || url;
+        duplicates.push({ url: originalUrl, count });
+      }
+    });
+
+    return {
+      valid,
+      invalid,
+      duplicates,
+      totalUrls: lines.length
+    };
+  };
+
+  const handleValidateUrls = () => {
+    const urlText = form.getValues('urls');
+    
+    if (!urlText.trim()) {
+      toast({
+        title: "No URLs provided",
+        description: "Please enter or upload URLs first",
+        variant: "destructive",
       });
+      return;
+    }
+
+    const result = validateUrls(urlText);
+    setValidationResult(result);
+    setShowValidation(true);
+
+    if (result.valid.length === 0) {
+      toast({
+        title: "No valid URLs",
+        description: "All URLs are invalid. Please check and try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleProceedWithValid = () => {
+    if (!validationResult) return;
+
+    // Update form with only valid, deduplicated URLs
+    form.setValue('urls', validationResult.valid.join('\n'));
+    setShowValidation(false);
+
+    toast({
+      title: "URLs cleaned",
+      description: `Proceeding with ${validationResult.valid.length} valid URL(s)`,
+    });
   };
 
   const processFile = async (file: File) => {
@@ -217,7 +308,28 @@ const BulkScrape = () => {
   };
 
   const onSubmit = async (data: FormData) => {
-    const urls = parseUrls(data.urls);
+    // Validate URLs before processing
+    const validation = validateUrls(data.urls);
+    
+    if (validation.valid.length === 0) {
+      setValidationResult(validation);
+      setShowValidation(true);
+      toast({
+        title: "No valid URLs",
+        description: "Please fix the invalid URLs before proceeding",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show warning if there are issues
+    if (validation.invalid.length > 0 || validation.duplicates.length > 0) {
+      setValidationResult(validation);
+      setShowValidation(true);
+      return;
+    }
+
+    const urls = validation.valid;
     
     if (urls.length === 0) {
       toast({
@@ -629,23 +741,35 @@ const BulkScrape = () => {
                       />
                     )}
 
-                    <Button
-                      type="submit"
-                      disabled={isProcessing}
-                      className="w-full bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 transition-opacity"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing {completedCount}/{totalCount}
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Start Bulk Scrape
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleValidateUrls}
+                        disabled={isProcessing}
+                        className="flex-1"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Validate URLs
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={isProcessing}
+                        className="flex-1 bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 transition-opacity"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing {completedCount}/{totalCount}
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Start Bulk Scrape
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </form>
                 </Form>
               </CardContent>
@@ -653,12 +777,121 @@ const BulkScrape = () => {
 
             <Card className="bg-card/80 backdrop-blur-sm border-border/50">
               <CardHeader>
-                <CardTitle>Progress & Results</CardTitle>
+                <CardTitle>
+                  {showValidation ? 'URL Validation Report' : 'Progress & Results'}
+                </CardTitle>
                 <CardDescription>
-                  Monitor scraping progress and export results
+                  {showValidation 
+                    ? 'Review URL validation before processing'
+                    : 'Monitor scraping progress and export results'
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {showValidation && validationResult && (
+                  <div className="space-y-4">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <Card className="p-3 bg-blue-500/10 border-blue-500/20">
+                        <div className="text-xs text-muted-foreground">Total</div>
+                        <div className="text-2xl font-bold text-blue-400">
+                          {validationResult.totalUrls}
+                        </div>
+                      </Card>
+                      <Card className="p-3 bg-green-500/10 border-green-500/20">
+                        <div className="text-xs text-muted-foreground">Valid</div>
+                        <div className="text-2xl font-bold text-green-400">
+                          {validationResult.valid.length}
+                        </div>
+                      </Card>
+                      <Card className="p-3 bg-red-500/10 border-red-500/20">
+                        <div className="text-xs text-muted-foreground">Invalid</div>
+                        <div className="text-2xl font-bold text-red-400">
+                          {validationResult.invalid.length}
+                        </div>
+                      </Card>
+                    </div>
+
+                    {/* Duplicates Warning */}
+                    {validationResult.duplicates.length > 0 && (
+                      <Card className="p-4 bg-yellow-500/10 border-yellow-500/20">
+                        <div className="flex items-start gap-3">
+                          <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 shrink-0">
+                            {validationResult.duplicates.length}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-yellow-400 mb-2">
+                              Duplicate URLs Found
+                            </p>
+                            <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                              {validationResult.duplicates.map((dup, index) => (
+                                <div key={index} className="text-xs text-muted-foreground truncate">
+                                  {dup.url} <span className="text-yellow-400">(×{dup.count})</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+
+                    {/* Invalid URLs */}
+                    {validationResult.invalid.length > 0 && (
+                      <Card className="p-4 bg-red-500/10 border-red-500/20">
+                        <div className="flex items-start gap-3">
+                          <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/30 shrink-0">
+                            {validationResult.invalid.length}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-red-400 mb-2">
+                              Invalid URLs
+                            </p>
+                            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                              {validationResult.invalid.map((invalid, index) => (
+                                <div key={index} className="text-xs">
+                                  <p className="text-foreground truncate font-mono">{invalid.url}</p>
+                                  <p className="text-muted-foreground">{invalid.reason}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+
+                    {/* Action Buttons */}
+                    {validationResult.valid.length > 0 && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowValidation(false)}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleProceedWithValid}
+                          className="flex-1 bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90"
+                        >
+                          Proceed with {validationResult.valid.length} Valid URL(s)
+                        </Button>
+                      </div>
+                    )}
+
+                    {validationResult.valid.length === 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowValidation(false)}
+                        className="w-full"
+                      >
+                        Back to Edit
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {!showValidation && (
+                  <>
                 {isProcessing && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
@@ -745,6 +978,8 @@ const BulkScrape = () => {
                     <p>Submit URLs to start bulk scraping</p>
                   </div>
                 )}
+                </>
+              )}
               </CardContent>
             </Card>
           </div>
