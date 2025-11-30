@@ -2,3 +2,6 @@ project_id = "xqxggeceacpkpgvbsspw"
 
 [functions.process-scrape]
 verify_jwt = true
+
+[functions.send-job-notification]
+verify_jwt = true
