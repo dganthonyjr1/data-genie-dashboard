@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.send-job-notification]
 verify_jwt = true
+
+[functions.process-scheduled-jobs]
+verify_jwt = true
+
+[functions.preview-url]
+verify_jwt = false

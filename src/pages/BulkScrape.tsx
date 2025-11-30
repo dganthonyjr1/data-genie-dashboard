@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
-import { Download, FileJson, FileSpreadsheet, Loader2, Upload, FileText, X } from "lucide-react";
+import { Download, FileJson, FileSpreadsheet, Loader2, Upload, FileText, X, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { UrlPreviewModal } from "@/components/UrlPreviewModal";
 
 const formSchema = z.object({
   urls: z.string().min(1, "Please enter at least one URL"),
@@ -49,6 +50,8 @@ const BulkScrape = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [showValidation, setShowValidation] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -963,11 +966,63 @@ const BulkScrape = () => {
                             </p>
                             <div className="space-y-2 max-h-[200px] overflow-y-auto">
                               {validationResult.invalid.map((invalid, index) => (
-                                <div key={index} className="text-xs">
-                                  <p className="text-foreground truncate font-mono">{invalid.url}</p>
+                                <div key={index} className="text-xs space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-foreground truncate font-mono flex-1">{invalid.url}</p>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setPreviewUrl(invalid.url);
+                                        setShowPreview(true);
+                                      }}
+                                      className="h-6 px-2 shrink-0"
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                   <p className="text-muted-foreground">{invalid.reason}</p>
                                 </div>
                               ))}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+
+                    {/* Valid URLs with Preview */}
+                    {validationResult.valid.length > 0 && (
+                      <Card className="p-4 bg-green-500/10 border-green-500/20">
+                        <div className="flex items-start gap-3">
+                          <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30 shrink-0">
+                            {validationResult.valid.length}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-green-400 mb-2">
+                              Valid URLs (Ready to Scrape)
+                            </p>
+                            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                              {validationResult.valid.slice(0, 10).map((url, index) => (
+                                <div key={index} className="flex items-center justify-between gap-2 text-xs">
+                                  <p className="text-muted-foreground truncate flex-1 font-mono">{url}</p>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setPreviewUrl(url);
+                                      setShowPreview(true);
+                                    }}
+                                    className="h-6 px-2 shrink-0"
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                              {validationResult.valid.length > 10 && (
+                                <p className="text-xs text-muted-foreground italic">
+                                  + {validationResult.valid.length - 10} more URLs
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1099,6 +1154,12 @@ const BulkScrape = () => {
             </Card>
           </div>
         </div>
+
+        <UrlPreviewModal
+          url={previewUrl}
+          open={showPreview}
+          onOpenChange={setShowPreview}
+        />
       </div>
     </DashboardLayout>
   );
