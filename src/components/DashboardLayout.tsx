@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles } from "lucide-react";
+import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Jobs", href: "/jobs", icon: Database },
+    { name: "Scheduled Jobs", href: "/scheduled-jobs", icon: CalendarClock },
     { name: "Results", href: "/results", icon: FileText },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
