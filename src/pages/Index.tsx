@@ -5,7 +5,7 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    navigate("/new-job");
+    navigate("/source-code");
   }, [navigate]);
 
   return null;

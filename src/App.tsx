@@ -15,6 +15,7 @@ import Results from "./pages/Results";
 import ResultsViewer from "./pages/ResultsViewer";
 import Settings from "./pages/Settings";
 import BulkScrape from "./pages/BulkScrape";
+import SourceCode from "./pages/SourceCode";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/results/:id" element={<ResultsViewer />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/bulk-scrape" element={<BulkScrape />} />
+          <Route path="/source-code" element={<SourceCode />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
