@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2, Pencil } from "lucide-react";
+import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2, Pencil, CopyPlus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -341,6 +341,35 @@ export default function ResultsViewer() {
     toast({
       title: "Rows deleted!",
       description: `${indicesToDelete.length} row(s) deleted successfully`,
+    });
+  };
+
+  const handleDuplicateRows = async () => {
+    if (!job || selectedRows.size === 0) return;
+
+    const indicesToDuplicate = Array.from(selectedRows).sort((a, b) => a - b);
+    const duplicatedRows = indicesToDuplicate.map(index => ({ ...job.results[index] }));
+    const updatedResults = [...job.results, ...duplicatedRows];
+    
+    const { error } = await supabase
+      .from("scraping_jobs")
+      .update({ results: updatedResults })
+      .eq("id", job.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to duplicate rows",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setJob({ ...job, results: updatedResults });
+    setSelectedRows(new Set());
+    toast({
+      title: "Rows duplicated!",
+      description: `${duplicatedRows.length} row(s) duplicated and added to the end`,
     });
   };
 
@@ -742,14 +771,24 @@ export default function ResultsViewer() {
             )}
           </div>
           {selectedRows.size > 0 && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete {selectedRows.size} row{selectedRows.size !== 1 ? 's' : ''}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDuplicateRows}
+              >
+                <CopyPlus className="mr-2 h-4 w-4" />
+                Duplicate {selectedRows.size}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete {selectedRows.size}
+              </Button>
+            </div>
           )}
         </div>
 
