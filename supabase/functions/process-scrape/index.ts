@@ -60,6 +60,7 @@ serve(async (req) => {
     }
 
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+    const SERPAPI_API_KEY = Deno.env.get('SERPAPI_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -92,7 +93,119 @@ serve(async (req) => {
 
     console.log(`Processing job ${jobId} for URL: ${job.url}, Country: ${job.target_country || 'any'}, State: ${job.target_state || 'any'}`);
 
-    // Handle bulk business search differently
+    // Handle Google Business Profiles scraping with SerpAPI
+    if (job.scrape_type === 'google_business_profiles') {
+      if (!SERPAPI_API_KEY) {
+        throw new Error('SERPAPI_API_KEY not configured');
+      }
+
+      console.log(`Starting Google Business Profile search for: ${job.url} with limit: ${job.search_limit || 20}`);
+      
+      // Build location string for SerpAPI
+      let locationStr = '';
+      if (job.target_state && job.target_country === 'US') {
+        locationStr = `${job.target_state}, United States`;
+      } else if (job.target_country) {
+        const countryNames: Record<string, string> = {
+          'US': 'United States', 'GB': 'United Kingdom', 'CA': 'Canada', 
+          'AU': 'Australia', 'DE': 'Germany', 'FR': 'France'
+        };
+        locationStr = countryNames[job.target_country] || job.target_country;
+      }
+
+      // Use SerpAPI Google Maps API
+      const searchParams = new URLSearchParams({
+        engine: 'google_maps',
+        q: job.url, // Search query (e.g., "plumbers in Newark NJ")
+        api_key: SERPAPI_API_KEY,
+        type: 'search',
+      });
+      
+      if (locationStr) {
+        searchParams.append('ll', '@40.7128,-74.0060,15.1z'); // Default to NYC area, will be overridden by location
+        // SerpAPI uses location parameter for text-based location
+      }
+
+      const serpApiUrl = `https://serpapi.com/search.json?${searchParams.toString()}`;
+      console.log('Calling SerpAPI Google Maps:', serpApiUrl.replace(SERPAPI_API_KEY, 'REDACTED'));
+
+      const serpResponse = await fetch(serpApiUrl);
+      
+      if (!serpResponse.ok) {
+        const errorText = await serpResponse.text();
+        console.error('SerpAPI error:', errorText);
+        
+        await supabase
+          .from('scraping_jobs')
+          .update({ 
+            status: 'failed',
+            results: [{ error: 'Google Maps search failed', details: errorText }]
+          })
+          .eq('id', jobId);
+
+        await sendNotifications(supabase, job, jobId, 'failed', 0, errorText);
+
+        return new Response(
+          JSON.stringify({ error: 'Google Maps search failed', details: errorText }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const serpData = await serpResponse.json();
+      console.log(`SerpAPI returned ${serpData.local_results?.length || 0} local results`);
+
+      // Extract business data from SerpAPI results
+      const businessResults: any[] = [];
+      const localResults = serpData.local_results || [];
+      const limit = job.search_limit || 20;
+
+      for (let i = 0; i < Math.min(localResults.length, limit); i++) {
+        const result = localResults[i];
+        try {
+          businessResults.push({
+            business_name: result.title || '',
+            full_address: result.address || '',
+            phone_number: result.phone || '',
+            website_url: result.website || '',
+            rating: result.rating || null,
+            reviews_count: result.reviews || null,
+            type: result.type || '',
+            place_id: result.place_id || '',
+            gps_coordinates: result.gps_coordinates || null,
+            hours: result.hours || result.operating_hours || null,
+            thumbnail: result.thumbnail || '',
+            source: 'google_maps',
+            source_url: result.link || '',
+          });
+        } catch (e) {
+          console.error(`Error extracting from result ${i}:`, e);
+        }
+      }
+
+      console.log(`Extracted ${businessResults.length} businesses from Google Maps`);
+
+      // Save results
+      const { error: updateError } = await supabase
+        .from('scraping_jobs')
+        .update({ 
+          status: 'completed',
+          results: businessResults
+        })
+        .eq('id', jobId);
+
+      if (updateError) {
+        console.error('Error updating job:', updateError);
+      }
+
+      await sendNotifications(supabase, job, jobId, 'completed', businessResults.length);
+
+      return new Response(
+        JSON.stringify({ success: true, results: businessResults }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Handle bulk business search with Firecrawl
     if (job.scrape_type === 'bulk_business_search') {
       console.log(`Starting bulk business search for: ${job.url} with limit: ${job.search_limit || 20}`);
       

@@ -68,7 +68,7 @@ const formSchema = z.object({
       }
       return val;
     }),
-  scrapeType: z.enum(["complete_business_data", "bulk_business_search", "emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
+  scrapeType: z.enum(["complete_business_data", "bulk_business_search", "google_business_profiles", "emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
   aiInstructions: z.string().optional(),
   targetCountry: z.string().optional(),
   targetState: z.string().optional(),
@@ -98,7 +98,7 @@ const NewJob = () => {
   });
 
   const selectedScrapeType = form.watch("scrapeType");
-  const isBulkSearch = selectedScrapeType === "bulk_business_search";
+  const isBulkSearch = selectedScrapeType === "bulk_business_search" || selectedScrapeType === "google_business_profiles";
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -235,6 +235,12 @@ const NewJob = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="bg-popover z-50">
+                          <SelectItem value="google_business_profiles">
+                            <span className="flex items-center gap-2">
+                              <span className="text-xs bg-gradient-to-r from-green-500 to-blue-500 text-white px-1.5 py-0.5 rounded">NEW</span>
+                              Google Business Profiles
+                            </span>
+                          </SelectItem>
                           <SelectItem value="bulk_business_search">
                             <span className="flex items-center gap-2">
                               <span className="text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-1.5 py-0.5 rounded">HOT</span>
@@ -283,7 +289,9 @@ const NewJob = () => {
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
-                          More results = longer processing time
+                          {selectedScrapeType === "google_business_profiles" 
+                            ? "Scrapes Google Maps business profiles directly"
+                            : "More results = longer processing time"}
                         </p>
                         <FormMessage />
                       </FormItem>
