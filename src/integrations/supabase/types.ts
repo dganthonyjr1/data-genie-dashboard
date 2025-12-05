@@ -68,6 +68,8 @@ export type Database = {
           schedule_interval: number | null
           scrape_type: string
           status: string
+          target_country: string | null
+          target_state: string | null
           updated_at: string
           url: string
           user_id: string
@@ -84,6 +86,8 @@ export type Database = {
           schedule_interval?: number | null
           scrape_type: string
           status?: string
+          target_country?: string | null
+          target_state?: string | null
           updated_at?: string
           url: string
           user_id: string
@@ -100,6 +104,8 @@ export type Database = {
           schedule_interval?: number | null
           scrape_type?: string
           status?: string
+          target_country?: string | null
+          target_state?: string | null
           updated_at?: string
           url?: string
           user_id?: string

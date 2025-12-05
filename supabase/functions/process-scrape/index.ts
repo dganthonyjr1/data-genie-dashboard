@@ -6,6 +6,44 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to get languages for geo-targeting
+function getLanguagesForCountry(countryCode: string): string[] {
+  const languageMap: Record<string, string[]> = {
+    'US': ['en'],
+    'GB': ['en'],
+    'CA': ['en', 'fr'],
+    'AU': ['en'],
+    'DE': ['de'],
+    'FR': ['fr'],
+    'ES': ['es'],
+    'IT': ['it'],
+    'NL': ['nl'],
+    'BR': ['pt'],
+    'MX': ['es'],
+    'IN': ['en', 'hi'],
+    'JP': ['ja'],
+    'ZA': ['en'],
+    'NG': ['en'],
+    'KE': ['en'],
+  };
+  return languageMap[countryCode] || ['en'];
+}
+
+// Phone validation patterns by country
+function getPhoneValidationForCountry(countryCode: string): { minDigits: number; maxDigits: number; patterns: RegExp[] } {
+  const validationMap: Record<string, { minDigits: number; maxDigits: number; patterns: RegExp[] }> = {
+    'US': { minDigits: 10, maxDigits: 11, patterns: [/^1?\d{10}$/] },
+    'GB': { minDigits: 10, maxDigits: 11, patterns: [/^0?\d{10}$/, /^44\d{10}$/] },
+    'CA': { minDigits: 10, maxDigits: 11, patterns: [/^1?\d{10}$/] },
+    'AU': { minDigits: 9, maxDigits: 11, patterns: [/^0?\d{9}$/, /^61\d{9}$/] },
+    'DE': { minDigits: 10, maxDigits: 12, patterns: [/^0?\d{10,11}$/, /^49\d{10,11}$/] },
+    'FR': { minDigits: 10, maxDigits: 11, patterns: [/^0?\d{9}$/, /^33\d{9}$/] },
+    'ZA': { minDigits: 9, maxDigits: 11, patterns: [/^0?\d{9}$/, /^27\d{9}$/] },
+    'NG': { minDigits: 10, maxDigits: 13, patterns: [/^0?\d{10}$/, /^234\d{10}$/] },
+  };
+  return validationMap[countryCode] || { minDigits: 10, maxDigits: 15, patterns: [] };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -52,7 +90,22 @@ serve(async (req) => {
       .update({ status: 'processing' })
       .eq('id', jobId);
 
-    console.log(`Processing job ${jobId} for URL: ${job.url}`);
+    console.log(`Processing job ${jobId} for URL: ${job.url}, Country: ${job.target_country || 'any'}, State: ${job.target_state || 'any'}`);
+
+    // Build Firecrawl request with optional geo-targeting
+    const firecrawlBody: any = {
+      url: job.url,
+      formats: ['markdown', 'html'],
+    };
+    
+    // Add location for geo-targeted scraping if specified
+    if (job.target_country) {
+      firecrawlBody.location = {
+        country: job.target_country,
+        languages: getLanguagesForCountry(job.target_country),
+      };
+      console.log(`Using geo-targeting for country: ${job.target_country}`);
+    }
 
     // Scrape the website using Firecrawl
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -61,10 +114,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        url: job.url,
-        formats: ['markdown', 'html'],
-      }),
+      body: JSON.stringify(firecrawlBody),
     });
 
     if (!scrapeResponse.ok) {
