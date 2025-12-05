@@ -17,7 +17,7 @@ import { JobScheduleConfig } from "@/components/JobScheduleConfig";
 
 const formSchema = z.object({
   url: z.string().url({ message: "Please enter a valid URL" }),
-  scrapeType: z.enum(["emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
+  scrapeType: z.enum(["complete_business_data", "emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
   aiInstructions: z.string().optional(),
 });
 
@@ -35,7 +35,7 @@ const NewJob = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       url: "",
-      scrapeType: "emails",
+      scrapeType: "complete_business_data",
       aiInstructions: "",
     },
   });
@@ -167,6 +167,12 @@ const NewJob = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="bg-popover z-50">
+                          <SelectItem value="complete_business_data">
+                            <span className="flex items-center gap-2">
+                              <span className="text-xs bg-gradient-to-r from-pink-500 to-cyan-500 text-white px-1.5 py-0.5 rounded">NEW</span>
+                              Complete Business Data
+                            </span>
+                          </SelectItem>
                           <SelectItem value="emails">Email Addresses</SelectItem>
                           <SelectItem value="phone_numbers">Phone Numbers</SelectItem>
                           <SelectItem value="text_content">Text Content</SelectItem>
