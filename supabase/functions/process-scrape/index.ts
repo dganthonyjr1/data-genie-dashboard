@@ -256,6 +256,15 @@ function extractTables(html: string): any[] {
   });
 }
 
+// Clean URL by removing trailing punctuation and markdown artifacts
+function cleanUrl(url: string): string {
+  return url
+    .replace(/['"<>]/g, '')
+    .replace(/[\)\]\}]+$/, '') // Remove trailing ), ], }
+    .replace(/[,;.!?]+$/, '') // Remove trailing punctuation
+    .trim();
+}
+
 // Extract social media links from content
 function extractSocialLinks(content: string, html: string): Record<string, string> {
   const socialPatterns = {
@@ -274,8 +283,7 @@ function extractSocialLinks(content: string, html: string): Record<string, strin
   for (const [platform, regex] of Object.entries(socialPatterns)) {
     const matches = combinedContent.match(regex);
     if (matches && matches.length > 0) {
-      // Clean and deduplicate, take the first valid one
-      const cleanedUrl = matches[0].replace(/['"<>]/g, '').trim();
+      const cleanedUrl = cleanUrl(matches[0]);
       socialLinks[platform] = cleanedUrl.startsWith('http') ? cleanedUrl : `https://${cleanedUrl}`;
     }
   }
@@ -350,21 +358,38 @@ function extractWebsites(content: string, sourceUrl: string): string[] {
   const urlRegex = /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
   const matches = content.match(urlRegex) || [];
   
-  // Filter out social media and common non-business URLs
+  // Filter out social media, images, and common non-business URLs
   const socialDomains = ['facebook.com', 'instagram.com', 'twitter.com', 'linkedin.com', 'youtube.com', 'tiktok.com', 'pinterest.com', 'x.com'];
-  const sourceDomain = new URL(sourceUrl).hostname;
+  const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp'];
+  const cdnDomains = ['ctfassets.net', 'cloudinary.com', 'imgix.net', 'imgur.com', 'unsplash.com'];
   
-  const websites = matches.filter(url => {
-    try {
-      const hostname = new URL(url).hostname;
-      // Include the source domain and exclude social media
-      return !socialDomains.some(social => hostname.includes(social));
-    } catch {
-      return false;
-    }
-  });
+  const websites = matches
+    .map(url => cleanUrl(url))
+    .filter(url => {
+      try {
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname;
+        const pathname = parsedUrl.pathname.toLowerCase();
+        
+        // Exclude social media
+        if (socialDomains.some(social => hostname.includes(social))) return false;
+        
+        // Exclude image URLs
+        if (imageExtensions.some(ext => pathname.endsWith(ext))) return false;
+        
+        // Exclude CDN domains (typically images/assets)
+        if (cdnDomains.some(cdn => hostname.includes(cdn))) return false;
+        
+        // Exclude URLs that are just anchors on the same page
+        if (url.includes('#') && !url.includes('?')) return false;
+        
+        return true;
+      } catch {
+        return false;
+      }
+    });
 
-  return [...new Set(websites)].slice(0, 10); // Limit to 10 unique websites
+  return [...new Set(websites)].slice(0, 10);
 }
 
 // Complete Business Data extraction - runs ALL extractors
