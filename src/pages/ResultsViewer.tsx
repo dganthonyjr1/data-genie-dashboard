@@ -26,6 +26,16 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ManualDataEntryModal from "@/components/ManualDataEntryModal";
 import ClipboardImportModal from "@/components/ClipboardImportModal";
 import * as XLSX from "xlsx";
@@ -48,6 +58,7 @@ export default function ResultsViewer() {
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [clipboardImportOpen, setClipboardImportOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchJobResults();
@@ -324,6 +335,7 @@ export default function ResultsViewer() {
 
     setJob({ ...job, results: updatedResults });
     setSelectedRows(new Set());
+    setDeleteDialogOpen(false);
     toast({
       title: "Rows deleted!",
       description: `${indicesToDelete.length} row(s) deleted successfully`,
@@ -672,13 +684,34 @@ export default function ResultsViewer() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleBulkDelete}
+              onClick={() => setDeleteDialogOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete {selectedRows.size} row{selectedRows.size !== 1 ? 's' : ''}
             </Button>
           )}
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selectedRows.size} row{selectedRows.size !== 1 ? 's' : ''}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. The selected data will be permanently removed from this job's results.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {filteredResults.length === 0 ? (
           <div className="text-center py-12 border border-border rounded-lg">
