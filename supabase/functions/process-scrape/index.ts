@@ -92,7 +92,102 @@ serve(async (req) => {
 
     console.log(`Processing job ${jobId} for URL: ${job.url}, Country: ${job.target_country || 'any'}, State: ${job.target_state || 'any'}`);
 
-    // Build Firecrawl request with optional geo-targeting
+    // Handle bulk business search differently
+    if (job.scrape_type === 'bulk_business_search') {
+      console.log(`Starting bulk business search for: ${job.url} with limit: ${job.search_limit || 20}`);
+      
+      // Use Firecrawl search API
+      const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: job.url, // In bulk search, url field contains the search query
+          limit: job.search_limit || 20,
+          lang: job.target_country ? getLanguagesForCountry(job.target_country)[0] : 'en',
+          country: job.target_country || 'US',
+          scrapeOptions: {
+            formats: ['markdown', 'html'],
+          },
+        }),
+      });
+
+      if (!searchResponse.ok) {
+        const errorText = await searchResponse.text();
+        console.error('Firecrawl search error:', errorText);
+        
+        await supabase
+          .from('scraping_jobs')
+          .update({ 
+            status: 'failed',
+            results: [{ error: 'Search failed', details: errorText }]
+          })
+          .eq('id', jobId);
+
+        await sendNotifications(supabase, job, jobId, 'failed', 0, errorText);
+
+        return new Response(
+          JSON.stringify({ error: 'Search failed', details: errorText }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const searchData = await searchResponse.json();
+      console.log(`Search returned ${searchData.data?.length || 0} results`);
+
+      // Extract business data from each search result
+      const businessResults: any[] = [];
+      const searchResults = searchData.data || [];
+
+      for (const result of searchResults) {
+        try {
+          const markdown = result.markdown || '';
+          const html = result.html || '';
+          const sourceUrl = result.url || '';
+
+          // Extract basic info from search result
+          const businessData = await extractCompleteBusinessData(markdown, html, sourceUrl);
+          
+          if (businessData.length > 0) {
+            const data = businessData[0];
+            businessResults.push({
+              ...data,
+              search_result_title: result.title || '',
+              search_result_description: result.description || '',
+              source_url: sourceUrl,
+            });
+          }
+        } catch (e) {
+          console.error(`Error extracting from ${result.url}:`, e);
+        }
+      }
+
+      console.log(`Extracted business data from ${businessResults.length} results`);
+
+      // Save results
+      const { error: updateError } = await supabase
+        .from('scraping_jobs')
+        .update({ 
+          status: 'completed',
+          results: businessResults
+        })
+        .eq('id', jobId);
+
+      if (updateError) {
+        console.error('Error updating job:', updateError);
+      }
+
+      await sendNotifications(supabase, job, jobId, 'completed', businessResults.length);
+
+      return new Response(
+        JSON.stringify({ success: true, results: businessResults }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Build Firecrawl request with optional geo-targeting (for non-bulk scrapes)
     const firecrawlBody: any = {
       url: job.url,
       formats: ['markdown', 'html'],
