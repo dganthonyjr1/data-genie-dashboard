@@ -60,26 +60,19 @@ const US_STATES = [
 
 const formSchema = z.object({
   url: z.string()
-    .min(1, { message: "Please enter a URL" })
+    .min(1, { message: "Please enter a URL or search query" })
     .transform((val) => {
-      // Auto-add https:// if no protocol is specified
-      if (val && !val.match(/^https?:\/\//i)) {
+      // Auto-add https:// if no protocol is specified (skip for search queries)
+      if (val && !val.match(/^https?:\/\//i) && val.includes('.')) {
         return `https://${val}`;
       }
       return val;
-    })
-    .refine((val) => {
-      try {
-        new URL(val);
-        return true;
-      } catch {
-        return false;
-      }
-    }, { message: "Please enter a valid URL" }),
-  scrapeType: z.enum(["complete_business_data", "emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
+    }),
+  scrapeType: z.enum(["complete_business_data", "bulk_business_search", "emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
   aiInstructions: z.string().optional(),
   targetCountry: z.string().optional(),
   targetState: z.string().optional(),
+  searchLimit: z.number().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -100,8 +93,12 @@ const NewJob = () => {
       aiInstructions: "",
       targetCountry: "",
       targetState: "",
+      searchLimit: 20,
     },
   });
+
+  const selectedScrapeType = form.watch("scrapeType");
+  const isBulkSearch = selectedScrapeType === "bulk_business_search";
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -206,14 +203,19 @@ const NewJob = () => {
                   name="url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target URL</FormLabel>
+                      <FormLabel>{isBulkSearch ? "Search Query" : "Target URL"}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="https://example.com"
+                          placeholder={isBulkSearch ? "e.g., plumbers in Newark NJ" : "https://example.com"}
                           {...field}
                           className="bg-background/50"
                         />
                       </FormControl>
+                      {isBulkSearch && (
+                        <p className="text-xs text-muted-foreground">
+                          Enter a search query like "plumbers in NJ" or "restaurants in London"
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -232,6 +234,12 @@ const NewJob = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="bg-popover z-50">
+                          <SelectItem value="bulk_business_search">
+                            <span className="flex items-center gap-2">
+                              <span className="text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-1.5 py-0.5 rounded">HOT</span>
+                              Bulk Business Search
+                            </span>
+                          </SelectItem>
                           <SelectItem value="complete_business_data">
                             <span className="flex items-center gap-2">
                               <span className="text-xs bg-gradient-to-r from-pink-500 to-cyan-500 text-white px-1.5 py-0.5 rounded">NEW</span>
@@ -249,6 +257,38 @@ const NewJob = () => {
                     </FormItem>
                   )}
                 />
+
+                {isBulkSearch && (
+                  <FormField
+                    control={form.control}
+                    name="searchLimit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Number of Results</FormLabel>
+                        <Select 
+                          onValueChange={(val) => field.onChange(parseInt(val))} 
+                          defaultValue={String(field.value || 20)}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-background/50">
+                              <SelectValue placeholder="Select limit" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bg-popover z-50">
+                            <SelectItem value="10">10 businesses</SelectItem>
+                            <SelectItem value="20">20 businesses</SelectItem>
+                            <SelectItem value="50">50 businesses</SelectItem>
+                            <SelectItem value="100">100 businesses</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          More results = longer processing time
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {form.watch("scrapeType") === "custom_ai_extraction" && (
                   <FormField
