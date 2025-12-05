@@ -248,7 +248,25 @@ function extractEmails(content: string, html?: string): any[] {
 
 function extractPhoneNumbers(content: string, html?: string): any[] {
   const phones: string[] = [];
-  const combinedContent = html ? content + ' ' + html : content;
+  let combinedContent = html ? content + ' ' + html : content;
+  
+  // Remove URLs from content to avoid false positives from image paths, CDN URLs, etc.
+  // This prevents extracting numbers like "984-0956367" from URLs like "/assets/2050a7ae-c278-4d60-b984-0956367382cf"
+  const urlPatterns = [
+    /https?:\/\/[^\s<>"']+/gi,                    // Full URLs
+    /src=["'][^"']+["']/gi,                        // src attributes
+    /href=["'](?!tel:)[^"']+["']/gi,              // href attributes (except tel:)
+    /url\([^)]+\)/gi,                              // CSS url()
+    /\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.[a-zA-Z]{2,4}/gi,  // File paths
+    /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi,  // UUIDs
+    /\?[^\s<>"']*=[^\s<>"']*/gi,                   // Query strings
+  ];
+  
+  // Create a cleaned version of content without URLs for phone extraction
+  let cleanedContent = combinedContent;
+  for (const pattern of urlPatterns) {
+    cleanedContent = cleanedContent.replace(pattern, ' ');
+  }
   
   // Multiple phone regex patterns to catch various formats
   const phonePatterns = [
@@ -263,11 +281,11 @@ function extractPhoneNumbers(content: string, html?: string): any[] {
   ];
   
   for (const pattern of phonePatterns) {
-    const matches = combinedContent.match(pattern) || [];
+    const matches = cleanedContent.match(pattern) || [];
     phones.push(...matches);
   }
   
-  // Extract from tel: links in HTML
+  // Extract from tel: links in HTML (these are legitimate phone numbers)
   if (html) {
     const telRegex = /tel:([+\d\s().-]+)/gi;
     let match;
@@ -298,6 +316,7 @@ function extractPhoneNumbers(content: string, html?: string): any[] {
     });
   
   const uniquePhones = [...new Set(cleanedPhones)];
+  console.log(`Phone extraction: found ${uniquePhones.length} valid phones after URL filtering`);
   return uniquePhones.map(phone => ({ phone_number: phone.trim(), source: 'regex' }));
 }
 
