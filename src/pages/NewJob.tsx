@@ -15,6 +15,49 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { JobScheduleConfig } from "@/components/JobScheduleConfig";
 
+// Country codes for geo-targeting
+const COUNTRIES = [
+  { code: '', name: 'Any Location' },
+  { code: 'US', name: 'United States' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'FR', name: 'France' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'NL', name: 'Netherlands' },
+  { code: 'BR', name: 'Brazil' },
+  { code: 'MX', name: 'Mexico' },
+  { code: 'IN', name: 'India' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'ZA', name: 'South Africa' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'KE', name: 'Kenya' },
+];
+
+// US States for more specific targeting
+const US_STATES = [
+  { code: '', name: 'Any State' },
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'FL', name: 'Florida' },
+  { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' }, { code: 'ID', name: 'Idaho' },
+  { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' }, { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' }, { code: 'LA', name: 'Louisiana' },
+  { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' }, { code: 'MA', name: 'Massachusetts' },
+  { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' }, { code: 'MS', name: 'Mississippi' },
+  { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' }, { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' }, { code: 'NJ', name: 'New Jersey' },
+  { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' }, { code: 'NC', name: 'North Carolina' },
+  { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' }, { code: 'OK', name: 'Oklahoma' },
+  { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' }, { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' },
+  { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' },
+  { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
+  { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }, { code: 'DC', name: 'Washington D.C.' },
+];
+
 const formSchema = z.object({
   url: z.string()
     .min(1, { message: "Please enter a URL" })
@@ -35,6 +78,8 @@ const formSchema = z.object({
     }, { message: "Please enter a valid URL" }),
   scrapeType: z.enum(["complete_business_data", "emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
   aiInstructions: z.string().optional(),
+  targetCountry: z.string().optional(),
+  targetState: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -53,6 +98,8 @@ const NewJob = () => {
       url: "",
       scrapeType: "complete_business_data",
       aiInstructions: "",
+      targetCountry: "",
+      targetState: "",
     },
   });
 
@@ -99,6 +146,8 @@ const NewJob = () => {
         schedule_frequency: scheduleEnabled ? scheduleFrequency : null,
         schedule_interval: scheduleEnabled ? scheduleInterval : null,
         next_run_at: nextRunAt,
+        target_country: data.targetCountry && data.targetCountry !== 'none' ? data.targetCountry : null,
+        target_state: data.targetState && data.targetState !== 'none' ? data.targetState : null,
       }).select().single();
 
       if (error) throw error;
@@ -220,6 +269,67 @@ const NewJob = () => {
                     )}
                   />
                 )}
+
+                {/* Location Targeting */}
+                <div className="space-y-4 p-4 rounded-lg border border-border/50 bg-background/30">
+                  <h3 className="text-sm font-medium text-muted-foreground">Target Location (Optional)</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Specify a location for geo-targeted scraping and location-aware phone validation
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="targetCountry"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Country</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-background/50">
+                                <SelectValue placeholder="Select country" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-popover z-50 max-h-[300px]">
+                              {COUNTRIES.map((country) => (
+                                <SelectItem key={country.code || 'any'} value={country.code || 'none'}>
+                                  {country.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch("targetCountry") === "US" && (
+                      <FormField
+                        control={form.control}
+                        name="targetState"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>State</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="bg-background/50">
+                                  <SelectValue placeholder="Select state" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="bg-popover z-50 max-h-[300px]">
+                                {US_STATES.map((state) => (
+                                  <SelectItem key={state.code || 'any'} value={state.code || 'none'}>
+                                    {state.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                </div>
 
                 <JobScheduleConfig
                   scheduleEnabled={scheduleEnabled}
