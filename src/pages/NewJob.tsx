@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,11 +9,11 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { JobScheduleConfig } from "@/components/JobScheduleConfig";
+import { Globe, Search, Info } from "lucide-react";
 
 // Country codes for geo-targeting
 const COUNTRIES = [
@@ -77,6 +77,26 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+// Helper to detect if input is a URL
+const isValidUrl = (str: string): boolean => {
+  if (!str) return false;
+  try {
+    const cleaned = str.replace(/^["']|["']$/g, '').trim();
+    // Check if it looks like a URL (has protocol or starts with www. or contains common TLD patterns)
+    if (cleaned.match(/^https?:\/\//i)) {
+      new URL(cleaned);
+      return true;
+    }
+    if (cleaned.match(/^www\./i) || cleaned.match(/\.(com|org|net|io|co|gov|edu|info|biz)[\/\s]?$/i)) {
+      new URL(`https://${cleaned}`);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 const NewJob = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
@@ -98,7 +118,14 @@ const NewJob = () => {
   });
 
   const selectedScrapeType = form.watch("scrapeType");
+  const urlValue = form.watch("url");
   const isBulkSearch = selectedScrapeType === "bulk_business_search" || selectedScrapeType === "google_business_profiles";
+  
+  // Detect input type for complete_business_data
+  const inputType = useMemo(() => {
+    if (!urlValue) return null;
+    return isValidUrl(urlValue) ? 'url' : 'search';
+  }, [urlValue]);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -204,19 +231,68 @@ const NewJob = () => {
                   name="url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{isBulkSearch ? "Search Query" : "Target URL"}</FormLabel>
+                      <FormLabel>
+                        {isBulkSearch ? "Search Query" : selectedScrapeType === "complete_business_data" ? "URL or Search Query" : "Target URL"}
+                      </FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder={isBulkSearch ? "e.g., plumbers in Newark NJ" : "https://example.com"}
-                          {...field}
-                          className="bg-background/50"
-                        />
+                        <div className="relative">
+                          <Input
+                            placeholder={
+                              isBulkSearch 
+                                ? "e.g., plumbers in Newark NJ" 
+                                : selectedScrapeType === "complete_business_data"
+                                  ? "https://example.com or 'restaurants in Atlanta'"
+                                  : "https://example.com"
+                            }
+                            {...field}
+                            className="bg-background/50 pr-10"
+                          />
+                          {urlValue && selectedScrapeType === "complete_business_data" && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              {inputType === 'url' ? (
+                                <Globe className="h-4 w-4 text-cyan-500" />
+                              ) : (
+                                <Search className="h-4 w-4 text-pink-500" />
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
+                      
+                      {/* Context-aware help text */}
+                      {selectedScrapeType === "complete_business_data" && (
+                        <div className="space-y-1">
+                          {inputType === 'url' ? (
+                            <p className="text-xs text-cyan-500 flex items-center gap-1">
+                              <Globe className="h-3 w-3" />
+                              Will scrape business data from this website
+                            </p>
+                          ) : inputType === 'search' ? (
+                            <p className="text-xs text-pink-500 flex items-center gap-1">
+                              <Search className="h-3 w-3" />
+                              Will search the web and extract business data from results
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Info className="h-3 w-3" />
+                              Enter a URL to scrape a specific site, or a search query like "black owned businesses in Atlanta"
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
                       {isBulkSearch && (
                         <p className="text-xs text-muted-foreground">
                           Enter a search query like "plumbers in NJ" or "restaurants in London"
                         </p>
                       )}
+                      
+                      {!isBulkSearch && selectedScrapeType !== "complete_business_data" && (
+                        <p className="text-xs text-muted-foreground">
+                          Enter a valid URL starting with https://
+                        </p>
+                      )}
+                      
                       <FormMessage />
                     </FormItem>
                   )}
