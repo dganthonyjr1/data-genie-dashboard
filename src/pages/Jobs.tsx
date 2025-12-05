@@ -116,17 +116,19 @@ const Jobs = () => {
         return;
       }
 
+      // Only fetch essential columns for list view - results fetched on demand
       const { data, error } = await supabase
         .from("scraping_jobs")
-        .select("*")
+        .select("id, url, scrape_type, status, created_at, updated_at, ai_instructions")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (error) throw error;
 
       setJobs(data.map(job => ({
         ...job,
-        results: Array.isArray(job.results) ? job.results : []
+        results: [] // Results loaded on demand
       })) || []);
     } catch (error) {
       console.error("Error fetching jobs:", error);
@@ -138,6 +140,18 @@ const Jobs = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fetch results for a specific job on demand
+  const fetchJobResults = async (jobId: string): Promise<any[]> => {
+    const { data, error } = await supabase
+      .from("scraping_jobs")
+      .select("results")
+      .eq("id", jobId)
+      .single();
+    
+    if (error || !data) return [];
+    return Array.isArray(data.results) ? data.results : [];
   };
 
   const getStatusColor = (status: string) => {
@@ -453,8 +467,12 @@ const Jobs = () => {
   };
 
   // Download actual scraping results as CSV
-  const handleDownloadResultsCSV = (job: Job) => {
-    if (!job.results || job.results.length === 0) {
+  const handleDownloadResultsCSV = async (job: Job) => {
+    toast({ title: "Loading results...", description: "Fetching data for download" });
+    
+    const results = await fetchJobResults(job.id);
+    
+    if (!results || results.length === 0) {
       toast({
         title: "No results",
         description: "This job has no results to download",
@@ -464,7 +482,7 @@ const Jobs = () => {
     }
 
     // Flatten all results
-    const flattenedResults = job.results.map(row => flattenObject(row));
+    const flattenedResults = results.map(row => flattenObject(row));
     
     // Get all unique keys
     const allKeys = new Set<string>();
@@ -497,13 +515,17 @@ const Jobs = () => {
 
     toast({
       title: "Downloaded!",
-      description: `CSV with ${job.results.length} result(s) downloaded`,
+      description: `CSV with ${results.length} result(s) downloaded`,
     });
   };
 
   // Download results as JSON
-  const handleDownloadResultsJSON = (job: Job) => {
-    if (!job.results || job.results.length === 0) {
+  const handleDownloadResultsJSON = async (job: Job) => {
+    toast({ title: "Loading results...", description: "Fetching data for download" });
+    
+    const results = await fetchJobResults(job.id);
+    
+    if (!results || results.length === 0) {
       toast({
         title: "No results",
         description: "This job has no results to download",
@@ -512,7 +534,7 @@ const Jobs = () => {
       return;
     }
 
-    const jsonContent = JSON.stringify(job.results, null, 2);
+    const jsonContent = JSON.stringify(results, null, 2);
     const blob = new Blob([jsonContent], { type: "application/json" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -523,14 +545,16 @@ const Jobs = () => {
 
     toast({
       title: "Downloaded!",
-      description: `JSON with ${job.results.length} result(s) downloaded`,
+      description: `JSON with ${results.length} result(s) downloaded`,
     });
   };
 
   const handleViewDetails = async (jobId: string) => {
     const job = jobs.find(j => j.id === jobId);
     if (job) {
-      setSelectedJobForDetails(job);
+      // Fetch results on demand for the details modal
+      const results = await fetchJobResults(jobId);
+      setSelectedJobForDetails({ ...job, results });
       setDetailsModalOpen(true);
     }
   };
