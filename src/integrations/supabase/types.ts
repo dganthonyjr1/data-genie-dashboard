@@ -59,6 +59,7 @@ export type Database = {
         Row: {
           ai_instructions: string | null
           created_at: string
+          fields_count: number | null
           id: string
           last_run_at: string | null
           next_run_at: string | null
@@ -79,6 +80,7 @@ export type Database = {
         Insert: {
           ai_instructions?: string | null
           created_at?: string
+          fields_count?: number | null
           id?: string
           last_run_at?: string | null
           next_run_at?: string | null
@@ -99,6 +101,7 @@ export type Database = {
         Update: {
           ai_instructions?: string | null
           created_at?: string
+          fields_count?: number | null
           id?: string
           last_run_at?: string | null
           next_run_at?: string | null
