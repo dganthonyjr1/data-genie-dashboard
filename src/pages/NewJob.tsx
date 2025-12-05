@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { JobScheduleConfig } from "@/components/JobScheduleConfig";
-import { Globe, Search, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Globe, Search, Info, AlertTriangle, Lightbulb, MapPin } from "lucide-react";
 
 // Country codes for geo-targeting
 const COUNTRIES = [
@@ -97,6 +98,72 @@ const isValidUrl = (str: string): boolean => {
   }
 };
 
+// Detect placeholder patterns in search queries
+const detectPlaceholders = (query: string): { hasPlaceholder: boolean; placeholders: string[]; suggestion: string } => {
+  const placeholderPatterns = [
+    /\[city\]/gi,
+    /\[state\]/gi,
+    /\[location\]/gi,
+    /\[area\]/gi,
+    /\[region\]/gi,
+    /\[town\]/gi,
+    /\[neighborhood\]/gi,
+    /\{city\}/gi,
+    /\{state\}/gi,
+    /<city>/gi,
+    /<state>/gi,
+  ];
+  
+  const foundPlaceholders: string[] = [];
+  let suggestion = query;
+  
+  for (const pattern of placeholderPatterns) {
+    const matches = query.match(pattern);
+    if (matches) {
+      foundPlaceholders.push(...matches);
+    }
+  }
+  
+  // Create a suggestion by replacing placeholders with real examples
+  suggestion = suggestion
+    .replace(/\[(city|town|neighborhood)\]/gi, 'Atlanta')
+    .replace(/\[(state|region)\]/gi, 'Georgia')
+    .replace(/\[(location|area)\]/gi, 'Atlanta, GA')
+    .replace(/\{(city|town)\}/gi, 'Atlanta')
+    .replace(/\{(state|region)\}/gi, 'Georgia')
+    .replace(/<(city|state|location)>/gi, 'Atlanta, GA');
+  
+  return {
+    hasPlaceholder: foundPlaceholders.length > 0,
+    placeholders: foundPlaceholders,
+    suggestion
+  };
+};
+
+// Check if query looks like a business search
+const isBusinessSearchQuery = (query: string): boolean => {
+  if (!query || isValidUrl(query)) return false;
+  
+  const businessIndicators = [
+    /business(es)?/i,
+    /restaurant(s)?/i,
+    /plumber(s)?/i,
+    /lawyer(s)?/i,
+    /dentist(s)?/i,
+    /doctor(s)?/i,
+    /shop(s)?/i,
+    /store(s)?/i,
+    /salon(s)?/i,
+    /contractor(s)?/i,
+    /company|companies/i,
+    /owned/i,
+    /service(s)?/i,
+    /\bin\b.*\b(city|town|state|\w{2})\b/i, // "in [location]" pattern
+  ];
+  
+  return businessIndicators.some(pattern => pattern.test(query));
+};
+
 const NewJob = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
@@ -119,6 +186,8 @@ const NewJob = () => {
 
   const selectedScrapeType = form.watch("scrapeType");
   const urlValue = form.watch("url");
+  const selectedCountry = form.watch("targetCountry");
+  const selectedState = form.watch("targetState");
   const isBulkSearch = selectedScrapeType === "bulk_business_search" || selectedScrapeType === "google_business_profiles";
   
   // Detect input type for complete_business_data
@@ -126,6 +195,19 @@ const NewJob = () => {
     if (!urlValue) return null;
     return isValidUrl(urlValue) ? 'url' : 'search';
   }, [urlValue]);
+  
+  // Detect placeholders in search queries
+  const placeholderAnalysis = useMemo(() => {
+    if (!urlValue || isValidUrl(urlValue)) return { hasPlaceholder: false, placeholders: [], suggestion: '' };
+    return detectPlaceholders(urlValue);
+  }, [urlValue]);
+  
+  // Check if user should use Google Business Profiles instead
+  const shouldRecommendGoogleProfiles = useMemo(() => {
+    if (!urlValue || isValidUrl(urlValue)) return false;
+    if (selectedScrapeType === 'google_business_profiles') return false;
+    return isBusinessSearchQuery(urlValue);
+  }, [urlValue, selectedScrapeType]);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -259,8 +341,54 @@ const NewJob = () => {
                         </div>
                       </FormControl>
                       
+                      {/* Placeholder Warning */}
+                      {placeholderAnalysis.hasPlaceholder && (
+                        <Alert variant="destructive" className="mt-2 border-destructive/50 bg-destructive/10">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription className="text-sm">
+                            <strong>Replace placeholders with real locations!</strong>
+                            <br />
+                            Found: {placeholderAnalysis.placeholders.join(', ')}
+                            <br />
+                            <span className="text-muted-foreground">Try: "{placeholderAnalysis.suggestion}"</span>
+                            <Button 
+                              type="button" 
+                              variant="link" 
+                              size="sm" 
+                              className="p-0 h-auto ml-2 text-primary"
+                              onClick={() => form.setValue('url', placeholderAnalysis.suggestion)}
+                            >
+                              Use suggestion
+                            </Button>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      {/* Google Profiles Recommendation */}
+                      {shouldRecommendGoogleProfiles && !placeholderAnalysis.hasPlaceholder && (
+                        <Alert className="mt-2 border-green-500/50 bg-green-500/10">
+                          <Lightbulb className="h-4 w-4 text-green-500" />
+                          <AlertDescription className="text-sm">
+                            <strong className="text-green-500">Tip: Use Google Business Profiles for better results!</strong>
+                            <br />
+                            <span className="text-muted-foreground">
+                              For finding actual businesses with contact info, Google Business Profiles provides more accurate data from Google Maps.
+                            </span>
+                            <Button 
+                              type="button" 
+                              variant="link" 
+                              size="sm" 
+                              className="p-0 h-auto ml-2 text-green-500"
+                              onClick={() => form.setValue('scrapeType', 'google_business_profiles')}
+                            >
+                              Switch to Google Business Profiles
+                            </Button>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
                       {/* Context-aware help text */}
-                      {selectedScrapeType === "complete_business_data" && (
+                      {selectedScrapeType === "complete_business_data" && !placeholderAnalysis.hasPlaceholder && (
                         <div className="space-y-1">
                           {inputType === 'url' ? (
                             <p className="text-xs text-cyan-500 flex items-center gap-1">
@@ -282,8 +410,9 @@ const NewJob = () => {
                       )}
                       
                       {isBulkSearch && (
-                        <p className="text-xs text-muted-foreground">
-                          Enter a search query like "plumbers in NJ" or "restaurants in London"
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          Enter a search query like "plumbers in Newark, NJ" or "restaurants in London"
                         </p>
                       )}
                       

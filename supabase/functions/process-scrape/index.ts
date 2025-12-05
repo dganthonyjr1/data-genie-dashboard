@@ -267,34 +267,99 @@ serve(async (req) => {
       const searchData = await searchResponse.json();
       console.log(`Search returned ${searchData.data?.length || 0} results`);
 
+      // Domains to skip - these are not actual business websites
+      const irrelevantDomains = [
+        'reddit.com', 'quora.com', 'yelp.com/topic', 'facebook.com/groups',
+        'linkedin.com/pulse', 'medium.com', 'wikipedia.org', 'wikihow.com',
+        'cnet.com', 'forbes.com/lists', 'businessinsider.com', 'huffpost.com',
+        'buzzfeed.com', 'pinterest.com', 'twitter.com', 'x.com',
+        'news.google.com', 'youtube.com', 'tiktok.com',
+        'amazon.com', 'ebay.com', 'etsy.com/market',
+        'tripadvisor.com/ShowTopic', 'indeed.com', 'glassdoor.com',
+        'craigslist.org', 'nextdoor.com', 'patch.com',
+        'nytimes.com', 'washingtonpost.com', 'cnn.com', 'bbc.com',
+        'theguardian.com', 'usatoday.com', 'newsweek.com', 'time.com',
+      ];
+      
+      // URL patterns that indicate non-business content
+      const irrelevantPatterns = [
+        /\/article\//i,
+        /\/news\//i,
+        /\/blog\//i,
+        /\/story\//i,
+        /\/opinion\//i,
+        /\/comments\//i,
+        /\/forum\//i,
+        /\/thread\//i,
+        /\/discussion\//i,
+        /\/list-of-/i,
+        /\/best-\d+-/i,
+        /\/top-\d+-/i,
+      ];
+
       // Extract business data from each search result
       const businessResults: any[] = [];
       const searchResults = searchData.data || [];
+      let skippedCount = 0;
 
       for (const result of searchResults) {
         try {
+          const sourceUrl = result.url || '';
+          
+          // Skip irrelevant domains
+          const isIrrelevantDomain = irrelevantDomains.some(domain => sourceUrl.toLowerCase().includes(domain));
+          if (isIrrelevantDomain) {
+            console.log(`Skipping irrelevant domain: ${sourceUrl}`);
+            skippedCount++;
+            continue;
+          }
+          
+          // Skip URLs matching irrelevant patterns
+          const isIrrelevantPattern = irrelevantPatterns.some(pattern => pattern.test(sourceUrl));
+          if (isIrrelevantPattern) {
+            console.log(`Skipping irrelevant URL pattern: ${sourceUrl}`);
+            skippedCount++;
+            continue;
+          }
+          
           const markdown = result.markdown || '';
           const html = result.html || '';
-          const sourceUrl = result.url || '';
 
           // Extract basic info from search result
           const businessData = await extractCompleteBusinessData(markdown, html, sourceUrl);
           
           if (businessData.length > 0) {
             const data = businessData[0];
-            businessResults.push({
-              ...data,
-              search_result_title: result.title || '',
-              search_result_description: result.description || '',
-              source_url: sourceUrl,
-            });
+            
+            // Calculate a simple relevance score based on extracted data quality
+            let relevanceScore = 0;
+            if (data.business_name && data.business_name.length > 2) relevanceScore += 20;
+            if (data.phone_numbers?.length > 0) relevanceScore += 25;
+            if (data.emails?.length > 0) relevanceScore += 20;
+            if (data.full_address) relevanceScore += 15;
+            if (data.website_url) relevanceScore += 10;
+            if (Object.keys(data.social_links || {}).length > 0) relevanceScore += 10;
+            
+            // Only include results with minimum relevance
+            if (relevanceScore >= 20) {
+              businessResults.push({
+                ...data,
+                search_result_title: result.title || '',
+                search_result_description: result.description || '',
+                source_url: sourceUrl,
+                relevance_score: relevanceScore,
+              });
+            } else {
+              console.log(`Skipping low-relevance result (score: ${relevanceScore}): ${sourceUrl}`);
+              skippedCount++;
+            }
           }
         } catch (e) {
           console.error(`Error extracting from ${result.url}:`, e);
         }
       }
 
-      console.log(`Extracted business data from ${businessResults.length} results`);
+      console.log(`Extracted business data from ${businessResults.length} results (skipped ${skippedCount} irrelevant)`);
 
       // Save results
       const { error: updateError } = await supabase
