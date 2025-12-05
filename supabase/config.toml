@@ -11,3 +11,9 @@ verify_jwt = true
 
 [functions.preview-url]
 verify_jwt = false
+
+[functions.api]
+verify_jwt = false
+
+[functions.trigger-webhook]
+verify_jwt = true

@@ -560,6 +560,21 @@ async function sendNotifications(
   } catch (notifError) {
     console.error('Failed to create in-app notification:', notifError);
   }
+
+  // Trigger webhooks
+  try {
+    const webhookEvent = status === 'completed' ? 'job.completed' : 'job.failed';
+    await supabase.functions.invoke('trigger-webhook', {
+      body: {
+        jobId: jobId,
+        event: webhookEvent,
+        userId: job.user_id,
+      }
+    });
+    console.log(`Webhook triggered for ${webhookEvent}`);
+  } catch (webhookError) {
+    console.error('Failed to trigger webhook:', webhookError);
+  }
 }
 
 // ============= EXTRACTION FUNCTIONS =============
