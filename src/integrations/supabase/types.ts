@@ -63,6 +63,7 @@ export type Database = {
           last_run_at: string | null
           next_run_at: string | null
           results: Json | null
+          results_count: number | null
           schedule_enabled: boolean | null
           schedule_frequency: string | null
           schedule_interval: number | null
@@ -82,6 +83,7 @@ export type Database = {
           last_run_at?: string | null
           next_run_at?: string | null
           results?: Json | null
+          results_count?: number | null
           schedule_enabled?: boolean | null
           schedule_frequency?: string | null
           schedule_interval?: number | null
@@ -101,6 +103,7 @@ export type Database = {
           last_run_at?: string | null
           next_run_at?: string | null
           results?: Json | null
+          results_count?: number | null
           schedule_enabled?: boolean | null
           schedule_frequency?: string | null
           schedule_interval?: number | null

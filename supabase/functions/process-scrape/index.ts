@@ -139,7 +139,8 @@ serve(async (req) => {
           .from('scraping_jobs')
           .update({ 
             status: 'failed',
-            results: [{ error: 'Google Maps search failed', details: errorText }]
+            results: [{ error: 'Google Maps search failed', details: errorText }],
+            results_count: 0
           })
           .eq('id', jobId);
 
@@ -189,7 +190,8 @@ serve(async (req) => {
         .from('scraping_jobs')
         .update({ 
           status: 'completed',
-          results: businessResults
+          results: businessResults,
+          results_count: businessResults.length
         })
         .eq('id', jobId);
 
@@ -235,7 +237,8 @@ serve(async (req) => {
           .from('scraping_jobs')
           .update({ 
             status: 'failed',
-            results: [{ error: 'Search failed', details: errorText }]
+            results: [{ error: 'Search failed', details: errorText }],
+            results_count: 0
           })
           .eq('id', jobId);
 
@@ -284,7 +287,8 @@ serve(async (req) => {
         .from('scraping_jobs')
         .update({ 
           status: 'completed',
-          results: businessResults
+          results: businessResults,
+          results_count: businessResults.length
         })
         .eq('id', jobId);
 
@@ -333,7 +337,8 @@ serve(async (req) => {
         .from('scraping_jobs')
         .update({ 
           status: 'failed',
-          results: [{ error: 'Failed to scrape website', details: errorText }]
+          results: [{ error: 'Failed to scrape website', details: errorText }],
+          results_count: 0
         })
         .eq('id', jobId);
 
@@ -385,7 +390,8 @@ serve(async (req) => {
       .from('scraping_jobs')
       .update({ 
         status: 'completed',
-        results: results
+        results: results,
+        results_count: results.length
       })
       .eq('id', jobId);
 
