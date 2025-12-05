@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText } from "lucide-react";
+import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -46,6 +47,7 @@ export default function ResultsViewer() {
   const [searchQuery, setSearchQuery] = useState("");
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [clipboardImportOpen, setClipboardImportOpen] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetchJobResults();
@@ -298,6 +300,55 @@ export default function ResultsViewer() {
       title: "Data imported!",
       description: `${importedData.length} row(s) imported successfully`,
     });
+  };
+
+  const handleBulkDelete = async () => {
+    if (!job || selectedRows.size === 0) return;
+
+    const indicesToDelete = Array.from(selectedRows).sort((a, b) => b - a);
+    const updatedResults = job.results.filter((_, index) => !selectedRows.has(index));
+    
+    const { error } = await supabase
+      .from("scraping_jobs")
+      .update({ results: updatedResults })
+      .eq("id", job.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete rows",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setJob({ ...job, results: updatedResults });
+    setSelectedRows(new Set());
+    toast({
+      title: "Rows deleted!",
+      description: `${indicesToDelete.length} row(s) deleted successfully`,
+    });
+  };
+
+  const toggleRowSelection = (index: number) => {
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const toggleSelectAll = (indices: number[]) => {
+    const allSelected = indices.every(i => selectedRows.has(i));
+    if (allSelected) {
+      const newSelected = new Set(selectedRows);
+      indices.forEach(i => newSelected.delete(i));
+      setSelectedRows(newSelected);
+    } else {
+      setSelectedRows(new Set([...selectedRows, ...indices]));
+    }
   };
 
   const handleDownloadJSON = () => {
@@ -565,12 +616,28 @@ export default function ResultsViewer() {
         )
       : flattenedResults;
     
+    // Get original indices for selection tracking (before filtering)
+    const originalIndices = query
+      ? job.results
+          .map((_, i) => i)
+          .filter((i) => {
+            const row = flattenObject(job.results[i]);
+            return Object.values(row).some(value => 
+              String(value).toLowerCase().includes(query)
+            );
+          })
+      : job.results.map((_, i) => i);
+    
     // Pagination calculations
     const totalItems = filteredResults.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
     const paginatedResults = filteredResults.slice(startIndex, endIndex);
+    const paginatedIndices = originalIndices.slice(startIndex, endIndex);
+
+    // Check if all visible rows are selected
+    const allVisibleSelected = paginatedIndices.length > 0 && paginatedIndices.every(i => selectedRows.has(i));
 
     // Reset to page 1 when search changes
     const handleSearchChange = (value: string) => {
@@ -580,23 +647,35 @@ export default function ResultsViewer() {
 
     return (
       <div className="space-y-4">
-        {/* Search Bar */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search results..."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-9 pr-9"
-          />
-          {searchQuery && (
+        {/* Search Bar and Bulk Actions */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search results..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-9 pr-9"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                onClick={() => handleSearchChange("")}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {selectedRows.size > 0 && (
             <Button
-              variant="ghost"
+              variant="destructive"
               size="sm"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-              onClick={() => handleSearchChange("")}
+              onClick={handleBulkDelete}
             >
-              <X className="h-4 w-4" />
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete {selectedRows.size} row{selectedRows.size !== 1 ? 's' : ''}
             </Button>
           )}
         </div>
@@ -616,6 +695,12 @@ export default function ResultsViewer() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={allVisibleSelected}
+                            onCheckedChange={() => toggleSelectAll(paginatedIndices)}
+                          />
+                        </TableHead>
                         {headers.map((header) => (
                           <TableHead key={header} className="font-semibold whitespace-nowrap">
                             {header.replace(/_/g, ' ')}
@@ -624,15 +709,27 @@ export default function ResultsViewer() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {paginatedResults.map((row, index) => (
-                        <TableRow key={startIndex + index}>
-                          {headers.map((header) => (
-                            <TableCell key={header} className="max-w-xs truncate">
-                              {row[header] || "-"}
+                      {paginatedResults.map((row, index) => {
+                        const originalIndex = paginatedIndices[index];
+                        return (
+                          <TableRow 
+                            key={originalIndex}
+                            className={selectedRows.has(originalIndex) ? "bg-muted/50" : ""}
+                          >
+                            <TableCell className="w-12">
+                              <Checkbox
+                                checked={selectedRows.has(originalIndex)}
+                                onCheckedChange={() => toggleRowSelection(originalIndex)}
+                              />
                             </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
+                            {headers.map((header) => (
+                              <TableCell key={header} className="max-w-xs truncate">
+                                {row[header] || "-"}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
