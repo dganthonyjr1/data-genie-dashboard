@@ -5,8 +5,9 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,6 +33,7 @@ export default function ResultsViewer() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchJobResults();
@@ -478,99 +480,148 @@ export default function ResultsViewer() {
     );
   };
 
-  // Standard table view for other scrape types with pagination
+  // Standard table view for other scrape types with pagination and search
   const renderStandardResults = () => {
     const flattenedResults = job.results.map(row => flattenObject(row));
     const headers = flattenedResults.length > 0 ? Object.keys(flattenedResults[0]) : [];
     
+    // Filter results based on search query
+    const query = searchQuery.toLowerCase().trim();
+    const filteredResults = query
+      ? flattenedResults.filter(row => 
+          Object.values(row).some(value => 
+            String(value).toLowerCase().includes(query)
+          )
+        )
+      : flattenedResults;
+    
     // Pagination calculations
-    const totalItems = flattenedResults.length;
+    const totalItems = filteredResults.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-    const paginatedResults = flattenedResults.slice(startIndex, endIndex);
+    const paginatedResults = filteredResults.slice(startIndex, endIndex);
+
+    // Reset to page 1 when search changes
+    const handleSearchChange = (value: string) => {
+      setSearchQuery(value);
+      setCurrentPage(1);
+    };
 
     return (
       <div className="space-y-4">
-        <div className="border border-border rounded-lg overflow-hidden">
-          <ScrollArea className="w-full">
-            <div className="min-w-full">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {headers.map((header) => (
-                      <TableHead key={header} className="font-semibold whitespace-nowrap">
-                        {header.replace(/_/g, ' ')}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedResults.map((row, index) => (
-                    <TableRow key={startIndex + index}>
-                      {headers.map((header) => (
-                        <TableCell key={header} className="max-w-xs truncate">
-                          {row[header] || "-"}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </ScrollArea>
+        {/* Search Bar */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search results..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+              onClick={() => handleSearchChange("")}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
-        
-        {/* Pagination Controls */}
-        {totalItems > 10 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
-            <div className="text-sm text-muted-foreground">
-              Showing {startIndex + 1} - {endIndex} of {totalItems} results
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Per page:</span>
-                <Select
-                  value={itemsPerPage.toString()}
-                  onValueChange={(value) => {
-                    setItemsPerPage(Number(value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-[80px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm px-3">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+
+        {filteredResults.length === 0 ? (
+          <div className="text-center py-12 border border-border rounded-lg">
+            <p className="text-muted-foreground">No results match your search "{searchQuery}"</p>
+            <Button variant="ghost" size="sm" onClick={() => handleSearchChange("")} className="mt-2">
+              Clear search
+            </Button>
           </div>
+        ) : (
+          <>
+            <div className="border border-border rounded-lg overflow-hidden">
+              <ScrollArea className="w-full">
+                <div className="min-w-full">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {headers.map((header) => (
+                          <TableHead key={header} className="font-semibold whitespace-nowrap">
+                            {header.replace(/_/g, ' ')}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedResults.map((row, index) => (
+                        <TableRow key={startIndex + index}>
+                          {headers.map((header) => (
+                            <TableCell key={header} className="max-w-xs truncate">
+                              {row[header] || "-"}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </ScrollArea>
+            </div>
+            
+            {/* Pagination Controls */}
+            {totalItems > 10 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1} - {endIndex} of {totalItems} results
+                  {searchQuery && ` (filtered from ${flattenedResults.length})`}
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Per page:</span>
+                    <Select
+                      value={itemsPerPage.toString()}
+                      onValueChange={(value) => {
+                        setItemsPerPage(Number(value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-[80px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm px-3">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     );
