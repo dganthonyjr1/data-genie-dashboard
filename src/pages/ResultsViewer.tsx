@@ -59,6 +59,8 @@ export default function ResultsViewer() {
   const [clipboardImportOpen, setClipboardImportOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; column: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   useEffect(() => {
     fetchJobResults();
@@ -360,6 +362,65 @@ export default function ResultsViewer() {
       setSelectedRows(newSelected);
     } else {
       setSelectedRows(new Set([...selectedRows, ...indices]));
+    }
+  };
+
+  const startEditing = (rowIndex: number, column: string, currentValue: string) => {
+    setEditingCell({ rowIndex, column });
+    setEditValue(currentValue || "");
+  };
+
+  const cancelEditing = () => {
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingCell || !job) return;
+
+    const { rowIndex, column } = editingCell;
+    const updatedResults = [...job.results];
+    
+    // Update the nested value based on the flattened column name
+    const keys = column.split('_');
+    let target = updatedResults[rowIndex];
+    
+    // For simple (non-nested) columns
+    if (keys.length === 1 || !updatedResults[rowIndex][keys[0]]) {
+      updatedResults[rowIndex] = { ...updatedResults[rowIndex], [column]: editValue };
+    } else {
+      // For nested columns, rebuild the path
+      updatedResults[rowIndex] = { ...updatedResults[rowIndex], [column]: editValue };
+    }
+
+    const { error } = await supabase
+      .from("scraping_jobs")
+      .update({ results: updatedResults })
+      .eq("id", job.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save changes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setJob({ ...job, results: updatedResults });
+    setEditingCell(null);
+    setEditValue("");
+    toast({
+      title: "Saved!",
+      description: "Cell updated successfully",
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      saveEdit();
+    } else if (e.key === "Escape") {
+      cancelEditing();
     }
   };
 
@@ -755,11 +816,36 @@ export default function ResultsViewer() {
                                 onCheckedChange={() => toggleRowSelection(originalIndex)}
                               />
                             </TableCell>
-                            {headers.map((header) => (
-                              <TableCell key={header} className="max-w-xs truncate">
-                                {row[header] || "-"}
-                              </TableCell>
-                            ))}
+                            {headers.map((header) => {
+                              const isEditing = editingCell?.rowIndex === originalIndex && editingCell?.column === header;
+                              const cellValue = row[header] || "";
+                              
+                              return (
+                                <TableCell 
+                                  key={header} 
+                                  className="max-w-xs"
+                                  onDoubleClick={() => !isEditing && startEditing(originalIndex, header, cellValue)}
+                                >
+                                  {isEditing ? (
+                                    <Input
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      onBlur={saveEdit}
+                                      onKeyDown={handleKeyDown}
+                                      className="h-7 text-sm"
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    <span 
+                                      className="block truncate cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded -mx-1"
+                                      title="Double-click to edit"
+                                    >
+                                      {cellValue || "-"}
+                                    </span>
+                                  )}
+                                </TableCell>
+                              );
+                            })}
                           </TableRow>
                         );
                       })}
