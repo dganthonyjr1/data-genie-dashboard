@@ -207,9 +207,23 @@ serve(async (req) => {
       );
     }
 
-    // Handle bulk business search with Firecrawl
-    if (job.scrape_type === 'bulk_business_search') {
-      console.log(`Starting bulk business search for: ${job.url} with limit: ${job.search_limit || 20}`);
+    // Helper function to check if input is a URL or search query
+    const isValidUrl = (str: string): boolean => {
+      try {
+        // Remove quotes if present
+        const cleaned = str.replace(/^["']|["']$/g, '').trim();
+        const url = new URL(cleaned);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+      } catch {
+        return false;
+      }
+    };
+
+    // Handle bulk business search with Firecrawl OR search queries for complete_business_data
+    const isSearchQuery = !isValidUrl(job.url);
+    
+    if (job.scrape_type === 'bulk_business_search' || (job.scrape_type === 'complete_business_data' && isSearchQuery)) {
+      console.log(`Starting ${isSearchQuery ? 'search query' : 'bulk business search'} for: ${job.url} with limit: ${job.search_limit || 20}`);
       
       // Use Firecrawl search API
       const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
