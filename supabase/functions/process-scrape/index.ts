@@ -329,11 +329,19 @@ function extractTables(html: string): any[] {
 
 // Clean URL by removing trailing punctuation and markdown artifacts
 function cleanUrl(url: string): string {
-  return url
+  let cleaned = url
     .replace(/['"<>]/g, '')
     .replace(/[\)\]\}]+$/, '') // Remove trailing ), ], }
     .replace(/[,;.!?]+$/, '') // Remove trailing punctuation
     .trim();
+  
+  // Remove hash-only fragments with artifacts like "#)"
+  cleaned = cleaned.replace(/#\)?$/, '');
+  
+  // Remove any remaining trailing special chars
+  cleaned = cleaned.replace(/[)\]}>]+$/, '');
+  
+  return cleaned;
 }
 
 // Extract social media links from content
@@ -441,18 +449,25 @@ function extractWebsites(content: string, sourceUrl: string): string[] {
         const parsedUrl = new URL(url);
         const hostname = parsedUrl.hostname;
         const pathname = parsedUrl.pathname.toLowerCase();
+        const searchParams = parsedUrl.search.toLowerCase();
         
         // Exclude social media
         if (socialDomains.some(social => hostname.includes(social))) return false;
         
-        // Exclude image URLs
+        // Exclude image URLs by extension
         if (imageExtensions.some(ext => pathname.endsWith(ext))) return false;
+        
+        // Exclude image URLs by query params (w=, h=, q=, fm=)
+        if (searchParams.includes('w=') && (searchParams.includes('q=') || searchParams.includes('fm='))) return false;
         
         // Exclude CDN domains (typically images/assets)
         if (cdnDomains.some(cdn => hostname.includes(cdn))) return false;
         
         // Exclude URLs that are just anchors on the same page
         if (url.includes('#') && !url.includes('?')) return false;
+        
+        // Exclude very short paths that are likely navigation
+        if (pathname === '/' || pathname === '') return false;
         
         return true;
       } catch {
