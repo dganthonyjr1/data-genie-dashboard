@@ -547,12 +547,17 @@ async function sendNotifications(
       ? `${formatScrapeType(job.scrape_type)} completed with ${resultsCount} results from ${job.url.substring(0, 50)}...`
       : `${formatScrapeType(job.scrape_type)} failed for ${job.url.substring(0, 50)}...`;
 
+    // Map status to notification type (constraint expects 'complete' not 'completed')
+    const notifType = status === 'completed' 
+      ? (job.schedule_enabled ? 'scheduled_job_complete' : 'job_complete')
+      : (job.schedule_enabled ? 'scheduled_job_failed' : 'job_failed');
+
     await supabase
       .from('notifications')
       .insert({
         user_id: job.user_id,
         job_id: jobId,
-        type: job.schedule_enabled ? `scheduled_job_${status}` : `job_${status}`,
+        type: notifType,
         title: status === 'completed' ? 'Scraping Job Completed' : 'Scraping Job Failed',
         message: message
       });
