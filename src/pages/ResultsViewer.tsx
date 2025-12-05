@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2 } from "lucide-react";
+import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2, Pencil } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -823,7 +823,7 @@ export default function ResultsViewer() {
                               return (
                                 <TableCell 
                                   key={header} 
-                                  className="max-w-xs"
+                                  className="max-w-xs group/cell"
                                   onDoubleClick={() => !isEditing && startEditing(originalIndex, header, cellValue)}
                                 >
                                   {isEditing ? (
@@ -836,12 +836,12 @@ export default function ResultsViewer() {
                                       autoFocus
                                     />
                                   ) : (
-                                    <span 
-                                      className="block truncate cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded -mx-1"
-                                      title="Double-click to edit"
-                                    >
-                                      {cellValue || "-"}
-                                    </span>
+                                    <div className="flex items-center gap-1 group-hover/cell:bg-muted/50 px-1 py-0.5 rounded -mx-1 cursor-pointer">
+                                      <span className="flex-1 truncate">
+                                        {cellValue || "-"}
+                                      </span>
+                                      <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity flex-shrink-0" />
+                                    </div>
                                   )}
                                 </TableCell>
                               );
