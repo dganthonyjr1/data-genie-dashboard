@@ -6,10 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2 } from "lucide-react";
+import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Job {
   id: string;
@@ -23,6 +30,8 @@ export default function ResultsViewer() {
   const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     fetchJobResults();
@@ -469,39 +478,100 @@ export default function ResultsViewer() {
     );
   };
 
-  // Standard table view for other scrape types
+  // Standard table view for other scrape types with pagination
   const renderStandardResults = () => {
     const flattenedResults = job.results.map(row => flattenObject(row));
     const headers = flattenedResults.length > 0 ? Object.keys(flattenedResults[0]) : [];
+    
+    // Pagination calculations
+    const totalItems = flattenedResults.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    const paginatedResults = flattenedResults.slice(startIndex, endIndex);
 
     return (
-      <div className="border border-border rounded-lg overflow-hidden">
-        <ScrollArea className="w-full">
-          <div className="min-w-full">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {headers.map((header) => (
-                    <TableHead key={header} className="font-semibold whitespace-nowrap">
-                      {header.replace(/_/g, ' ')}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {flattenedResults.map((row, index) => (
-                  <TableRow key={index}>
+      <div className="space-y-4">
+        <div className="border border-border rounded-lg overflow-hidden">
+          <ScrollArea className="w-full">
+            <div className="min-w-full">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                     {headers.map((header) => (
-                      <TableCell key={header} className="max-w-xs truncate">
-                        {row[header] || "-"}
-                      </TableCell>
+                      <TableHead key={header} className="font-semibold whitespace-nowrap">
+                        {header.replace(/_/g, ' ')}
+                      </TableHead>
                     ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedResults.map((row, index) => (
+                    <TableRow key={startIndex + index}>
+                      {headers.map((header) => (
+                        <TableCell key={header} className="max-w-xs truncate">
+                          {row[header] || "-"}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </ScrollArea>
+        </div>
+        
+        {/* Pagination Controls */}
+        {totalItems > 10 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} - {endIndex} of {totalItems} results
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Per page:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[80px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm px-3">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
-        </ScrollArea>
+        )}
       </div>
     );
   };
