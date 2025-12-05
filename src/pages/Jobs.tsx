@@ -430,6 +430,103 @@ const Jobs = () => {
     });
   };
 
+  // Flatten nested objects for results CSV export
+  const flattenObject = (obj: any, prefix = ''): Record<string, string> => {
+    const result: Record<string, string> = {};
+    
+    for (const key in obj) {
+      const newKey = prefix ? `${prefix}_${key}` : key;
+      const value = obj[key];
+      
+      if (value === null || value === undefined) {
+        result[newKey] = '';
+      } else if (Array.isArray(value)) {
+        result[newKey] = value.join('; ');
+      } else if (typeof value === 'object') {
+        Object.assign(result, flattenObject(value, newKey));
+      } else {
+        result[newKey] = String(value);
+      }
+    }
+    
+    return result;
+  };
+
+  // Download actual scraping results as CSV
+  const handleDownloadResultsCSV = (job: Job) => {
+    if (!job.results || job.results.length === 0) {
+      toast({
+        title: "No results",
+        description: "This job has no results to download",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Flatten all results
+    const flattenedResults = job.results.map(row => flattenObject(row));
+    
+    // Get all unique keys
+    const allKeys = new Set<string>();
+    flattenedResults.forEach(row => {
+      Object.keys(row).forEach(key => allKeys.add(key));
+    });
+    const headers = Array.from(allKeys);
+
+    const csvRows = [
+      headers.join(","),
+      ...flattenedResults.map(row =>
+        headers.map(header => {
+          const value = row[header] || "";
+          if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        }).join(",")
+      )
+    ];
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `scrape-results-${job.id.slice(0, 8)}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Downloaded!",
+      description: `CSV with ${job.results.length} result(s) downloaded`,
+    });
+  };
+
+  // Download results as JSON
+  const handleDownloadResultsJSON = (job: Job) => {
+    if (!job.results || job.results.length === 0) {
+      toast({
+        title: "No results",
+        description: "This job has no results to download",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const jsonContent = JSON.stringify(job.results, null, 2);
+    const blob = new Blob([jsonContent], { type: "application/json" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `scrape-results-${job.id.slice(0, 8)}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Downloaded!",
+      description: `JSON with ${job.results.length} result(s) downloaded`,
+    });
+  };
+
   const handleViewDetails = async (jobId: string) => {
     const job = jobs.find(j => j.id === jobId);
     if (job) {
@@ -736,18 +833,34 @@ const Jobs = () => {
                       <Eye className="mr-2 h-4 w-4" />
                       View Results
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleExportCSV([job.id]);
-                      }}
-                      className="flex-1 sm:flex-none"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export
-                    </Button>
+                    {job.status === "completed" && job.results && job.results.length > 0 && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadResultsCSV(job);
+                          }}
+                          className="flex-1 sm:flex-none"
+                        >
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          CSV
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadResultsJSON(job);
+                          }}
+                          className="flex-1 sm:flex-none"
+                        >
+                          <FileJson className="mr-2 h-4 w-4" />
+                          JSON
+                        </Button>
+                      </>
+                    )}
                     {job.status === "failed" && (
                       <Button 
                         variant="outline" 
