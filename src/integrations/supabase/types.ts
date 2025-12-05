@@ -67,6 +67,7 @@ export type Database = {
           schedule_frequency: string | null
           schedule_interval: number | null
           scrape_type: string
+          search_limit: number | null
           status: string
           target_country: string | null
           target_state: string | null
@@ -85,6 +86,7 @@ export type Database = {
           schedule_frequency?: string | null
           schedule_interval?: number | null
           scrape_type: string
+          search_limit?: number | null
           status?: string
           target_country?: string | null
           target_state?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           schedule_frequency?: string | null
           schedule_interval?: number | null
           scrape_type?: string
+          search_limit?: number | null
           status?: string
           target_country?: string | null
           target_state?: string | null

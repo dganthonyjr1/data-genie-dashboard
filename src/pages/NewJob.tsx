@@ -145,6 +145,7 @@ const NewJob = () => {
         next_run_at: nextRunAt,
         target_country: data.targetCountry && data.targetCountry !== 'none' ? data.targetCountry : null,
         target_state: data.targetState && data.targetState !== 'none' ? data.targetState : null,
+        search_limit: data.searchLimit || 20,
       }).select().single();
 
       if (error) throw error;
