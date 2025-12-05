@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Bell, Save } from "lucide-react";
+import { Bell, Save, Key, Webhook, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
@@ -60,7 +60,6 @@ const Settings = () => {
           email_on_scheduled_job_failure: data.email_on_scheduled_job_failure,
         });
       } else {
-        // Create default preferences if they don't exist
         const { error: insertError } = await supabase
           .from("user_preferences")
           .insert({
@@ -143,9 +142,50 @@ const Settings = () => {
             Settings
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage your account preferences and notifications
+            Manage your account preferences, integrations, and notifications
           </p>
         </div>
+
+        {/* Developer Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Developer Settings</CardTitle>
+            <CardDescription>
+              Programmatic access and integrations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Link to="/settings/api">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Key className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">API Access</p>
+                    <p className="text-sm text-muted-foreground">Manage API keys for programmatic scraping</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </Link>
+            
+            <Link to="/settings/webhooks">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-cyan-500/10">
+                    <Webhook className="h-5 w-5 text-cyan-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Webhooks</p>
+                    <p className="text-sm text-muted-foreground">Send results to your applications automatically</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </Link>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

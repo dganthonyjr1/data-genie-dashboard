@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -58,11 +94,17 @@ export type Database = {
       scraping_jobs: {
         Row: {
           ai_instructions: string | null
+          api_key_id: string | null
+          auto_paginate: boolean | null
           created_at: string
+          extraction_config: Json | null
           fields_count: number | null
           id: string
           last_run_at: string | null
+          max_pages: number | null
           next_run_at: string | null
+          pages_scraped: number | null
+          proxy_enabled: boolean | null
           results: Json | null
           results_count: number | null
           schedule_enabled: boolean | null
@@ -73,17 +115,25 @@ export type Database = {
           status: string
           target_country: string | null
           target_state: string | null
+          template_id: string | null
           updated_at: string
           url: string
           user_id: string
+          webhook_url: string | null
         }
         Insert: {
           ai_instructions?: string | null
+          api_key_id?: string | null
+          auto_paginate?: boolean | null
           created_at?: string
+          extraction_config?: Json | null
           fields_count?: number | null
           id?: string
           last_run_at?: string | null
+          max_pages?: number | null
           next_run_at?: string | null
+          pages_scraped?: number | null
+          proxy_enabled?: boolean | null
           results?: Json | null
           results_count?: number | null
           schedule_enabled?: boolean | null
@@ -94,17 +144,25 @@ export type Database = {
           status?: string
           target_country?: string | null
           target_state?: string | null
+          template_id?: string | null
           updated_at?: string
           url: string
           user_id: string
+          webhook_url?: string | null
         }
         Update: {
           ai_instructions?: string | null
+          api_key_id?: string | null
+          auto_paginate?: boolean | null
           created_at?: string
+          extraction_config?: Json | null
           fields_count?: number | null
           id?: string
           last_run_at?: string | null
+          max_pages?: number | null
           next_run_at?: string | null
+          pages_scraped?: number | null
+          proxy_enabled?: boolean | null
           results?: Json | null
           results_count?: number | null
           schedule_enabled?: boolean | null
@@ -115,9 +173,53 @@ export type Database = {
           status?: string
           target_country?: string | null
           target_state?: string | null
+          template_id?: string | null
           updated_at?: string
           url?: string
           user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      scraping_templates: {
+        Row: {
+          ai_instructions: string | null
+          category: string
+          created_at: string
+          description: string | null
+          extraction_config: Json | null
+          icon: string | null
+          id: string
+          is_system: boolean
+          name: string
+          scrape_type: string
+          user_id: string | null
+        }
+        Insert: {
+          ai_instructions?: string | null
+          category: string
+          created_at?: string
+          description?: string | null
+          extraction_config?: Json | null
+          icon?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          scrape_type: string
+          user_id?: string | null
+        }
+        Update: {
+          ai_instructions?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          extraction_config?: Json | null
+          icon?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          scrape_type?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -150,6 +252,42 @@ export type Database = {
           email_on_scheduled_job_failure?: boolean
           id?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      webhooks: {
+        Row: {
+          created_at: string
+          events: string[]
+          id: string
+          is_active: boolean
+          last_triggered_at: string | null
+          name: string
+          secret: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          name: string
+          secret?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          name?: string
+          secret?: string | null
+          url?: string
           user_id?: string
         }
         Relationships: []
