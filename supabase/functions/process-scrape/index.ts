@@ -385,13 +385,25 @@ serve(async (req) => {
 
     console.log(`Extracted ${results.length} results`);
 
+    // Calculate fields_count for single-URL jobs (count non-empty fields in first result)
+    let fieldsCount = 0;
+    if (results.length === 1 && typeof results[0] === 'object') {
+      fieldsCount = Object.entries(results[0]).filter(([key, value]) => {
+        if (value === null || value === undefined || value === '') return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return false;
+        return true;
+      }).length;
+    }
+
     // Save results to database
     const { error: updateError } = await supabase
       .from('scraping_jobs')
       .update({ 
         status: 'completed',
         results: results,
-        results_count: results.length
+        results_count: results.length,
+        fields_count: fieldsCount
       })
       .eq('id', jobId);
 

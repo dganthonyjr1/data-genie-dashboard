@@ -49,6 +49,7 @@ interface Job {
   updated_at: string;
   results: any[];
   results_count: number;
+  fields_count: number;
   ai_instructions: string | null;
 }
 
@@ -120,7 +121,7 @@ const Jobs = () => {
       // Only fetch essential columns for list view - results fetched on demand
       const { data, error } = await supabase
         .from("scraping_jobs")
-        .select("id, url, scrape_type, status, created_at, updated_at, ai_instructions, results_count")
+        .select("id, url, scrape_type, status, created_at, updated_at, ai_instructions, results_count, fields_count")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -130,7 +131,8 @@ const Jobs = () => {
       setJobs(data.map(job => ({
         ...job,
         results: [], // Results loaded on demand
-        results_count: job.results_count || 0
+        results_count: job.results_count || 0,
+        fields_count: job.fields_count || 0
       })) || []);
     } catch (error) {
       console.error("Error fetching jobs:", error);
@@ -827,10 +829,16 @@ const Jobs = () => {
                         <span>{formatScrapeType(job.scrape_type)}</span>
                         <span>•</span>
                         <span>Created {new Date(job.created_at).toLocaleDateString()}</span>
-                        {job.status === "completed" && job.results_count > 0 && (
+                        {job.status === "completed" && job.results_count > 1 && (
                           <>
                             <span>•</span>
                             <span className="text-green-400">{job.results_count} results</span>
+                          </>
+                        )}
+                        {job.status === "completed" && job.results_count === 1 && job.fields_count > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="text-green-400">{job.fields_count} fields extracted</span>
                           </>
                         )}
                         {(job.status === "in_progress" || job.status === "pending") && (
