@@ -16,7 +16,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { JobScheduleConfig } from "@/components/JobScheduleConfig";
 
 const formSchema = z.object({
-  url: z.string().url({ message: "Please enter a valid URL" }),
+  url: z.string()
+    .min(1, { message: "Please enter a URL" })
+    .transform((val) => {
+      // Auto-add https:// if no protocol is specified
+      if (val && !val.match(/^https?:\/\//i)) {
+        return `https://${val}`;
+      }
+      return val;
+    })
+    .refine((val) => {
+      try {
+        new URL(val);
+        return true;
+      } catch {
+        return false;
+      }
+    }, { message: "Please enter a valid URL" }),
   scrapeType: z.enum(["complete_business_data", "emails", "phone_numbers", "text_content", "tables", "custom_ai_extraction"]),
   aiInstructions: z.string().optional(),
 });
