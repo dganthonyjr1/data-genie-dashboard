@@ -209,18 +209,89 @@ async function sendNotifications(
 
 // ============= EXTRACTION FUNCTIONS =============
 
-function extractEmails(content: string): any[] {
-  const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
-  const emails = content.match(emailRegex) || [];
-  const uniqueEmails = [...new Set(emails)];
-  return uniqueEmails.map(email => ({ email, source: 'regex' }));
+function extractEmails(content: string, html?: string): any[] {
+  const emails: string[] = [];
+  
+  // Standard email regex
+  const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi;
+  const textMatches = content.match(emailRegex) || [];
+  emails.push(...textMatches);
+  
+  // If HTML provided, also extract from mailto: links
+  if (html) {
+    const mailtoRegex = /mailto:([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})/gi;
+    let match;
+    while ((match = mailtoRegex.exec(html)) !== null) {
+      emails.push(match[1]);
+    }
+    
+    // Look for emails in href attributes
+    const hrefEmailRegex = /href=["'][^"']*?([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})[^"']*?["']/gi;
+    while ((match = hrefEmailRegex.exec(html)) !== null) {
+      emails.push(match[1]);
+    }
+  }
+  
+  // Filter out common non-email patterns (image filenames, etc.)
+  const filteredEmails = emails.filter(email => {
+    const lowerEmail = email.toLowerCase();
+    // Filter out common false positives
+    if (lowerEmail.endsWith('.png') || lowerEmail.endsWith('.jpg') || lowerEmail.endsWith('.gif')) return false;
+    if (lowerEmail.includes('example.com') || lowerEmail.includes('domain.com')) return false;
+    if (lowerEmail.includes('sentry.io') || lowerEmail.includes('wixstatic')) return false;
+    return true;
+  });
+  
+  const uniqueEmails = [...new Set(filteredEmails)];
+  return uniqueEmails.map(email => ({ email: email.toLowerCase(), source: 'regex' }));
 }
 
-function extractPhoneNumbers(content: string): any[] {
-  // Match various phone number formats
-  const phoneRegex = /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
-  const phones = content.match(phoneRegex) || [];
-  const uniquePhones = [...new Set(phones)];
+function extractPhoneNumbers(content: string, html?: string): any[] {
+  const phones: string[] = [];
+  const combinedContent = html ? content + ' ' + html : content;
+  
+  // Multiple phone regex patterns to catch various formats
+  const phonePatterns = [
+    // US format: (123) 456-7890, 123-456-7890, 123.456.7890
+    /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
+    // International with country code: +1 123-456-7890, +44 20 7123 4567
+    /\+\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{0,4}/g,
+    // US toll-free: 1-800-123-4567, 800-123-4567
+    /1?[-.\s]?8[0-9]{2}[-.\s]?\d{3}[-.\s]?\d{4}/g,
+    // 10-digit with optional 1 prefix: 1 123 456 7890
+    /1[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/g,
+  ];
+  
+  for (const pattern of phonePatterns) {
+    const matches = combinedContent.match(pattern) || [];
+    phones.push(...matches);
+  }
+  
+  // Extract from tel: links in HTML
+  if (html) {
+    const telRegex = /tel:([+\d\s().-]+)/gi;
+    let match;
+    while ((match = telRegex.exec(html)) !== null) {
+      phones.push(match[1]);
+    }
+    
+    // Look for phones in href="tel:" attributes more specifically
+    const hrefTelRegex = /href=["']tel:([^"']+)["']/gi;
+    while ((match = hrefTelRegex.exec(html)) !== null) {
+      phones.push(match[1]);
+    }
+  }
+  
+  // Clean and filter phone numbers
+  const cleanedPhones = phones
+    .map(phone => phone.replace(/[^\d+\s().-]/g, '').trim())
+    .filter(phone => {
+      // Must have at least 10 digits
+      const digits = phone.replace(/\D/g, '');
+      return digits.length >= 10 && digits.length <= 15;
+    });
+  
+  const uniquePhones = [...new Set(cleanedPhones)];
   return uniquePhones.map(phone => ({ phone_number: phone.trim(), source: 'regex' }));
 }
 
@@ -361,7 +432,7 @@ function extractWebsites(content: string, sourceUrl: string): string[] {
   // Filter out social media, images, and common non-business URLs
   const socialDomains = ['facebook.com', 'instagram.com', 'twitter.com', 'linkedin.com', 'youtube.com', 'tiktok.com', 'pinterest.com', 'x.com'];
   const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp'];
-  const cdnDomains = ['ctfassets.net', 'cloudinary.com', 'imgix.net', 'imgur.com', 'unsplash.com'];
+  const cdnDomains = ['ctfassets.net', 'cloudinary.com', 'imgix.net', 'imgur.com', 'unsplash.com', 'wixstatic.com', 'wix.com', 'squarespace-cdn.com', 'shopify.com/cdn', 'amazonaws.com', 'googleusercontent.com', 'gstatic.com'];
   
   const websites = matches
     .map(url => cleanUrl(url))
@@ -396,7 +467,7 @@ function extractWebsites(content: string, sourceUrl: string): string[] {
 async function extractCompleteBusinessData(markdownContent: string, htmlContent: string, sourceUrl: string): Promise<any[]> {
   console.log('Running complete business data extraction...');
   
-  // Run all regex-based extractors in parallel
+  // Run all regex-based extractors in parallel (pass HTML for tel:/mailto: extraction)
   const [
     regexEmails,
     regexPhones,
@@ -405,8 +476,8 @@ async function extractCompleteBusinessData(markdownContent: string, htmlContent:
     googleMapsData,
     websites
   ] = await Promise.all([
-    Promise.resolve(extractEmails(markdownContent)),
-    Promise.resolve(extractPhoneNumbers(markdownContent)),
+    Promise.resolve(extractEmails(markdownContent, htmlContent)),
+    Promise.resolve(extractPhoneNumbers(markdownContent, htmlContent)),
     Promise.resolve(extractSocialLinks(markdownContent, htmlContent)),
     Promise.resolve(extractAddresses(markdownContent)),
     Promise.resolve(extractGoogleMapsData(htmlContent)),
