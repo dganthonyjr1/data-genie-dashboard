@@ -18,6 +18,7 @@ import BulkScrape from "./pages/BulkScrape";
 import SourceCode from "./pages/SourceCode";
 import ApiSettings from "./pages/ApiSettings";
 import WebhooksSettings from "./pages/WebhooksSettings";
+import AuditReport from "./pages/AuditReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/settings/webhooks" element={<WebhooksSettings />} />
           <Route path="/bulk-scrape" element={<BulkScrape />} />
           <Route path="/source-code" element={<SourceCode />} />
+          <Route path="/audit-report" element={<AuditReport />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
