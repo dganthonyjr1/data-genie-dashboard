@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2, Pencil, CopyPlus } from "lucide-react";
+import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2, Pencil, CopyPlus, Columns3, Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +61,7 @@ export default function ResultsViewer() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; column: string } | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchJobResults();
@@ -703,10 +704,29 @@ export default function ResultsViewer() {
     );
   };
 
+  const toggleColumnVisibility = (column: string) => {
+    const newHidden = new Set(hiddenColumns);
+    if (newHidden.has(column)) {
+      newHidden.delete(column);
+    } else {
+      newHidden.add(column);
+    }
+    setHiddenColumns(newHidden);
+  };
+
+  const showAllColumns = (headers: string[]) => {
+    setHiddenColumns(new Set());
+  };
+
+  const hideAllColumns = (headers: string[]) => {
+    setHiddenColumns(new Set(headers));
+  };
+
   // Standard table view for other scrape types with pagination and search
   const renderStandardResults = () => {
     const flattenedResults = job.results.map(row => flattenObject(row));
-    const headers = flattenedResults.length > 0 ? Object.keys(flattenedResults[0]) : [];
+    const allHeaders = flattenedResults.length > 0 ? Object.keys(flattenedResults[0]) : [];
+    const headers = allHeaders.filter(h => !hiddenColumns.has(h));
     
     // Filter results based on search query
     const query = searchQuery.toLowerCase().trim();
@@ -749,7 +769,7 @@ export default function ResultsViewer() {
 
     return (
       <div className="space-y-4">
-        {/* Search Bar and Bulk Actions */}
+        {/* Search Bar, Column Visibility, and Bulk Actions */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -770,6 +790,60 @@ export default function ResultsViewer() {
               </Button>
             )}
           </div>
+          
+          {/* Column Visibility Toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Columns3 className="mr-2 h-4 w-4" />
+                Columns
+                {hiddenColumns.size > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5">
+                    {allHeaders.length - hiddenColumns.size}/{allHeaders.length}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
+              <div className="flex gap-1 p-2 border-b">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => showAllColumns(allHeaders)}
+                >
+                  <Eye className="mr-1 h-3 w-3" />
+                  Show All
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => hideAllColumns(allHeaders)}
+                >
+                  <EyeOff className="mr-1 h-3 w-3" />
+                  Hide All
+                </Button>
+              </div>
+              {allHeaders.map((header) => (
+                <DropdownMenuItem
+                  key={header}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleColumnVisibility(header);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Checkbox
+                    checked={!hiddenColumns.has(header)}
+                    onCheckedChange={() => toggleColumnVisibility(header)}
+                  />
+                  <span className="truncate">{header.replace(/_/g, ' ')}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {selectedRows.size > 0 && (
             <div className="flex gap-2">
               <Button
