@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,6 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import ManualDataEntryModal from "@/components/ManualDataEntryModal";
+import ClipboardImportModal from "@/components/ClipboardImportModal";
+import * as XLSX from "xlsx";
 
 interface Job {
   id: string;
@@ -34,6 +44,8 @@ export default function ResultsViewer() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [searchQuery, setSearchQuery] = useState("");
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [clipboardImportOpen, setClipboardImportOpen] = useState(false);
 
   useEffect(() => {
     fetchJobResults();
@@ -211,23 +223,81 @@ export default function ResultsViewer() {
     
     // Copy to clipboard - user can then paste directly into Google Sheets
     navigator.clipboard.writeText(tsvContent);
-    
-    // Also download as TSV file
-    const blob = new Blob([tsvContent], { type: "text/tab-separated-values;charset=utf-8;" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `scrape-results-${job.id}.tsv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
 
     toast({
       title: "Ready for Google Sheets!",
-      description: "Data copied to clipboard and TSV downloaded. Paste into Google Sheets or import the TSV file.",
+      description: "Data copied to clipboard. Paste into Google Sheets (Ctrl+V).",
     });
     
     // Open Google Sheets in new tab
     window.open('https://sheets.new', '_blank');
+  };
+
+  const handleDownloadExcel = () => {
+    if (!job?.results || job.results.length === 0) return;
+
+    const flattenedResults = job.results.map(row => flattenObject(row));
+    const worksheet = XLSX.utils.json_to_sheet(flattenedResults);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
+    XLSX.writeFile(workbook, `scrape-results-${job.id}.xlsx`);
+
+    toast({
+      title: "Downloaded!",
+      description: "Excel file has been downloaded",
+    });
+  };
+
+  const handleAddManualData = async (newData: Record<string, string>[]) => {
+    if (!job) return;
+
+    const updatedResults = [...(job.results || []), ...newData];
+    
+    const { error } = await supabase
+      .from("scraping_jobs")
+      .update({ results: updatedResults })
+      .eq("id", job.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setJob({ ...job, results: updatedResults });
+    toast({
+      title: "Data added!",
+      description: `${newData.length} row(s) added successfully`,
+    });
+  };
+
+  const handleImportClipboard = async (importedData: Record<string, string>[]) => {
+    if (!job) return;
+
+    const updatedResults = [...(job.results || []), ...importedData];
+    
+    const { error } = await supabase
+      .from("scraping_jobs")
+      .update({ results: updatedResults })
+      .eq("id", job.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to import data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setJob({ ...job, results: updatedResults });
+    toast({
+      title: "Data imported!",
+      description: `${importedData.length} row(s) imported successfully`,
+    });
   };
 
   const handleDownloadJSON = () => {
@@ -642,26 +712,63 @@ export default function ResultsViewer() {
               {job.scrape_type.replace(/_/g, ' ')}
             </Badge>
           </div>
-          {hasResults && (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopyData}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy JSON
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadJSON}>
-                <Download className="mr-2 h-4 w-4" />
-                JSON
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadCSV}>
-                <Download className="mr-2 h-4 w-4" />
-                CSV
-              </Button>
-              <Button size="sm" onClick={handleExportToGoogleSheets} className="bg-gradient-to-r from-green-500 to-green-600 hover:opacity-90">
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Google Sheets
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {/* Import Options */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Data
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setManualEntryOpen(true)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Manual Entry
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setClipboardImportOpen(true)}>
+                  <Clipboard className="mr-2 h-4 w-4" />
+                  Import from Clipboard
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Export Options */}
+            {hasResults && (
+              <>
+                <Button variant="outline" size="sm" onClick={handleCopyData}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy JSON
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleDownloadCSV}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      CSV (.csv)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDownloadExcel}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Excel (.xlsx)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDownloadJSON}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      JSON (.json)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button size="sm" onClick={handleExportToGoogleSheets} className="bg-gradient-to-r from-green-500 to-green-600 hover:opacity-90">
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Google Sheets
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {!hasResults ? (
@@ -683,6 +790,19 @@ export default function ResultsViewer() {
             )}
           </div>
         )}
+
+        {/* Modals */}
+        <ManualDataEntryModal
+          open={manualEntryOpen}
+          onClose={() => setManualEntryOpen(false)}
+          onSubmit={handleAddManualData}
+          existingHeaders={job.results?.length > 0 ? Object.keys(flattenObject(job.results[0])) : undefined}
+        />
+        <ClipboardImportModal
+          open={clipboardImportOpen}
+          onClose={() => setClipboardImportOpen(false)}
+          onImport={handleImportClipboard}
+        />
       </div>
     </DashboardLayout>
   );
