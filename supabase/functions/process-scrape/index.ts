@@ -286,13 +286,61 @@ function extractPhoneNumbers(content: string, html?: string): any[] {
   const cleanedPhones = phones
     .map(phone => phone.replace(/[^\d+\s().-]/g, '').trim())
     .filter(phone => {
-      // Must have at least 10 digits
       const digits = phone.replace(/\D/g, '');
-      return digits.length >= 10 && digits.length <= 15;
+      
+      // Must have at least 10 digits and max 15
+      if (digits.length < 10 || digits.length > 15) return false;
+      
+      // Filter out invalid patterns
+      if (!isValidPhoneNumber(digits)) return false;
+      
+      return true;
     });
   
   const uniquePhones = [...new Set(cleanedPhones)];
   return uniquePhones.map(phone => ({ phone_number: phone.trim(), source: 'regex' }));
+}
+
+// Validate phone numbers - filter out obviously fake/invalid numbers
+function isValidPhoneNumber(digits: string): boolean {
+  // Remove leading 1 for US numbers for pattern checking
+  const normalizedDigits = digits.startsWith('1') && digits.length === 11 
+    ? digits.substring(1) 
+    : digits;
+  
+  // Filter out numbers with too many repeating digits (e.g., 1999999999, 1111111111)
+  const digitCounts: Record<string, number> = {};
+  for (const d of normalizedDigits) {
+    digitCounts[d] = (digitCounts[d] || 0) + 1;
+  }
+  const maxRepeat = Math.max(...Object.values(digitCounts));
+  if (maxRepeat >= 7) return false; // More than 7 of the same digit is suspicious
+  
+  // Filter out sequential numbers (1234567890, 0987654321)
+  if (normalizedDigits === '1234567890' || normalizedDigits === '0987654321') return false;
+  
+  // Filter out common fake patterns
+  const fakePatterns = [
+    /^0{10}$/,           // All zeros
+    /^1{10}$/,           // All ones
+    /^9{10}$/,           // All nines
+    /^(.)\1{9}$/,        // Any single digit repeated 10 times
+    /^123456/,           // Starts with 123456
+    /^000/,              // Starts with 000 (invalid area code)
+    /^555\d{3}55/,       // 555-xxx-55xx (TV/movie numbers)
+  ];
+  
+  for (const pattern of fakePatterns) {
+    if (pattern.test(normalizedDigits)) return false;
+  }
+  
+  // Filter out numbers where the last 7 digits are all the same (e.g., 6109999999)
+  if (normalizedDigits.length >= 10) {
+    const last7 = normalizedDigits.slice(-7);
+    if (/^(.)\1{6}$/.test(last7)) return false;
+  }
+  
+  return true;
 }
 
 function extractTextContent(content: string): any[] {
