@@ -26,9 +26,18 @@ export function ThemeProvider({
   storageKey = "scrapex-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
+  const [theme, setTheme] = useState<Theme>(() => {
+    const stored = localStorage.getItem(storageKey) as Theme;
+    return stored || defaultTheme;
+  });
+
+  // Apply dark class immediately on mount
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (!localStorage.getItem(storageKey)) {
+      root.classList.add("dark");
+    }
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
