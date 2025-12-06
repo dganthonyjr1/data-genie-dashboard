@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.trigger-webhook]
 verify_jwt = true
+
+[functions.export-to-google-sheets]
+verify_jwt = true

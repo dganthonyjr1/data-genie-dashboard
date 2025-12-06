@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import ManualDataEntryModal from "@/components/ManualDataEntryModal";
 import ClipboardImportModal from "@/components/ClipboardImportModal";
+import GoogleSheetsExportModal from "@/components/GoogleSheetsExportModal";
 import * as XLSX from "xlsx";
 
 interface Job {
@@ -62,6 +63,7 @@ export default function ResultsViewer() {
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; column: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchJobResults();
@@ -212,41 +214,12 @@ export default function ResultsViewer() {
 
   const handleExportToGoogleSheets = () => {
     if (!job?.results || job.results.length === 0) return;
+    setGoogleSheetsModalOpen(true);
+  };
 
-    // Flatten all results for Google Sheets
-    const flattenedResults = job.results.map(row => flattenObject(row));
-    
-    // Get all unique keys
-    const allKeys = new Set<string>();
-    flattenedResults.forEach(row => {
-      Object.keys(row).forEach(key => allKeys.add(key));
-    });
-    const headers = Array.from(allKeys);
-
-    // Create tab-separated values (TSV) which Google Sheets handles better
-    const tsvRows = [
-      headers.join("\t"),
-      ...flattenedResults.map(row =>
-        headers.map(header => {
-          const value = row[header] || "";
-          // Replace tabs and newlines
-          return value.replace(/[\t\n]/g, ' ');
-        }).join("\t")
-      )
-    ];
-
-    const tsvContent = tsvRows.join("\n");
-    
-    // Copy to clipboard - user can then paste directly into Google Sheets
-    navigator.clipboard.writeText(tsvContent);
-
-    toast({
-      title: "Ready for Google Sheets!",
-      description: "Data copied to clipboard. Paste into Google Sheets (Ctrl+V).",
-    });
-    
-    // Open Google Sheets in new tab
-    window.open('https://sheets.new', '_blank');
+  const getFlattenedResults = () => {
+    if (!job?.results) return [];
+    return job.results.map(row => flattenObject(row));
   };
 
   const handleDownloadExcel = () => {
@@ -1131,6 +1104,12 @@ export default function ResultsViewer() {
           open={clipboardImportOpen}
           onClose={() => setClipboardImportOpen(false)}
           onImport={handleImportClipboard}
+        />
+        <GoogleSheetsExportModal
+          open={googleSheetsModalOpen}
+          onOpenChange={setGoogleSheetsModalOpen}
+          data={getFlattenedResults()}
+          jobId={job.id}
         />
       </div>
     </DashboardLayout>
