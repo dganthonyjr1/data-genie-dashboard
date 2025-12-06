@@ -1,12 +1,31 @@
 import { Button } from "@/components/ui/button";
-import { Download, ArrowLeft } from "lucide-react";
+import { Download, ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useRef, useState } from "react";
+import html2pdf from "html2pdf.js";
 
 const AuditReport = () => {
   const navigate = useNavigate();
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleDownloadPDF = () => {
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    
+    setIsGenerating(true);
+    try {
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: 'scrapex-audit-report.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      await html2pdf().set(opt).from(reportRef.current).save();
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -18,15 +37,19 @@ const AuditReport = () => {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          <Button onClick={handleDownloadPDF}>
-            <Download className="w-4 h-4 mr-2" />
-            Download PDF
+          <Button onClick={handleDownloadPDF} disabled={isGenerating}>
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
+            {isGenerating ? "Generating..." : "Download PDF"}
           </Button>
         </div>
       </div>
 
       {/* Report content */}
-      <div className="max-w-4xl mx-auto p-8 print:p-0">
+      <div ref={reportRef} className="max-w-4xl mx-auto p-8 print:p-0 bg-background">
         <article className="prose prose-invert max-w-none print:prose-neutral">
           <h1 className="text-3xl font-bold mb-2">ScrapeX Comprehensive Audit Report</h1>
           <p className="text-muted-foreground mb-8">Generated: December 5, 2025</p>
