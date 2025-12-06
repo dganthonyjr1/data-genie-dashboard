@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { NotificationBell } from "./NotificationBell";
-import { ThemeToggle } from "./ThemeToggle";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -171,8 +170,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main Content */}
       <main className="pl-64">
         <div className="container mx-auto p-8">
-          <div className="flex justify-end mb-4 gap-2">
-            <ThemeToggle />
+          <div className="flex justify-end mb-4">
             <NotificationBell />
           </div>
           {children}

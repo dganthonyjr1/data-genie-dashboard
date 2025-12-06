@@ -8,51 +8,6 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-
-    --card: 0 0% 98%;
-    --card-foreground: 0 0% 3.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-
-    --primary: 330 81% 60%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 262 52% 47%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-
-    --accent: 187 100% 42%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 330 81% 60%;
-
-    --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 330 81% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 94%;
-    --sidebar-accent-foreground: 0 0% 10%;
-    --sidebar-border: 0 0% 89%;
-    --sidebar-ring: 330 81% 60%;
-
-    --gradient-primary: linear-gradient(135deg, hsl(330, 81%, 60%), hsl(262, 52%, 47%), hsl(207, 90%, 54%), hsl(187, 100%, 42%));
-    --gradient-secondary: linear-gradient(90deg, hsl(330, 81%, 60%), hsl(187, 100%, 42%));
-    --shadow-glow: 0 0 40px hsla(330, 81%, 60%, 0.3);
-  }
-
-  .dark {
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
 
@@ -81,6 +36,8 @@ All colors MUST be HSL.
     --input: 0 0% 15%;
     --ring: 330 81% 60%;
 
+    --radius: 0.75rem;
+
     --sidebar-background: 0 0% 3%;
     --sidebar-foreground: 0 0% 90%;
     --sidebar-primary: 330 81% 60%;
@@ -89,6 +46,10 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 0 0% 12%;
     --sidebar-ring: 330 81% 60%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(330, 81%, 60%), hsl(262, 52%, 47%), hsl(207, 90%, 54%), hsl(187, 100%, 42%));
+    --gradient-secondary: linear-gradient(90deg, hsl(330, 81%, 60%), hsl(187, 100%, 42%));
+    --shadow-glow: 0 0 40px hsla(330, 81%, 60%, 0.3);
   }
 }
 
@@ -99,10 +60,5 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-  }
-
-  /* Default to dark mode */
-  :root {
-    color-scheme: dark;
   }
 }
