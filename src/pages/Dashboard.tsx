@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import UsageTracking from "@/components/UsageTracking";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -27,7 +28,8 @@ import {
   Clock, 
   TrendingUp,
   Activity,
-  Plus
+  Plus,
+  BookOpen
 } from "lucide-react";
 import { format, subDays, startOfDay, isWithinInterval } from "date-fns";
 
@@ -169,6 +171,29 @@ const Dashboard = () => {
     }));
   };
 
+  // Get success rate by scrape type
+  const getSuccessRateByType = () => {
+    const typeStats: Record<string, { completed: number; total: number }> = {};
+    jobs.forEach(job => {
+      if (!typeStats[job.scrape_type]) {
+        typeStats[job.scrape_type] = { completed: 0, total: 0 };
+      }
+      typeStats[job.scrape_type].total++;
+      if (job.status === "completed") {
+        typeStats[job.scrape_type].completed++;
+      }
+    });
+    
+    return Object.entries(typeStats).map(([type, data]) => ({
+      name: type.split("_").map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(" "),
+      successRate: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
+      completed: data.completed,
+      total: data.total,
+    }));
+  };
+
   const formatTime = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;
     if (seconds < 3600) {
@@ -183,6 +208,7 @@ const Dashboard = () => {
 
   const trendData = getLast7DaysTrends();
   const typeData = getJobTypeDistribution();
+  const successByTypeData = getSuccessRateByType();
 
   if (loading) {
     return (
@@ -415,6 +441,48 @@ const Dashboard = () => {
           </Card>
         )}
 
+        {/* Success Rate by Scrape Type */}
+        {successByTypeData.length > 0 && (
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader>
+              <CardTitle>Success Rate by Scrape Type</CardTitle>
+              <CardDescription>
+                Compare performance across different scraping methods
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {successByTypeData.map((item, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{item.name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {item.successRate}% ({item.completed}/{item.total})
+                      </span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${item.successRate}%`,
+                          background: item.successRate >= 80 
+                            ? '#10b981' 
+                            : item.successRate >= 50 
+                              ? '#eab308' 
+                              : '#ef4444'
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Usage Tracking */}
+        <UsageTracking />
+
         {/* Quick Actions */}
         <Card className="bg-card/50 border-border/50">
           <CardHeader>
@@ -448,6 +516,14 @@ const Dashboard = () => {
               >
                 <CheckCircle2 className="h-4 w-4" />
                 View Results
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/api-docs")}
+                className="flex items-center gap-2"
+              >
+                <BookOpen className="h-4 w-4" />
+                API Docs
               </Button>
             </div>
           </CardContent>
