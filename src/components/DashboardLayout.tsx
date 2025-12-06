@@ -1,12 +1,13 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers } from "lucide-react";
+import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { NotificationBell } from "./NotificationBell";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -24,6 +25,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { name: "Bulk Scrape", href: "/bulk-scrape", icon: Layers },
     { name: "Scheduled Jobs", href: "/scheduled-jobs", icon: CalendarClock },
     { name: "Results", href: "/results", icon: FileText },
+    { name: "API Docs", href: "/api-docs", icon: BookOpen },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
@@ -169,7 +171,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main Content */}
       <main className="pl-64">
         <div className="container mx-auto p-8">
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end mb-4 gap-2">
+            <ThemeToggle />
             <NotificationBell />
           </div>
           {children}
