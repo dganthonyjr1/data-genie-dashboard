@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ExternalLink, FileSpreadsheet, Info } from "lucide-react";
+import { Loader2, ExternalLink, FileSpreadsheet, Info, Save, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+const SCRIPT_URL_STORAGE_KEY = "scrapex_google_script_url";
 
 interface GoogleSheetsExportModalProps {
   open: boolean;
@@ -25,6 +27,38 @@ export default function GoogleSheetsExportModal({
   const [sheetName, setSheetName] = useState("ScrapeX Results");
   const [exporting, setExporting] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [hasSavedUrl, setHasSavedUrl] = useState(false);
+
+  // Load saved script URL on mount
+  useEffect(() => {
+    const savedUrl = localStorage.getItem(SCRIPT_URL_STORAGE_KEY);
+    if (savedUrl) {
+      setScriptUrl(savedUrl);
+      setHasSavedUrl(true);
+      setShowInstructions(false);
+    }
+  }, []);
+
+  const handleSaveUrl = () => {
+    if (scriptUrl.trim() && scriptUrl.includes("script.google.com")) {
+      localStorage.setItem(SCRIPT_URL_STORAGE_KEY, scriptUrl.trim());
+      setHasSavedUrl(true);
+      toast({
+        title: "URL saved",
+        description: "Your script URL has been saved for future exports",
+      });
+    }
+  };
+
+  const handleClearUrl = () => {
+    localStorage.removeItem(SCRIPT_URL_STORAGE_KEY);
+    setScriptUrl("");
+    setHasSavedUrl(false);
+    toast({
+      title: "URL cleared",
+      description: "Saved script URL has been removed",
+    });
+  };
 
   const handleExport = async () => {
     if (!scriptUrl.trim()) {
@@ -228,12 +262,40 @@ export default function GoogleSheetsExportModal({
 
           <div className="space-y-2">
             <Label htmlFor="scriptUrl">Google Apps Script Web App URL</Label>
-            <Input
-              id="scriptUrl"
-              placeholder="https://script.google.com/macros/s/..."
-              value={scriptUrl}
-              onChange={(e) => setScriptUrl(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="scriptUrl"
+                placeholder="https://script.google.com/macros/s/..."
+                value={scriptUrl}
+                onChange={(e) => setScriptUrl(e.target.value)}
+                className="flex-1"
+              />
+              {scriptUrl.trim() && scriptUrl.includes("script.google.com") && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleSaveUrl}
+                  title="Save URL for future exports"
+                >
+                  <Save className="h-4 w-4" />
+                </Button>
+              )}
+              {hasSavedUrl && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleClearUrl}
+                  title="Clear saved URL"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {hasSavedUrl && (
+              <p className="text-xs text-green-500">
+                ✓ Using saved script URL
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
