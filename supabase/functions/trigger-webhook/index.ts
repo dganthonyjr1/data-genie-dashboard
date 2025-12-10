@@ -6,6 +6,74 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// SSRF Protection: Block private IP ranges, localhost, and cloud metadata endpoints
+const isBlockedUrl = (urlString: string): { blocked: boolean; reason?: string } => {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+    
+    // Only allow http and https schemes
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return { blocked: true, reason: 'Only HTTP and HTTPS protocols are allowed' };
+    }
+    
+    // Block localhost variations
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      return { blocked: true, reason: 'Localhost URLs are not allowed' };
+    }
+    
+    // Block common cloud metadata endpoints
+    const metadataPatterns = [
+      /^169\.254\.169\.254$/,
+      /^metadata\.google\.internal$/i,
+      /^metadata\.google$/i,
+      /^169\.254\./,
+    ];
+    
+    for (const pattern of metadataPatterns) {
+      if (pattern.test(hostname)) {
+        return { blocked: true, reason: 'Cloud metadata endpoints are not allowed' };
+      }
+    }
+    
+    // Block private IP ranges (RFC 1918)
+    const privateIpPatterns = [
+      /^10\./,
+      /^172\.(1[6-9]|2[0-9]|3[01])\./,
+      /^192\.168\./,
+      /^0\./,
+      /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./,
+      /^198\.18\./,
+      /^198\.19\./,
+    ];
+    
+    for (const pattern of privateIpPatterns) {
+      if (pattern.test(hostname)) {
+        return { blocked: true, reason: 'Private IP addresses are not allowed' };
+      }
+    }
+    
+    // Block internal service names
+    const internalPatterns = [
+      /\.internal$/i,
+      /\.local$/i,
+      /\.svc$/i,
+      /\.cluster$/i,
+      /^kubernetes/i,
+    ];
+    
+    for (const pattern of internalPatterns) {
+      if (pattern.test(hostname)) {
+        return { blocked: true, reason: 'Internal service URLs are not allowed' };
+      }
+    }
+    
+    return { blocked: false };
+  } catch {
+    return { blocked: true, reason: 'Invalid URL format' };
+  }
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -46,7 +114,13 @@ serve(async (req) => {
     const webhookUrls: { url: string; secret: string | null; id: string | null }[] = [];
     
     if (job.webhook_url) {
-      webhookUrls.push({ url: job.webhook_url, secret: null, id: null });
+      // Validate job webhook URL for SSRF
+      const blockCheck = isBlockedUrl(job.webhook_url);
+      if (blockCheck.blocked) {
+        console.warn(`Blocked SSRF attempt on job webhook: ${job.webhook_url} - ${blockCheck.reason}`);
+      } else {
+        webhookUrls.push({ url: job.webhook_url, secret: null, id: null });
+      }
     }
 
     // Fetch user's configured webhooks that match this event
@@ -59,6 +133,12 @@ serve(async (req) => {
 
     if (!webhooksError && webhooks) {
       for (const webhook of webhooks) {
+        // Validate each webhook URL for SSRF
+        const blockCheck = isBlockedUrl(webhook.url);
+        if (blockCheck.blocked) {
+          console.warn(`Blocked SSRF attempt on webhook ${webhook.id}: ${webhook.url} - ${blockCheck.reason}`);
+          continue;
+        }
         webhookUrls.push({ 
           url: webhook.url, 
           secret: webhook.secret, 

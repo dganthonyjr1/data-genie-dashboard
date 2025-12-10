@@ -12,6 +12,42 @@ interface ExportRequest {
   jobId: string;
 }
 
+// SSRF Protection: Validate Google Apps Script URLs
+const isValidGoogleScriptUrl = (urlString: string): { valid: boolean; reason?: string } => {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+    
+    // Only allow https scheme
+    if (url.protocol !== 'https:') {
+      return { valid: false, reason: 'Only HTTPS is allowed for Google Apps Script URLs' };
+    }
+    
+    // Only allow Google Apps Script domains
+    const allowedDomains = [
+      'script.google.com',
+      'script.googleusercontent.com',
+    ];
+    
+    const isAllowedDomain = allowedDomains.some(domain => 
+      hostname === domain || hostname.endsWith('.' + domain)
+    );
+    
+    if (!isAllowedDomain) {
+      return { valid: false, reason: 'URL must be a valid Google Apps Script URL' };
+    }
+    
+    // Additional path validation for Apps Script web apps
+    if (hostname === 'script.google.com' && !url.pathname.startsWith('/macros/')) {
+      return { valid: false, reason: 'Invalid Google Apps Script web app URL format' };
+    }
+    
+    return { valid: true };
+  } catch {
+    return { valid: false, reason: 'Invalid URL format' };
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -22,7 +58,6 @@ serve(async (req) => {
     const { scriptUrl, sheetName, data, jobId }: ExportRequest = await req.json();
 
     console.log(`[export-to-google-sheets] Starting export for job ${jobId}`);
-    console.log(`[export-to-google-sheets] Script URL: ${scriptUrl}`);
     console.log(`[export-to-google-sheets] Sheet name: ${sheetName}`);
     console.log(`[export-to-google-sheets] Data rows: ${data?.length || 0}`);
 
@@ -41,16 +76,19 @@ serve(async (req) => {
       );
     }
 
-    if (!scriptUrl.includes("script.google.com")) {
+    // SSRF Protection: Validate URL is a legitimate Google Apps Script URL
+    const urlValidation = isValidGoogleScriptUrl(scriptUrl);
+    if (!urlValidation.valid) {
+      console.warn(`[export-to-google-sheets] Blocked invalid URL: ${scriptUrl} - ${urlValidation.reason}`);
       return new Response(
-        JSON.stringify({ success: false, error: "Invalid Google Apps Script URL" }),
+        JSON.stringify({ success: false, error: urlValidation.reason }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log(`[export-to-google-sheets] URL validation passed, sending ${data.length} rows...`);
+
     // Send data to Google Apps Script
-    console.log(`[export-to-google-sheets] Sending ${data.length} rows to Google Apps Script...`);
-    
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: {
@@ -66,6 +104,16 @@ serve(async (req) => {
 
     // Google Apps Script returns redirects for web apps, so we need to handle that
     if (response.redirected) {
+      // Validate redirect URL as well
+      const redirectValidation = isValidGoogleScriptUrl(response.url);
+      if (!redirectValidation.valid) {
+        console.warn(`[export-to-google-sheets] Blocked redirect to invalid URL: ${response.url}`);
+        return new Response(
+          JSON.stringify({ success: false, error: "Invalid redirect URL from Google Apps Script" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const redirectedResponse = await fetch(response.url);
       const result = await redirectedResponse.text();
       
