@@ -4,11 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import UsageTracking from "@/components/UsageTracking";
+import BusinessAnalyzer from "@/components/BusinessAnalyzer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { 
   BarChart, 
   Bar, 
@@ -27,14 +25,11 @@ import {
 import { 
   Briefcase, 
   CheckCircle2, 
-  XCircle, 
   Clock, 
   TrendingUp,
   Activity,
   Plus,
-  BookOpen,
-  Phone,
-  Loader2
+  BookOpen
 } from "lucide-react";
 import { format, subDays, startOfDay, isWithinInterval } from "date-fns";
 
@@ -69,67 +64,6 @@ const Dashboard = () => {
     avgProcessingTime: 0,
   });
 
-  // Sales Call State
-  const [salesCallLoading, setSalesCallLoading] = useState(false);
-  const [salesCallForm, setSalesCallForm] = useState({
-    businessName: "",
-    phoneNumber: "",
-    painScore: "",
-    evidenceSummary: "",
-  });
-
-  const handleSalesCallSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!salesCallForm.businessName || !salesCallForm.phoneNumber) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter at least a business name and phone number",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSalesCallLoading(true);
-
-    try {
-      await fetch("https://hook.us2.make.com/w7c213pu9sygbum5kf8js7tf9432pt5s", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        mode: "no-cors",
-        body: JSON.stringify({
-          business_name: salesCallForm.businessName,
-          phone_number: salesCallForm.phoneNumber,
-          pain_score: salesCallForm.painScore ? parseInt(salesCallForm.painScore) : null,
-          evidence_summary: salesCallForm.evidenceSummary || null,
-        }),
-      });
-
-      toast({
-        title: "Sales Call Triggered",
-        description: "The AI sales call has been initiated. Check Make.com for status.",
-      });
-
-      // Clear form after successful submission
-      setSalesCallForm({
-        businessName: "",
-        phoneNumber: "",
-        painScore: "",
-        evidenceSummary: "",
-      });
-    } catch (error) {
-      console.error("Error triggering sales call:", error);
-      toast({
-        title: "Error",
-        description: "Failed to trigger the sales call. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSalesCallLoading(false);
-    }
-  };
 
   useEffect(() => {
     fetchJobsAndStats();
@@ -547,88 +481,11 @@ const Dashboard = () => {
           </Card>
         )}
 
+        {/* Business Analyzer - Main Feature */}
+        <BusinessAnalyzer />
+
         {/* Usage Tracking */}
         <UsageTracking />
-
-        {/* AI Sales Call */}
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5 text-primary" />
-              AI Sales Call
-            </CardTitle>
-            <CardDescription>
-              Trigger an AI-powered sales call to a lead
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSalesCallSubmit} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Business Name *</Label>
-                  <Input
-                    id="businessName"
-                    placeholder="e.g., Acme Dental"
-                    value={salesCallForm.businessName}
-                    onChange={(e) => setSalesCallForm(prev => ({ ...prev, businessName: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number *</Label>
-                  <Input
-                    id="phoneNumber"
-                    placeholder="e.g., (555) 123-4567"
-                    value={salesCallForm.phoneNumber}
-                    onChange={(e) => setSalesCallForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="painScore">Pain Score (1-10)</Label>
-                  <Input
-                    id="painScore"
-                    type="number"
-                    min="1"
-                    max="10"
-                    placeholder="e.g., 7"
-                    value={salesCallForm.painScore}
-                    onChange={(e) => setSalesCallForm(prev => ({ ...prev, painScore: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="evidenceSummary">Evidence Summary</Label>
-                  <Textarea
-                    id="evidenceSummary"
-                    placeholder="e.g., Customers complained about unanswered calls..."
-                    value={salesCallForm.evidenceSummary}
-                    onChange={(e) => setSalesCallForm(prev => ({ ...prev, evidenceSummary: e.target.value }))}
-                    className="h-10 min-h-[40px]"
-                  />
-                </div>
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full md:w-auto bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90"
-                disabled={salesCallLoading}
-              >
-                {salesCallLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Phone className="mr-2 h-4 w-4" />
-                    Start AI Sales Call
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
 
         {/* Quick Actions */}
         <Card className="bg-card/50 border-border/50">
