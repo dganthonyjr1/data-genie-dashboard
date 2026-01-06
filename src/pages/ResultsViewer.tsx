@@ -574,14 +574,20 @@ export default function ResultsViewer() {
 
     const getPainScoreColor = (score: number) => {
       if (score >= 8) return "text-red-500";
-      if (score >= 5) return "text-orange-500";
-      return "text-yellow-500";
+      if (score >= 5) return "text-amber-500";
+      return "text-emerald-500";
     };
 
     const getPainScoreBg = (score: number) => {
       if (score >= 8) return "bg-red-500/10 border-red-500/30";
-      if (score >= 5) return "bg-orange-500/10 border-orange-500/30";
-      return "bg-yellow-500/10 border-yellow-500/30";
+      if (score >= 5) return "bg-amber-500/10 border-amber-500/30";
+      return "bg-emerald-500/10 border-emerald-500/30";
+    };
+
+    const getPainScoreLabel = (score: number) => {
+      if (score >= 8) return "High Risk";
+      if (score >= 5) return "Medium Risk";
+      return "Low Risk";
     };
 
     return (
@@ -598,12 +604,20 @@ export default function ResultsViewer() {
             <CardContent>
               <div className="grid md:grid-cols-3 gap-6">
                 {/* Pain Score */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div className={`text-4xl font-bold ${getPainScoreColor(businessData.audit_pain_score)}`}>
                     {businessData.audit_pain_score}
                     <span className="text-lg text-muted-foreground">/10</span>
                   </div>
-                  <div className="text-sm text-muted-foreground">Pain Score</div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pain Score</p>
+                    <Badge 
+                      variant="outline" 
+                      className={`mt-1 ${getPainScoreColor(businessData.audit_pain_score)} border-current`}
+                    >
+                      {getPainScoreLabel(businessData.audit_pain_score)}
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Estimated Leak */}
