@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2, Pencil, CopyPlus, Columns3, Eye, EyeOff } from "lucide-react";
+import { Download, Copy, ArrowLeft, FileSpreadsheet, ExternalLink, Mail, Phone, MapPin, Globe, Building2, ChevronLeft, ChevronRight, Search, X, Plus, Clipboard, FileText, Trash2, Pencil, CopyPlus, Columns3, Eye, EyeOff, TrendingDown, Loader2, AlertTriangle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,13 @@ export default function ResultsViewer() {
   const [editValue, setEditValue] = useState("");
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
+  const [auditingRows, setAuditingRows] = useState<Set<number>>(new Set());
+  const [auditResults, setAuditResults] = useState<Map<number, {
+    painScore: number;
+    evidence: string[];
+    calculatedLeak: number;
+    calculatedLeakExplanation: string;
+  }>>(new Map());
 
   useEffect(() => {
     fetchJobResults();
@@ -424,6 +431,77 @@ export default function ResultsViewer() {
       saveEdit();
     } else if (e.key === "Escape") {
       cancelEditing();
+    }
+  };
+
+  const handleAuditRevenue = async (rowIndex: number, row: Record<string, string>) => {
+    // Find business name and niche from the row data
+    const businessName = row.business_name || row.name || row.title || row.company || "";
+    const niche = row.niche || row.category || row.industry || row.type || "";
+
+    if (!businessName) {
+      toast({
+        title: "Missing business name",
+        description: "This row doesn't have a business name to audit",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAuditingRows(prev => new Set(prev).add(rowIndex));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("audit-revenue", {
+        body: { businessName, niche }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setAuditResults(prev => new Map(prev).set(rowIndex, data));
+
+      // Update the job results with audit data
+      if (job) {
+        const updatedResults = [...job.results];
+        updatedResults[rowIndex] = {
+          ...updatedResults[rowIndex],
+          audit_pain_score: data.painScore,
+          audit_evidence_1: data.evidence[0] || "",
+          audit_evidence_2: data.evidence[1] || "",
+          audit_calculated_leak: `$${data.calculatedLeak.toLocaleString()}/month`,
+        };
+
+        const { error: updateError } = await supabase
+          .from("scraping_jobs")
+          .update({ results: updatedResults })
+          .eq("id", job.id);
+
+        if (updateError) throw updateError;
+
+        setJob({ ...job, results: updatedResults });
+      }
+
+      toast({
+        title: "Audit complete",
+        description: `Pain Score: ${data.painScore}/10 | Est. Leak: $${data.calculatedLeak.toLocaleString()}/month`,
+      });
+
+    } catch (error) {
+      console.error("Error auditing revenue:", error);
+      toast({
+        title: "Audit failed",
+        description: error instanceof Error ? error.message : "Could not complete revenue audit",
+        variant: "destructive",
+      });
+    } finally {
+      setAuditingRows(prev => {
+        const next = new Set(prev);
+        next.delete(rowIndex);
+        return next;
+      });
     }
   };
 
@@ -886,6 +964,7 @@ export default function ResultsViewer() {
                             {header.replace(/_/g, ' ')}
                           </TableHead>
                         ))}
+                        <TableHead className="font-semibold whitespace-nowrap text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -932,6 +1011,32 @@ export default function ResultsViewer() {
                                 </TableCell>
                               );
                             })}
+                            <TableCell className="text-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAuditRevenue(originalIndex, row)}
+                                disabled={auditingRows.has(originalIndex)}
+                                className="gap-1.5"
+                              >
+                                {auditingRows.has(originalIndex) ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    Auditing...
+                                  </>
+                                ) : row.audit_pain_score ? (
+                                  <>
+                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                    Re-Audit
+                                  </>
+                                ) : (
+                                  <>
+                                    <TrendingDown className="h-3.5 w-3.5" />
+                                    Audit Revenue
+                                  </>
+                                )}
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
