@@ -21,8 +21,19 @@ import {
   Facebook,
   Instagram,
   Linkedin,
-  ExternalLink
+  Youtube,
+  Twitter,
+  ExternalLink,
+  Users,
+  User
 } from "lucide-react";
+
+interface MemberBusiness {
+  name?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+}
 
 interface BusinessData {
   business_name?: string;
@@ -34,10 +45,16 @@ interface BusinessData {
   hours_of_operation?: string;
   about_or_description?: string;
   services_or_products?: string;
+  contact_names?: string[];
+  member_businesses?: MemberBusiness[];
   social_links?: {
     facebook?: string;
     instagram?: string;
     linkedin?: string;
+    twitter?: string;
+    youtube?: string;
+    tiktok?: string;
+    yelp?: string;
     [key: string]: string | undefined;
   };
   audit_pain_score?: number;
@@ -419,13 +436,14 @@ export default function BusinessAnalyzer() {
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">Social Media</p>
                       {hasSocialLinks ? (
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3">
                           {businessData.social_links?.facebook && businessData.social_links.facebook.trim() && (
                             <a 
                               href={businessData.social_links.facebook} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+                              title="Facebook"
                             >
                               <Facebook className="h-5 w-5 text-blue-500" />
                             </a>
@@ -436,8 +454,31 @@ export default function BusinessAnalyzer() {
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="p-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 transition-colors"
+                              title="Instagram"
                             >
                               <Instagram className="h-5 w-5 text-pink-500" />
+                            </a>
+                          )}
+                          {businessData.social_links?.twitter && businessData.social_links.twitter.trim() && (
+                            <a 
+                              href={businessData.social_links.twitter} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 transition-colors"
+                              title="Twitter/X"
+                            >
+                              <Twitter className="h-5 w-5 text-sky-500" />
+                            </a>
+                          )}
+                          {businessData.social_links?.youtube && businessData.social_links.youtube.trim() && (
+                            <a 
+                              href={businessData.social_links.youtube} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                              title="YouTube"
+                            >
+                              <Youtube className="h-5 w-5 text-red-500" />
                             </a>
                           )}
                           {businessData.social_links?.linkedin && businessData.social_links.linkedin.trim() && (
@@ -446,8 +487,31 @@ export default function BusinessAnalyzer() {
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="p-2 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 transition-colors"
+                              title="LinkedIn"
                             >
                               <Linkedin className="h-5 w-5 text-blue-600" />
+                            </a>
+                          )}
+                          {businessData.social_links?.tiktok && businessData.social_links.tiktok.trim() && (
+                            <a 
+                              href={businessData.social_links.tiktok} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-gray-800/10 hover:bg-gray-800/20 transition-colors"
+                              title="TikTok"
+                            >
+                              <span className="text-sm font-bold">TT</span>
+                            </a>
+                          )}
+                          {businessData.social_links?.yelp && businessData.social_links.yelp.trim() && (
+                            <a 
+                              href={businessData.social_links.yelp} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-red-600/10 hover:bg-red-600/20 transition-colors"
+                              title="Yelp"
+                            >
+                              <span className="text-sm font-bold text-red-600">Y</span>
                             </a>
                           )}
                         </div>
@@ -457,9 +521,73 @@ export default function BusinessAnalyzer() {
                     </div>
                   );
                 })()}
+
+                {/* Contact Names */}
+                {businessData.contact_names && businessData.contact_names.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
+                      <User className="h-4 w-4" />
+                      Contact Names
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {businessData.contact_names.map((name, idx) => (
+                        <Badge key={idx} variant="secondary">{name}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
+
+          {/* Member Businesses */}
+          {businessData.member_businesses && businessData.member_businesses.length > 0 && (
+            <Card className="bg-card/50 border-border/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  Member Businesses ({businessData.member_businesses.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {businessData.member_businesses.slice(0, 12).map((member, idx) => (
+                    <div key={idx} className="p-3 rounded-lg bg-muted/50 space-y-1">
+                      <p className="font-medium">{member.name || "Unknown"}</p>
+                      {member.email && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          <a href={`mailto:${member.email}`} className="hover:underline">{member.email}</a>
+                        </p>
+                      )}
+                      {member.phone && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {member.phone}
+                        </p>
+                      )}
+                      {member.website && (
+                        <a 
+                          href={member.website} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline flex items-center gap-1"
+                        >
+                          <Globe className="h-3 w-3" />
+                          Visit Website
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {businessData.member_businesses.length > 12 && (
+                  <p className="text-sm text-muted-foreground mt-3 text-center">
+                    + {businessData.member_businesses.length - 12} more businesses
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Revenue Leak Analysis */}
           {businessData.audit_pain_score !== undefined && (
