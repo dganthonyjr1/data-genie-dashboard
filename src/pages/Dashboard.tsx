@@ -229,10 +229,10 @@ const Dashboard = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold font-orbitron bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
-              Dashboard Overview
+              Dashboard
             </h1>
             <p className="text-muted-foreground mt-2">
-              Track your scraping jobs performance and analytics
+              Analyze businesses and trigger AI sales calls
             </p>
           </div>
           <Button
@@ -243,6 +243,9 @@ const Dashboard = () => {
             New Job
           </Button>
         </div>
+
+        {/* Business Analyzer - Main Feature */}
+        <BusinessAnalyzer />
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -481,8 +484,6 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Business Analyzer - Main Feature */}
-        <BusinessAnalyzer />
 
         {/* Usage Tracking */}
         <UsageTracking />
