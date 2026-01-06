@@ -411,43 +411,52 @@ export default function BusinessAnalyzer() {
                     <p className="font-medium">{businessData.services_or_products}</p>
                   </div>
                 )}
-                {businessData.social_links && Object.keys(businessData.social_links).length > 0 && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Social Media</p>
-                    <div className="flex gap-3">
-                      {businessData.social_links.facebook && (
-                        <a 
-                          href={businessData.social_links.facebook} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
-                        >
-                          <Facebook className="h-5 w-5 text-blue-500" />
-                        </a>
-                      )}
-                      {businessData.social_links.instagram && (
-                        <a 
-                          href={businessData.social_links.instagram} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="p-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 transition-colors"
-                        >
-                          <Instagram className="h-5 w-5 text-pink-500" />
-                        </a>
-                      )}
-                      {businessData.social_links.linkedin && (
-                        <a 
-                          href={businessData.social_links.linkedin} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="p-2 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 transition-colors"
-                        >
-                          <Linkedin className="h-5 w-5 text-blue-600" />
-                        </a>
+                {(() => {
+                  const hasSocialLinks = businessData.social_links && 
+                    Object.values(businessData.social_links).some(v => v && v.trim() !== "");
+                  
+                  return (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Social Media</p>
+                      {hasSocialLinks ? (
+                        <div className="flex gap-3">
+                          {businessData.social_links?.facebook && businessData.social_links.facebook.trim() && (
+                            <a 
+                              href={businessData.social_links.facebook} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+                            >
+                              <Facebook className="h-5 w-5 text-blue-500" />
+                            </a>
+                          )}
+                          {businessData.social_links?.instagram && businessData.social_links.instagram.trim() && (
+                            <a 
+                              href={businessData.social_links.instagram} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 transition-colors"
+                            >
+                              <Instagram className="h-5 w-5 text-pink-500" />
+                            </a>
+                          )}
+                          {businessData.social_links?.linkedin && businessData.social_links.linkedin.trim() && (
+                            <a 
+                              href={businessData.social_links.linkedin} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 transition-colors"
+                            >
+                              <Linkedin className="h-5 w-5 text-blue-600" />
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">No social links found on website</p>
                       )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
