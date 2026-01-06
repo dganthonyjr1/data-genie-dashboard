@@ -786,29 +786,155 @@ function cleanUrl(url: string): string {
   return cleaned;
 }
 
-// Extract social media links from content
+// Extract social media links from content with enhanced detection
 function extractSocialLinks(content: string, html: string): Record<string, string> {
-  const socialPatterns = {
-    facebook: /(?:https?:\/\/)?(?:www\.)?facebook\.com\/[^\s"'<>]+/gi,
-    instagram: /(?:https?:\/\/)?(?:www\.)?instagram\.com\/[^\s"'<>]+/gi,
-    twitter: /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com)\/[^\s"'<>]+/gi,
-    linkedin: /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/(?:company|in)\/[^\s"'<>]+/gi,
-    youtube: /(?:https?:\/\/)?(?:www\.)?youtube\.com\/(?:channel|c|user|@)[^\s"'<>]+/gi,
-    tiktok: /(?:https?:\/\/)?(?:www\.)?tiktok\.com\/@[^\s"'<>]+/gi,
-    pinterest: /(?:https?:\/\/)?(?:www\.)?pinterest\.com\/[^\s"'<>]+/gi,
+  const socialLinks: Record<string, string> = {};
+  
+  // Platform URL patterns - more comprehensive matching
+  const socialPatterns: Record<string, RegExp[]> = {
+    facebook: [
+      /https?:\/\/(?:www\.)?facebook\.com\/(?!sharer|share|plugins|dialog)[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?fb\.com\/[^\s"'<>()]+/gi,
+    ],
+    instagram: [
+      /https?:\/\/(?:www\.)?instagram\.com\/(?!p\/|embed)[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?instagr\.am\/[^\s"'<>()]+/gi,
+    ],
+    twitter: [
+      /https?:\/\/(?:www\.)?twitter\.com\/(?!intent|share)[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?x\.com\/(?!intent|share)[^\s"'<>()]+/gi,
+    ],
+    linkedin: [
+      /https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in|school)\/[^\s"'<>()]+/gi,
+    ],
+    youtube: [
+      /https?:\/\/(?:www\.)?youtube\.com\/(?:channel|c|user|@)[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?youtube\.com\/[^\s"'<>()]*(?:channel|user)[^\s"'<>()]+/gi,
+    ],
+    tiktok: [
+      /https?:\/\/(?:www\.)?tiktok\.com\/@[^\s"'<>()]+/gi,
+    ],
+    pinterest: [
+      /https?:\/\/(?:www\.)?pinterest\.com\/[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?pin\.it\/[^\s"'<>()]+/gi,
+    ],
+    yelp: [
+      /https?:\/\/(?:www\.)?yelp\.com\/biz\/[^\s"'<>()]+/gi,
+    ],
   };
 
-  const combinedContent = content + ' ' + html;
-  const socialLinks: Record<string, string> = {};
-
-  for (const [platform, regex] of Object.entries(socialPatterns)) {
-    const matches = combinedContent.match(regex);
-    if (matches && matches.length > 0) {
-      const cleanedUrl = cleanUrl(matches[0]);
-      socialLinks[platform] = cleanedUrl.startsWith('http') ? cleanedUrl : `https://${cleanedUrl}`;
+  // 1. First, try to extract from footer, header, and nav sections specifically
+  const sectionPatterns = [
+    /<footer[^>]*>([\s\S]*?)<\/footer>/gi,
+    /<header[^>]*>([\s\S]*?)<\/header>/gi,
+    /<nav[^>]*>([\s\S]*?)<\/nav>/gi,
+    /<div[^>]*class="[^"]*(?:footer|header|nav|social|contact)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+    /<aside[^>]*>([\s\S]*?)<\/aside>/gi,
+  ];
+  
+  let prioritySections = '';
+  for (const pattern of sectionPatterns) {
+    const matches = [...html.matchAll(pattern)];
+    for (const match of matches) {
+      prioritySections += ' ' + match[1];
+    }
+  }
+  
+  // 2. Extract from <a> tags with social-related attributes
+  const linkPatterns = [
+    // Links with aria-label mentioning social platforms
+    /<a[^>]*aria-label=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp|social)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+    /<a[^>]*href=["']([^"']+)["'][^>]*aria-label=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp|social)[^"']*["'][^>]*>/gi,
+    // Links with title mentioning social platforms
+    /<a[^>]*title=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+    /<a[^>]*href=["']([^"']+)["'][^>]*title=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp)[^"']*["'][^>]*>/gi,
+    // Links with social-related class names
+    /<a[^>]*class=["'][^"']*(?:social|facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+    /<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*(?:social|facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest)[^"']*["'][^>]*>/gi,
+  ];
+  
+  const attributeUrls: string[] = [];
+  for (const pattern of linkPatterns) {
+    const matches = [...html.matchAll(pattern)];
+    for (const match of matches) {
+      if (match[1]) {
+        attributeUrls.push(match[1]);
+      }
+    }
+  }
+  
+  // 3. Look for social icons (SVG or icon fonts) near links
+  const iconLinkPattern = /<a[^>]*href=["']([^"']+(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|x\.com|fb\.com|yelp)[^"']*)["'][^>]*>[\s\S]*?(?:<svg|<i[^>]*class=["'][^"']*(?:fa-|icon-|svg-))/gi;
+  const iconMatches = [...html.matchAll(iconLinkPattern)];
+  for (const match of iconMatches) {
+    if (match[1]) {
+      attributeUrls.push(match[1]);
     }
   }
 
+  // 4. Combine all sources: priority sections, attribute URLs, full content
+  const combinedContent = attributeUrls.join(' ') + ' ' + prioritySections + ' ' + content + ' ' + html;
+
+  // 5. Match patterns for each platform
+  for (const [platform, patterns] of Object.entries(socialPatterns)) {
+    if (socialLinks[platform]) continue; // Already found
+    
+    for (const regex of patterns) {
+      const matches = combinedContent.match(regex);
+      if (matches && matches.length > 0) {
+        // Filter and clean matches
+        for (const match of matches) {
+          const cleanedUrl = cleanUrl(match);
+          
+          // Skip share/plugin URLs
+          if (cleanedUrl.includes('/sharer') || cleanedUrl.includes('/share') || 
+              cleanedUrl.includes('/plugins') || cleanedUrl.includes('/dialog') ||
+              cleanedUrl.includes('/intent/')) continue;
+          
+          // Skip if it's just the domain with no path
+          try {
+            const urlObj = new URL(cleanedUrl.startsWith('http') ? cleanedUrl : `https://${cleanedUrl}`);
+            if (urlObj.pathname === '/' || urlObj.pathname === '') continue;
+          } catch {
+            continue;
+          }
+          
+          socialLinks[platform] = cleanedUrl.startsWith('http') ? cleanedUrl : `https://${cleanedUrl}`;
+          break;
+        }
+      }
+      if (socialLinks[platform]) break;
+    }
+  }
+
+  // 6. Special handling: Check for social links in JSON-LD structured data
+  const jsonLdPattern = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const jsonLdMatches = [...html.matchAll(jsonLdPattern)];
+  
+  for (const match of jsonLdMatches) {
+    try {
+      const jsonData = JSON.parse(match[1]);
+      const sameAs = jsonData.sameAs || (jsonData['@graph'] && jsonData['@graph'][0]?.sameAs) || [];
+      const sameAsArray = Array.isArray(sameAs) ? sameAs : [sameAs];
+      
+      for (const url of sameAsArray) {
+        if (typeof url !== 'string') continue;
+        
+        if (url.includes('facebook.com') && !socialLinks.facebook) socialLinks.facebook = url;
+        else if (url.includes('instagram.com') && !socialLinks.instagram) socialLinks.instagram = url;
+        else if ((url.includes('twitter.com') || url.includes('x.com')) && !socialLinks.twitter) socialLinks.twitter = url;
+        else if (url.includes('linkedin.com') && !socialLinks.linkedin) socialLinks.linkedin = url;
+        else if (url.includes('youtube.com') && !socialLinks.youtube) socialLinks.youtube = url;
+        else if (url.includes('tiktok.com') && !socialLinks.tiktok) socialLinks.tiktok = url;
+        else if (url.includes('pinterest.com') && !socialLinks.pinterest) socialLinks.pinterest = url;
+        else if (url.includes('yelp.com') && !socialLinks.yelp) socialLinks.yelp = url;
+      }
+    } catch {
+      // Invalid JSON, skip
+    }
+  }
+
+  console.log(`Social link extraction found: ${Object.keys(socialLinks).length} platforms - ${Object.keys(socialLinks).join(', ')}`);
   return socialLinks;
 }
 
