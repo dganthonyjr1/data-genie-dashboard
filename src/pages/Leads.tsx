@@ -363,16 +363,15 @@ const Leads = () => {
                 </p>
               </div>
             ) : (
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[250px]">Business Name</TableHead>
-                      <TableHead>Niche</TableHead>
-                      <TableHead>Phone Number</TableHead>
-                      <TableHead>Revenue Leak</TableHead>
-                      <TableHead>Risk Level</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="min-w-[180px]">Business Name</TableHead>
+                      <TableHead className="min-w-[100px]">Niche</TableHead>
+                      <TableHead className="min-w-[120px]">Phone Number</TableHead>
+                      <TableHead className="min-w-[100px]">Revenue Leak</TableHead>
+                      <TableHead className="sticky right-0 bg-background min-w-[180px] text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -395,21 +394,21 @@ const Leads = () => {
                         <TableCell className="font-semibold text-red-600">
                           {formatRevenueLeak(lead.revenueLeak)}
                         </TableCell>
-                        <TableCell>{getPainScoreBadge(lead.painScore)}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="sticky right-0 bg-background text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                           <Button
+                            size="sm"
                             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                             onClick={() => handleStartCall(lead)}
                             disabled={lead.phoneNumber === "N/A" || callingLeadId === lead.id}
                           >
                             {callingLeadId === lead.id ? (
                               <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                 Calling...
                               </>
                             ) : (
                               <>
-                                <Phone className="mr-2 h-4 w-4" />
+                                <Phone className="mr-1 h-3 w-3" />
                                 Start AI Sales Call
                               </>
                             )}
