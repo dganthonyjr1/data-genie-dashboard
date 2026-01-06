@@ -572,29 +572,94 @@ export default function ResultsViewer() {
   const renderCompleteBusinessData = () => {
     if (!businessData) return null;
 
+    const getPainScoreColor = (score: number) => {
+      if (score >= 8) return "text-red-500";
+      if (score >= 5) return "text-orange-500";
+      return "text-yellow-500";
+    };
+
+    const getPainScoreBg = (score: number) => {
+      if (score >= 8) return "bg-red-500/10 border-red-500/30";
+      if (score >= 5) return "bg-orange-500/10 border-orange-500/30";
+      return "bg-yellow-500/10 border-yellow-500/30";
+    };
+
     return (
       <div className="space-y-6">
-        {/* Lead Actions */}
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => openAuditPanel(0, flattenObject(businessData))}
-            className="gap-1.5"
-          >
-            {businessData.audit_pain_score ? (
-              <>
-                <AlertTriangle className="h-3.5 w-3.5" />
-                View Audit
-              </>
-            ) : (
-              <>
-                <TrendingDown className="h-3.5 w-3.5" />
-                Audit Revenue
-              </>
-            )}
-          </Button>
-        </div>
+        {/* Audit Summary Card - shows after audit is run */}
+        {businessData.audit_pain_score && (
+          <Card className={`border-2 ${getPainScoreBg(businessData.audit_pain_score)}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <AlertTriangle className={`h-5 w-5 ${getPainScoreColor(businessData.audit_pain_score)}`} />
+                Revenue Leak Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-6">
+                {/* Pain Score */}
+                <div className="flex items-center gap-3">
+                  <div className={`text-4xl font-bold ${getPainScoreColor(businessData.audit_pain_score)}`}>
+                    {businessData.audit_pain_score}
+                    <span className="text-lg text-muted-foreground">/10</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">Pain Score</div>
+                </div>
+
+                {/* Estimated Leak */}
+                <div>
+                  <p className="text-sm text-muted-foreground">Estimated Monthly Leak</p>
+                  <p className="text-2xl font-bold text-destructive">
+                    {businessData.audit_calculated_leak || "N/A"}
+                  </p>
+                </div>
+
+                {/* Evidence */}
+                <div className="md:col-span-1">
+                  <p className="text-sm text-muted-foreground mb-1">Evidence Found</p>
+                  <div className="space-y-1 text-sm">
+                    {businessData.audit_evidence_1 && (
+                      <p className="italic text-foreground/80 line-clamp-2">"{businessData.audit_evidence_1}"</p>
+                    )}
+                    {businessData.audit_evidence_2 && (
+                      <p className="italic text-foreground/80 line-clamp-2">"{businessData.audit_evidence_2}"</p>
+                    )}
+                    {!businessData.audit_evidence_1 && !businessData.audit_evidence_2 && (
+                      <p className="text-muted-foreground">No specific complaints found</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border/50 flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openAuditPanel(0, flattenObject(businessData))}
+                  className="gap-1.5"
+                >
+                  <TrendingDown className="h-3.5 w-3.5" />
+                  View Full Audit
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Lead Actions - only show audit button if not yet audited */}
+        {!businessData.audit_pain_score && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openAuditPanel(0, flattenObject(businessData))}
+              className="gap-1.5"
+            >
+              <TrendingDown className="h-3.5 w-3.5" />
+              Audit Revenue
+            </Button>
+          </div>
+        )}
 
         {/* Business Identity */}
         <Card className="bg-card/50 border-border/50">
