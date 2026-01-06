@@ -574,6 +574,28 @@ export default function ResultsViewer() {
 
     return (
       <div className="space-y-6">
+        {/* Lead Actions */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openAuditPanel(0, flattenObject(businessData))}
+            className="gap-1.5"
+          >
+            {businessData.audit_pain_score ? (
+              <>
+                <AlertTriangle className="h-3.5 w-3.5" />
+                View Audit
+              </>
+            ) : (
+              <>
+                <TrendingDown className="h-3.5 w-3.5" />
+                Audit Revenue
+              </>
+            )}
+          </Button>
+        </div>
+
         {/* Business Identity */}
         <Card className="bg-card/50 border-border/50">
           <CardHeader>
