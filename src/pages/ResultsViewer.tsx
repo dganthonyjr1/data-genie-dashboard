@@ -39,6 +39,7 @@ import {
 import ManualDataEntryModal from "@/components/ManualDataEntryModal";
 import ClipboardImportModal from "@/components/ClipboardImportModal";
 import GoogleSheetsExportModal from "@/components/GoogleSheetsExportModal";
+import LeadAuditPanel from "@/components/LeadAuditPanel";
 import * as XLSX from "xlsx";
 
 interface Job {
@@ -71,6 +72,13 @@ export default function ResultsViewer() {
     calculatedLeak: number;
     calculatedLeakExplanation: string;
   }>>(new Map());
+  const [auditPanelOpen, setAuditPanelOpen] = useState(false);
+  const [selectedLeadForAudit, setSelectedLeadForAudit] = useState<{
+    rowIndex: number;
+    row: Record<string, string>;
+    businessName: string;
+    niche: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchJobResults();
@@ -434,8 +442,7 @@ export default function ResultsViewer() {
     }
   };
 
-  const handleAuditRevenue = async (rowIndex: number, row: Record<string, string>) => {
-    // Find business name and niche from the row data
+  const openAuditPanel = (rowIndex: number, row: Record<string, string>) => {
     const businessName = row.business_name || row.name || row.title || row.company || "";
     const niche = row.niche || row.category || row.industry || row.type || "";
 
@@ -447,6 +454,15 @@ export default function ResultsViewer() {
       });
       return;
     }
+
+    setSelectedLeadForAudit({ rowIndex, row, businessName, niche });
+    setAuditPanelOpen(true);
+  };
+
+  const handleAuditRevenue = async () => {
+    if (!selectedLeadForAudit) return;
+    
+    const { rowIndex, businessName, niche } = selectedLeadForAudit;
 
     setAuditingRows(prev => new Set(prev).add(rowIndex));
 
@@ -1015,19 +1031,13 @@ export default function ResultsViewer() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleAuditRevenue(originalIndex, row)}
-                                disabled={auditingRows.has(originalIndex)}
+                                onClick={() => openAuditPanel(originalIndex, row)}
                                 className="gap-1.5"
                               >
-                                {auditingRows.has(originalIndex) ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    Auditing...
-                                  </>
-                                ) : row.audit_pain_score ? (
+                                {row.audit_pain_score ? (
                                   <>
                                     <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                                    Re-Audit
+                                    View Audit
                                   </>
                                 ) : (
                                   <>
@@ -1215,6 +1225,24 @@ export default function ResultsViewer() {
           onOpenChange={setGoogleSheetsModalOpen}
           data={getFlattenedResults()}
           jobId={job.id}
+        />
+        <LeadAuditPanel
+          open={auditPanelOpen}
+          onOpenChange={(open) => {
+            setAuditPanelOpen(open);
+            if (!open) setSelectedLeadForAudit(null);
+          }}
+          businessName={selectedLeadForAudit?.businessName || ""}
+          niche={selectedLeadForAudit?.niche || ""}
+          auditData={selectedLeadForAudit ? auditResults.get(selectedLeadForAudit.rowIndex) || null : null}
+          isLoading={selectedLeadForAudit ? auditingRows.has(selectedLeadForAudit.rowIndex) : false}
+          onStartAudit={handleAuditRevenue}
+          onStartSalesCall={() => {
+            toast({
+              title: "Coming soon!",
+              description: "AI Sales Call feature is under development",
+            });
+          }}
         />
       </div>
     </DashboardLayout>
