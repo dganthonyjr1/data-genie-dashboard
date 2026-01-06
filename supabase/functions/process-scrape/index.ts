@@ -1092,6 +1092,9 @@ async function extractCompleteBusinessData(markdownContent: string, htmlContent:
       ...(aiResults.phone_number ? [aiResults.phone_number] : [])
     ]),
     
+    // Contact Names
+    contact_names: aiResults.contact_names || [],
+    
     // Address - from regex and AI
     addresses: deduplicateArray([
       ...regexAddresses,
@@ -1111,6 +1114,7 @@ async function extractCompleteBusinessData(markdownContent: string, htmlContent:
       youtube: socialLinks.youtube || aiResults.social_links?.youtube || '',
       tiktok: socialLinks.tiktok || aiResults.social_links?.tiktok || '',
       pinterest: socialLinks.pinterest || '',
+      yelp: socialLinks.yelp || '',
     },
     
     // Google Maps
@@ -1127,13 +1131,18 @@ async function extractCompleteBusinessData(markdownContent: string, htmlContent:
     hours_of_operation: aiResults.hours_of_operation || '',
     services_or_products: aiResults.services_or_products || '',
     
+    // Member/Directory Businesses (for chambers, associations, directories)
+    member_businesses: aiResults.member_businesses || [],
+    
     // Extraction metadata
     extraction_sources: {
       regex_emails_found: regexEmails.length,
       regex_phones_found: regexPhones.length,
       regex_addresses_found: regexAddresses.length,
-      social_links_found: Object.keys(socialLinks).length,
+      social_links_found: Object.values(socialLinks).filter(v => v).length,
       ai_extraction_success: !!aiResults.business_name,
+      contact_names_found: (aiResults.contact_names || []).length,
+      member_businesses_found: (aiResults.member_businesses || []).length,
     }
   };
 
@@ -1160,16 +1169,18 @@ Focus on finding:
 - Business name
 - Complete address (street, city, state/province, zip/postal code, country)
 - Phone numbers (all formats)
-- Email addresses
+- Email addresses (look in footer, contact sections, mailto: links)
 - Website URL
-- Social media links (Facebook, Instagram, TikTok, LinkedIn, YouTube, Twitter)
+- Social media links (Facebook, Instagram, TikTok, LinkedIn, YouTube, Twitter/X)
 - Hours of operation
 - Google Maps embed URL and place ID
 - Coordinates (latitude, longitude)
 - Services or products offered
 - Business description
+- Contact person names (owner, manager, staff names if listed)
+- Member businesses or directory listings (for chamber of commerce, associations, directories - extract business names with their emails/phones if available)
 
-Search everywhere: footer, header, contact sections, about pages, schema markup, meta tags, and embedded content.
+Search everywhere: footer, header, contact sections, about pages, schema markup, meta tags, embedded content, staff/team pages, member directories.
 If information is not found, return empty strings for those fields.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -1220,7 +1231,25 @@ If information is not found, return empty strings for those fields.`;
                     }
                   },
                   services_or_products: { type: 'string', description: 'Services or products offered' },
-                  about_or_description: { type: 'string', description: 'Business description' }
+                  about_or_description: { type: 'string', description: 'Business description' },
+                  contact_names: { 
+                    type: 'array', 
+                    items: { type: 'string' },
+                    description: 'Names of contacts, owners, managers, or staff members listed' 
+                  },
+                  member_businesses: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        name: { type: 'string' },
+                        email: { type: 'string' },
+                        phone: { type: 'string' },
+                        website: { type: 'string' }
+                      }
+                    },
+                    description: 'For directories/chambers: list of member businesses with their contact info'
+                  }
                 },
                 required: ['business_name']
               }
