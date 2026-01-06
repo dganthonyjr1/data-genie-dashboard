@@ -168,7 +168,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main Content */}
-      <main className="pl-64">
+      <main className="pl-64 min-h-screen overflow-auto">
         <div className="container mx-auto p-8">
           <div className="flex justify-end mb-4">
             <NotificationBell />
