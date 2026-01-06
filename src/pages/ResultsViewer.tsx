@@ -1334,16 +1334,11 @@ export default function ResultsViewer() {
             if (!open) setSelectedLeadForAudit(null);
           }}
           businessName={selectedLeadForAudit?.businessName || ""}
+          phoneNumber={selectedLeadForAudit?.row?.phone_numbers || selectedLeadForAudit?.row?.phone || selectedLeadForAudit?.row?.phone_number || ""}
           niche={selectedLeadForAudit?.niche || ""}
           auditData={selectedLeadForAudit ? auditResults.get(selectedLeadForAudit.rowIndex) || null : null}
           isLoading={selectedLeadForAudit ? auditingRows.has(selectedLeadForAudit.rowIndex) : false}
           onStartAudit={handleAuditRevenue}
-          onStartSalesCall={() => {
-            toast({
-              title: "Coming soon!",
-              description: "AI Sales Call feature is under development",
-            });
-          }}
         />
       </div>
     </DashboardLayout>
