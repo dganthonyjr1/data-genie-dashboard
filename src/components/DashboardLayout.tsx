@@ -77,7 +77,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen overflow-hidden bg-background">
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border bg-sidebar">
         <div className="flex h-full flex-col">
@@ -168,7 +168,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main Content */}
-      <main className="pl-64 min-h-screen overflow-auto">
+      <main className="pl-64 h-screen overflow-y-auto">
         <div className="container mx-auto p-8">
           <div className="flex justify-end mb-4">
             <NotificationBell />
