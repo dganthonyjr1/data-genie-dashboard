@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const { businessName, niche } = await req.json();
+    const { businessName, niche, description } = await req.json();
 
     if (!businessName) {
       throw new Error("Business name is required");
@@ -25,34 +25,135 @@ serve(async (req) => {
 
     console.log(`Auditing revenue leak for: ${businessName} (${niche || 'general'})`);
 
-    // Determine facility type and cost per missed lead
-    const nicheLower = (niche || '').toLowerCase();
-    let facilityType = 'general';
+    // Step 1: Classify if this is a medical/healthcare business
+    const classificationPrompt = `You are a business classifier. Analyze the following business and determine if it is a MEDICAL/HEALTHCARE facility.
+
+Business Name: ${businessName}
+Description: ${description || 'No description provided'}
+Provided Niche: ${niche || 'Unknown'}
+
+MEDICAL/HEALTHCARE includes:
+- Hospitals, Clinics, Urgent Care
+- Doctor's offices (any specialty: Pediatrics, Cardiology, Orthopedics, etc.)
+- Dental practices
+- Mental health / Counseling / Psychiatry
+- Physical Therapy / Occupational Therapy
+- Chiropractic / Acupuncture
+- MedSpas / Aesthetic medicine
+- Optometry / Ophthalmology  
+- Pharmacy
+- Home health / Nursing
+- Veterinary clinics
+- Lab / Diagnostic centers
+- Rehabilitation centers
+
+NOT MEDICAL includes:
+- Retail stores
+- Restaurants / Food service
+- General wellness (gyms, yoga studios without medical component)
+- Beauty salons (non-medical)
+- Legal, accounting, or other professional services
+- Manufacturing / Industrial
+- Real estate
+- Education (non-medical)
+- Chambers of Commerce / Business associations
+- Churches / Religious organizations
+
+Respond in this exact JSON format:
+{
+  "isMedical": <true or false>,
+  "medicalCategory": "<specific category if medical, e.g., 'Pediatrics', 'Urgent Care', 'Dental', 'Cardiology', 'MedSpa', 'Mental Health', 'Physical Therapy', etc. Use null if not medical>",
+  "facilityType": "<'specialist' | 'general' | 'therapy' based on category. Use null if not medical>",
+  "confidence": "<'high' | 'medium' | 'low'>",
+  "reasoning": "<brief explanation>"
+}`;
+
+    // Call Gemini to classify the business
+    const classificationResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: classificationPrompt }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+        }),
+      }
+    );
+
+    if (!classificationResponse.ok) {
+      const errorText = await classificationResponse.text();
+      console.error("Gemini classification error:", classificationResponse.status, errorText);
+      throw new Error(`Gemini API error: ${classificationResponse.status}`);
+    }
+
+    const classificationData = await classificationResponse.json();
+    const classificationText = classificationData.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    let classification;
+    try {
+      const jsonMatch = classificationText?.match(/\{[\s\S]*\}/);
+      classification = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    } catch (e) {
+      console.error("Failed to parse classification:", classificationText);
+      classification = null;
+    }
+
+    // If not medical, return NICHE_MISMATCH
+    if (!classification || !classification.isMedical) {
+      console.log(`Business "${businessName}" is not medical. Returning NICHE_MISMATCH.`);
+      return new Response(JSON.stringify({ 
+        status: 'NICHE_MISMATCH',
+        message: 'This business does not appear to be a medical/healthcare facility.',
+        reasoning: classification?.reasoning || 'Could not classify business type',
+        detectedCategory: classification?.medicalCategory || null
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Step 2: Determine facility type and cost per missed lead based on medical category
+    const medicalCategory = (classification.medicalCategory || '').toLowerCase();
+    let facilityType = classification.facilityType || 'general';
     let costPerLead = 150; // Default: General Practice/Clinic
     
-    if (nicheLower.includes('surgery') || nicheLower.includes('cardio') || nicheLower.includes('cardiac') || 
-        nicheLower.includes('orthopedic') || nicheLower.includes('specialist') || nicheLower.includes('oncolog') ||
-        nicheLower.includes('neurology') || nicheLower.includes('urolog')) {
+    // Specialist: Surgery, Cardiology, Oncology, Orthopedics, Neurology, Urology, etc.
+    if (facilityType === 'specialist' || 
+        medicalCategory.includes('surgery') || medicalCategory.includes('cardio') || 
+        medicalCategory.includes('oncolog') || medicalCategory.includes('orthoped') ||
+        medicalCategory.includes('neurolog') || medicalCategory.includes('urolog') ||
+        medicalCategory.includes('gastro') || medicalCategory.includes('pulmon') ||
+        medicalCategory.includes('ophthalmolog') || medicalCategory.includes('dermatolog')) {
       facilityType = 'specialist';
       costPerLead = 500;
-    } else if (nicheLower.includes('therapy') || nicheLower.includes('wellness') || nicheLower.includes('massage') ||
-               nicheLower.includes('chiropractic') || nicheLower.includes('acupuncture') || nicheLower.includes('mental health') ||
-               nicheLower.includes('counseling') || nicheLower.includes('physical therapy') || nicheLower.includes('spa')) {
+    } 
+    // Therapy/Wellness: Mental health, PT, Chiropractic, MedSpa, etc.
+    else if (facilityType === 'therapy' ||
+             medicalCategory.includes('therapy') || medicalCategory.includes('mental') ||
+             medicalCategory.includes('counseling') || medicalCategory.includes('psychiatr') ||
+             medicalCategory.includes('chiropractic') || medicalCategory.includes('acupuncture') ||
+             medicalCategory.includes('medspa') || medicalCategory.includes('aesthetic') ||
+             medicalCategory.includes('wellness') || medicalCategory.includes('rehab')) {
       facilityType = 'therapy';
       costPerLead = 100;
     }
+    // General: Urgent care, primary care, pediatrics, dental, etc.
+    else {
+      facilityType = 'general';
+      costPerLead = 150;
+    }
 
-    console.log(`Facility type: ${facilityType}, Cost per lead: $${costPerLead}`);
+    console.log(`Medical category: ${classification.medicalCategory}, Facility type: ${facilityType}, Cost per lead: $${costPerLead}`);
 
-    // Use Gemini with Google Search grounding to find real administrative bottlenecks
-    const prompt = `You are a business revenue leak analyst specializing in identifying administrative bottlenecks. Your task is to find REAL complaints about operational and administrative issues for a specific business.
+    // Step 3: Use Gemini with Google Search to find administrative bottlenecks
+    const auditPrompt = `You are a healthcare revenue leak analyst specializing in identifying administrative bottlenecks. Your task is to find REAL complaints about operational and administrative issues for a specific medical facility.
 
 Business Name: ${businessName}
-Industry/Niche: ${niche || 'local business'}
-Facility Type: ${facilityType} (Cost per missed lead: $${costPerLead})
+Medical Category: ${classification.medicalCategory}
+Facility Type: ${facilityType} (Cost per missed patient: $${costPerLead})
 
 INSTRUCTIONS:
-1. Search Google for real reviews and complaints about "${businessName}" related to ADMINISTRATIVE BOTTLENECKS common in ${niche || 'this type of business'}, such as:
+1. Search Google for real reviews and complaints about "${businessName}" related to ADMINISTRATIVE BOTTLENECKS common in ${classification.medicalCategory} practices, such as:
    - Long wait times (in-office, on phone, for appointments)
    - Billing confusion or billing disputes
    - Hard-to-reach staff or unresponsive front desk
@@ -64,28 +165,25 @@ INSTRUCTIONS:
    - Online portal issues
    - Prescription refill problems
 
-2. Look at Google Reviews, Yelp, BBB, Facebook reviews, Healthgrades, Vitals, and other review sites.
+2. Look at Google Reviews, Yelp, Healthgrades, Vitals, ZocDoc, and other healthcare review sites.
 
 3. Based on REAL evidence you find, provide:
 
 PAIN SCORE (1-10):
 - 1-3: Few complaints, operations seem smooth
-- 4-6: Moderate complaints, some customers frustrated with administrative processes
-- 7-10: Significant complaints, major administrative bottlenecks affecting customer experience and retention
+- 4-6: Moderate complaints, some patients frustrated with administrative processes
+- 7-10: Significant complaints, major administrative bottlenecks affecting patient experience and retention
 
 EVIDENCE:
-Provide exactly 2 specific quotes or detailed summaries of actual complaints you found online about their administrative issues. Focus on the most common bottleneck type for this specific niche. If you cannot find specific complaints, note that and estimate based on industry averages for ${niche || 'similar businesses'}.
+Provide exactly 2 specific quotes or detailed summaries of actual complaints you found online. Focus on the most common bottleneck type for ${classification.medicalCategory} practices.
 
 CALCULATED LEAK:
 Estimate monthly revenue loss based on:
-- Facility Type: ${facilityType}
-- Cost per missed/lost lead: $${costPerLead}
-- For pain score 1-3: estimate 5-10 missed leads/month
-- For pain score 4-6: estimate 15-30 missed leads/month  
-- For pain score 7-10: estimate 40-100+ missed leads/month
-
-BOTTLENECK TYPE:
-Identify the PRIMARY administrative bottleneck category (e.g., "Wait Times", "Billing Issues", "Staff Accessibility", "Scheduling", "Communication", "Insurance/Payment", "Records/Referrals").
+- Medical Category: ${classification.medicalCategory}
+- Cost per missed/lost patient: $${costPerLead}
+- For pain score 1-3: estimate 5-10 missed patients/month
+- For pain score 4-6: estimate 15-30 missed patients/month  
+- For pain score 7-10: estimate 40-100+ missed patients/month
 
 Respond in this exact JSON format:
 {
@@ -95,69 +193,52 @@ Respond in this exact JSON format:
     "<second quote or summary of real complaint found>"
   ],
   "calculatedLeak": <estimated monthly dollar loss as number>,
-  "calculatedLeakExplanation": "<brief explanation including facility type and cost per lead>",
-  "bottleneckType": "<primary bottleneck category>",
-  "facilityType": "${facilityType}",
-  "costPerLead": ${costPerLead}
+  "calculatedLeakExplanation": "<brief explanation including medical category and cost per patient>",
+  "bottleneckType": "<primary bottleneck category: Wait Times, Billing Issues, Staff Accessibility, Scheduling, Communication, Insurance/Payment, Records/Referrals>"
 }`;
 
-    // Call Gemini API with Google Search grounding enabled
-    const response = await fetch(
+    // Call Gemini API with Google Search grounding enabled for audit
+    const auditResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ],
-          tools: [
-            {
-              googleSearch: {}
-            }
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 1024,
-          }
+          contents: [{ parts: [{ text: auditPrompt }] }],
+          tools: [{ googleSearch: {} }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
         }),
       }
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status}`);
+    if (!auditResponse.ok) {
+      const errorText = await auditResponse.text();
+      console.error("Gemini audit API error:", auditResponse.status, errorText);
+      throw new Error(`Gemini API error: ${auditResponse.status}`);
     }
 
-    const data = await response.json();
-    console.log("Gemini response received");
+    const auditData = await auditResponse.json();
+    console.log("Gemini audit response received");
 
     // Extract the text content from Gemini response
-    const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const auditTextContent = auditData.candidates?.[0]?.content?.parts?.[0]?.text;
     
-    if (!textContent) {
-      console.error("No text content in response:", JSON.stringify(data));
+    if (!auditTextContent) {
+      console.error("No text content in audit response:", JSON.stringify(auditData));
       throw new Error("No response from Gemini");
     }
 
     // Parse the JSON response from Gemini
     let auditResult;
     try {
-      // Extract JSON from the response (it might be wrapped in markdown code blocks)
-      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+      const jsonMatch = auditTextContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         auditResult = JSON.parse(jsonMatch[0]);
       } else {
         throw new Error("Could not find JSON in response");
       }
     } catch (parseError) {
-      console.error("Failed to parse Gemini response:", textContent);
-      // Provide a fallback response if parsing fails
+      console.error("Failed to parse Gemini response:", auditTextContent);
       auditResult = {
         painScore: 5,
         evidence: [
@@ -165,15 +246,14 @@ Respond in this exact JSON format:
           "Consider checking Google Reviews directly for more accurate data"
         ],
         calculatedLeak: 15 * costPerLead,
-        calculatedLeakExplanation: `Based on industry average of 15 missed leads/month at $${costPerLead} per lead (${facilityType})`,
-        bottleneckType: "Unknown",
-        facilityType: facilityType,
-        costPerLead: costPerLead
+        calculatedLeakExplanation: `Based on industry average of 15 missed patients/month at $${costPerLead} per patient (${classification.medicalCategory})`,
+        bottleneckType: "Unknown"
       };
     }
 
     // Validate and normalize the response
     const result = {
+      status: 'SUCCESS',
       painScore: Math.min(10, Math.max(1, Number(auditResult.painScore) || 5)),
       evidence: Array.isArray(auditResult.evidence) 
         ? auditResult.evidence.slice(0, 2) 
@@ -181,11 +261,12 @@ Respond in this exact JSON format:
       calculatedLeak: Number(auditResult.calculatedLeak) || 0,
       calculatedLeakExplanation: auditResult.calculatedLeakExplanation || "",
       bottleneckType: auditResult.bottleneckType || "Administrative",
-      facilityType: auditResult.facilityType || facilityType,
-      costPerLead: auditResult.costPerLead || costPerLead
+      medicalCategory: classification.medicalCategory,
+      facilityType: facilityType,
+      costPerLead: costPerLead
     };
 
-    console.log(`Audit complete for ${businessName}: Pain Score ${result.painScore}, Leak $${result.calculatedLeak}/month`);
+    console.log(`Audit complete for ${businessName}: Category ${classification.medicalCategory}, Pain Score ${result.painScore}, Leak $${result.calculatedLeak}/month`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
