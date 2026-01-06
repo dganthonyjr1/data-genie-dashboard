@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Phone, Building2, TrendingDown, Loader2 } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,15 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface Lead {
   id: string;
@@ -25,6 +34,7 @@ interface Lead {
   revenueLeak: number | null;
   painScore: number | null;
   evidenceSummary: string | null;
+  isManual?: boolean;
 }
 
 const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/w7c213pu9sygbum5kf8js7tf9432pt5s";
@@ -33,6 +43,9 @@ const Leads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [callingLeadId, setCallingLeadId] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newLead, setNewLead] = useState({ businessName: "", phoneNumber: "", niche: "" });
+  const [isAddingLead, setIsAddingLead] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,7 +73,6 @@ const Leads = () => {
         if (!results || !Array.isArray(results)) return;
 
         results.forEach((result, index) => {
-          // Handle complete_business_data scrape type
           if (job.scrape_type === "complete_business_data" && result.business_name) {
             extractedLeads.push({
               id: `${job.id}-${index}`,
@@ -72,9 +84,7 @@ const Leads = () => {
               painScore: result.audit?.painScore || null,
               evidenceSummary: result.audit?.evidenceSummary || null,
             });
-          }
-          // Handle other formats with business name field variations
-          else if (result.businessName || result.name || result.title) {
+          } else if (result.businessName || result.name || result.title) {
             extractedLeads.push({
               id: `${job.id}-${index}`,
               jobId: job.id,
@@ -89,6 +99,13 @@ const Leads = () => {
         });
       });
 
+      // Load manual leads from localStorage
+      const storedManualLeads = localStorage.getItem("manualLeads");
+      if (storedManualLeads) {
+        const manualLeads: Lead[] = JSON.parse(storedManualLeads);
+        extractedLeads.unshift(...manualLeads);
+      }
+
       setLeads(extractedLeads);
     } catch (error) {
       console.error("Error fetching leads:", error);
@@ -102,7 +119,58 @@ const Leads = () => {
     }
   };
 
+  const handleAddLead = () => {
+    if (!newLead.businessName.trim() || !newLead.phoneNumber.trim() || !newLead.niche.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAddingLead(true);
+
+    const manualLead: Lead = {
+      id: `manual-${Date.now()}`,
+      jobId: "manual",
+      businessName: newLead.businessName.trim(),
+      niche: newLead.niche.trim(),
+      phoneNumber: newLead.phoneNumber.trim(),
+      revenueLeak: null,
+      painScore: null,
+      evidenceSummary: null,
+      isManual: true,
+    };
+
+    // Store in localStorage
+    const storedManualLeads = localStorage.getItem("manualLeads");
+    const manualLeads: Lead[] = storedManualLeads ? JSON.parse(storedManualLeads) : [];
+    manualLeads.unshift(manualLead);
+    localStorage.setItem("manualLeads", JSON.stringify(manualLeads));
+
+    // Update state
+    setLeads((prev) => [manualLead, ...prev]);
+    setNewLead({ businessName: "", phoneNumber: "", niche: "" });
+    setIsAddModalOpen(false);
+    setIsAddingLead(false);
+
+    toast({
+      title: "Lead Added",
+      description: `${manualLead.businessName} has been added to your leads`,
+    });
+  };
+
   const handleStartCall = async (lead: Lead) => {
+    if (lead.phoneNumber === "N/A") {
+      toast({
+        title: "No Phone Number",
+        description: "This lead doesn't have a valid phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setCallingLeadId(lead.id);
     
     try {
@@ -173,14 +241,65 @@ const Leads = () => {
               Manage and contact your scraped business leads
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <Card className="px-4 py-2">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{leads.length} Leads</span>
+          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-lg">
+                <Plus className="mr-2 h-4 w-4" />
+                Add New Lead
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add New Lead</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="businessName">Business Name</Label>
+                  <Input
+                    id="businessName"
+                    placeholder="Enter business name"
+                    value={newLead.businessName}
+                    onChange={(e) => setNewLead((prev) => ({ ...prev, businessName: e.target.value }))}
+                    maxLength={100}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    placeholder="Enter phone number"
+                    value={newLead.phoneNumber}
+                    onChange={(e) => setNewLead((prev) => ({ ...prev, phoneNumber: e.target.value }))}
+                    maxLength={20}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="niche">Niche</Label>
+                  <Input
+                    id="niche"
+                    placeholder="e.g., Dental, MedSpa, Chiropractic"
+                    value={newLead.niche}
+                    onChange={(e) => setNewLead((prev) => ({ ...prev, niche: e.target.value }))}
+                    maxLength={50}
+                  />
+                </div>
+                <Button 
+                  className="w-full mt-4" 
+                  onClick={handleAddLead}
+                  disabled={isAddingLead}
+                >
+                  {isAddingLead ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    "Add Lead"
+                  )}
+                </Button>
               </div>
-            </Card>
-          </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Stats Cards */}
@@ -240,7 +359,7 @@ const Leads = () => {
                 <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
                 <h3 className="mt-4 text-lg font-medium">No leads yet</h3>
                 <p className="text-muted-foreground mt-1">
-                  Start scraping businesses to populate your leads dashboard
+                  Start scraping businesses or add leads manually
                 </p>
               </div>
             ) : (
@@ -253,14 +372,19 @@ const Leads = () => {
                       <TableHead>Phone Number</TableHead>
                       <TableHead>Revenue Leak</TableHead>
                       <TableHead>Risk Level</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {leads.map((lead) => (
                       <TableRow key={lead.id}>
                         <TableCell className="font-medium">
-                          {lead.businessName}
+                          <div className="flex items-center gap-2">
+                            {lead.businessName}
+                            {lead.isManual && (
+                              <Badge variant="outline" className="text-xs">Manual</Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">{lead.niche}</Badge>
@@ -274,8 +398,7 @@ const Leads = () => {
                         <TableCell>{getPainScoreBadge(lead.painScore)}</TableCell>
                         <TableCell className="text-right">
                           <Button
-                            size="lg"
-                            className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold shadow-lg"
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                             onClick={() => handleStartCall(lead)}
                             disabled={lead.phoneNumber === "N/A" || callingLeadId === lead.id}
                           >
