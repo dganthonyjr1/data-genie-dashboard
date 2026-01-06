@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, DollarSign, Phone, Quote, X, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuditData {
   painScore: number;
@@ -15,23 +17,61 @@ interface LeadAuditPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   businessName: string;
+  phoneNumber: string;
   niche: string;
   auditData: AuditData | null;
   isLoading: boolean;
   onStartAudit: () => void;
-  onStartSalesCall: () => void;
 }
 
 export default function LeadAuditPanel({
   open,
   onOpenChange,
   businessName,
+  phoneNumber,
   niche,
   auditData,
   isLoading,
   onStartAudit,
-  onStartSalesCall,
 }: LeadAuditPanelProps) {
+  const { toast } = useToast();
+  const [isSendingCall, setIsSendingCall] = useState(false);
+
+  const handleStartSalesCall = async () => {
+    if (!auditData) return;
+    
+    setIsSendingCall(true);
+    
+    try {
+      await fetch("https://hook.us2.make.com/w7c213pu9sygbum5kf8js7tf9432pt5s", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        mode: "no-cors",
+        body: JSON.stringify({
+          business_name: businessName,
+          phone_number: phoneNumber,
+          pain_score: auditData.painScore,
+          evidence_summary: auditData.evidence.join(" | "),
+        }),
+      });
+
+      toast({
+        title: "Sales Call Triggered",
+        description: "The AI sales call has been initiated. Check Make.com for status.",
+      });
+    } catch (error) {
+      console.error("Error triggering sales call:", error);
+      toast({
+        title: "Error",
+        description: "Failed to trigger the sales call. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingCall(false);
+    }
+  };
   const getPainScoreColor = (score: number) => {
     if (score >= 8) return "text-red-500";
     if (score >= 5) return "text-orange-500";
@@ -158,12 +198,22 @@ export default function LeadAuditPanel({
           <SheetFooter className="border-t border-border pt-4 mt-auto">
             <div className="w-full space-y-3">
               <Button 
-                onClick={onStartSalesCall} 
+                onClick={handleStartSalesCall} 
                 className="w-full h-12 text-lg font-semibold"
                 size="lg"
+                disabled={isSendingCall}
               >
-                <Phone className="mr-2 h-5 w-5" />
-                Start AI Sales Call
+                {isSendingCall ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Phone className="mr-2 h-5 w-5" />
+                    Start AI Sales Call
+                  </>
+                )}
               </Button>
               <SheetClose asChild>
                 <Button variant="outline" className="w-full">
