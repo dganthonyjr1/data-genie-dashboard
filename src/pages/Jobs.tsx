@@ -761,18 +761,29 @@ const Jobs = () => {
           </Card>
         ) : (
           <>
-            {selectedJobs.size > 0 && (
-              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Checkbox
-                    checked={selectedJobs.size === paginatedJobs.length}
-                    onCheckedChange={toggleSelectAll}
-                  />
-                  <span className="text-sm font-medium">
-                    {selectedJobs.size} job(s) selected
-                  </span>
-                </div>
+            {/* Always-visible bulk actions bar */}
+            <div className="bg-card/50 border border-border/50 rounded-lg p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Checkbox
+                  checked={selectedJobs.size === paginatedJobs.length && paginatedJobs.length > 0}
+                  onCheckedChange={toggleSelectAll}
+                />
+                <span className="text-sm font-medium text-muted-foreground">
+                  {selectedJobs.size > 0 
+                    ? `${selectedJobs.size} of ${paginatedJobs.length} selected`
+                    : `Select jobs to delete or export`
+                  }
+                </span>
+              </div>
+              {selectedJobs.size > 0 && (
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedJobs(new Set())}
+                  >
+                    Clear
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -798,11 +809,11 @@ const Jobs = () => {
                     }}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Selected
+                    Delete {selectedJobs.size}
                   </Button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             <div className="grid gap-4">
               {paginatedJobs.map((job) => (
