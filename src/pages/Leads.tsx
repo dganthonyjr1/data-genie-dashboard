@@ -158,8 +158,8 @@ const Leads = () => {
 
     setIsAddingLead(true);
 
-    const monthlyRevenue = newLead.monthlyRevenue ? parseFloat(newLead.monthlyRevenue) : null;
-    const revenueLeak = monthlyRevenue ? Math.round(monthlyRevenue * 0.20) : null;
+    const monthlyRevenue = newLead.monthlyRevenue ? parseFloat(newLead.monthlyRevenue) : 50000;
+    const revenueLeak = Math.round(monthlyRevenue * 0.20);
 
     const manualLead: Lead = {
       id: `manual-${Date.now()}`,
