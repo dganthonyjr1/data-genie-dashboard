@@ -450,8 +450,8 @@ const Leads = () => {
                       <TableHead className="min-w-[180px]">Business Name</TableHead>
                       <TableHead className="min-w-[140px]">Niche</TableHead>
                       <TableHead className="min-w-[120px]">Phone Number</TableHead>
-                      <TableHead className="min-w-[100px]">Revenue Leak</TableHead>
-                      <TableHead className="sticky right-0 bg-background min-w-[220px] text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">Actions</TableHead>
+                      <TableHead className="min-w-[120px] pr-8">Revenue Leak</TableHead>
+                      <TableHead className="sticky right-0 z-20 bg-background min-w-[220px] text-right shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.15)]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -471,10 +471,10 @@ const Leads = () => {
                         <TableCell className="font-mono text-sm">
                           {lead.phoneNumber}
                         </TableCell>
-                        <TableCell className="font-semibold text-red-600">
+                        <TableCell className="font-semibold text-red-600 pr-8">
                           {formatRevenueLeak(lead.revenueLeak)}
                         </TableCell>
-                        <TableCell className="sticky right-0 bg-background text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                        <TableCell className="sticky right-0 z-10 bg-background text-right shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.15)]">
                           <div className="flex items-center justify-end gap-2">
                             <Button
                               size="sm"
