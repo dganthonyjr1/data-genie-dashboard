@@ -195,6 +195,21 @@ const Leads = () => {
 
     setIsSavingEdit(true);
 
+    // Find the original lead to compare changes
+    const originalLead = leads.find((l) => l.id === editingLead.id);
+    const changes: string[] = [];
+    if (originalLead) {
+      if (originalLead.businessName !== editingLead.businessName.trim()) {
+        changes.push(`Name: "${originalLead.businessName}" → "${editingLead.businessName.trim()}"`);
+      }
+      if (originalLead.phoneNumber !== editingLead.phoneNumber.trim()) {
+        changes.push(`Phone: "${originalLead.phoneNumber}" → "${editingLead.phoneNumber.trim()}"`);
+      }
+      if (originalLead.niche !== editingLead.niche.trim()) {
+        changes.push(`Niche: "${originalLead.niche}" → "${editingLead.niche.trim()}"`);
+      }
+    }
+
     // Update in state
     setLeads((prev) =>
       prev.map((lead) =>
@@ -224,7 +239,7 @@ const Leads = () => {
 
     toast({
       title: "Lead Updated",
-      description: `${editingLead.businessName} has been updated`,
+      description: changes.length > 0 ? changes.join(" • ") : "No changes made",
     });
   };
 
