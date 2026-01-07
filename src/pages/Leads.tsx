@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -24,6 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface Lead {
   id: string;
@@ -50,7 +55,11 @@ const Leads = () => {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [currentLeadIndex, setCurrentLeadIndex] = useState(0);
+  const [isAllLeadsOpen, setIsAllLeadsOpen] = useState(false);
   const { toast } = useToast();
+
+  const currentLead = leads.length > 0 ? leads[currentLeadIndex] : null;
 
   const filteredLeads = useMemo(() => {
     if (!searchQuery.trim()) return leads;
@@ -307,6 +316,30 @@ const Leads = () => {
     }
   };
 
+  const goToNextLead = () => {
+    if (currentLeadIndex < leads.length - 1) {
+      setCurrentLeadIndex(currentLeadIndex + 1);
+    }
+  };
+
+  const goToPreviousLead = () => {
+    if (currentLeadIndex > 0) {
+      setCurrentLeadIndex(currentLeadIndex - 1);
+    }
+  };
+
+  const selectLeadFromTable = (lead: Lead) => {
+    const index = leads.findIndex((l) => l.id === lead.id);
+    if (index !== -1) {
+      setCurrentLeadIndex(index);
+      setIsAllLeadsOpen(false);
+      toast({
+        title: "Lead Selected",
+        description: `Now viewing ${lead.businessName}`,
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -379,7 +412,152 @@ const Leads = () => {
           </Dialog>
         </div>
 
-        {/* Stats Cards */}
+        {/* Current Lead - Focused View */}
+        {isLoading ? (
+          <Card className="border-2 border-primary/20">
+            <CardHeader>
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-32 mt-2" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            </CardContent>
+          </Card>
+        ) : leads.length === 0 ? (
+          <Card className="border-2 border-dashed">
+            <CardContent className="py-12">
+              <div className="text-center">
+                <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-medium">No leads yet</h3>
+                <p className="text-muted-foreground mt-1">
+                  Start scraping businesses or add leads manually
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : currentLead ? (
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-muted/30">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-2xl">{currentLead.businessName}</CardTitle>
+                    {currentLead.isManual && (
+                      <Badge variant="outline" className="text-xs">Manual</Badge>
+                    )}
+                  </div>
+                  <CardDescription className="mt-1 flex items-center gap-2">
+                    <Badge variant="secondary">{currentLead.niche}</Badge>
+                    <span className="text-muted-foreground">•</span>
+                    <span>Lead {currentLeadIndex + 1} of {leads.length}</span>
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={goToPreviousLead}
+                    disabled={currentLeadIndex === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={goToNextLead}
+                    disabled={currentLeadIndex === leads.length - 1}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Lead Details Grid */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Phone className="h-4 w-4" />
+                    Phone Number
+                  </div>
+                  <div className="font-mono text-lg font-semibold">
+                    {currentLead.phoneNumber}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                    Revenue Leak
+                  </div>
+                  <div className="text-lg font-semibold text-red-600">
+                    {formatRevenueLeak(currentLead.revenueLeak)}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <AlertTriangle className="h-4 w-4" />
+                    Pain Score
+                  </div>
+                  <div className="mt-1">
+                    {getPainScoreBadge(currentLead.painScore)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Evidence Summary */}
+              {currentLead.evidenceSummary && (
+                <div className="rounded-lg border bg-muted/50 p-4">
+                  <h4 className="font-medium mb-2">Audit Summary</h4>
+                  <p className="text-sm text-muted-foreground">{currentLead.evidenceSummary}</p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-lg flex-1"
+                  onClick={() => handleStartCall(currentLead)}
+                  disabled={currentLead.phoneNumber === "N/A" || callingLeadId === currentLead.id}
+                >
+                  {callingLeadId === currentLead.id ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Initiating Call...
+                    </>
+                  ) : (
+                    <>
+                      <Phone className="mr-2 h-5 w-5" />
+                      Start AI Sales Call
+                    </>
+                  )}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => handleEditLead(currentLead)}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={goToNextLead}
+                  disabled={currentLeadIndex === leads.length - 1}
+                >
+                  Next Lead
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {/* Stats Summary */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -419,108 +597,104 @@ const Leads = () => {
           </Card>
         </div>
 
-        {/* Leads Table */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>All Leads</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search leads..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
-                ))}
-              </div>
-            ) : filteredLeads.length === 0 ? (
-              <div className="text-center py-12">
-                <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-medium">
-                  {searchQuery ? "No leads found" : "No leads yet"}
-                </h3>
-                <p className="text-muted-foreground mt-1">
-                  {searchQuery
-                    ? "Try a different search term"
-                    : "Start scraping businesses or add leads manually"}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[180px]">Business Name</TableHead>
-                      <TableHead className="min-w-[140px]">Niche</TableHead>
-                      <TableHead className="min-w-[120px]">Phone Number</TableHead>
-                      <TableHead className="min-w-[120px] pr-8">Revenue Leak</TableHead>
-                      <TableHead className="md:sticky md:right-0 md:z-20 bg-background min-w-[220px] text-right md:shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.15)]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredLeads.map((lead) => (
-                      <TableRow key={lead.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {lead.businessName}
-                            {lead.isManual && (
-                              <Badge variant="outline" className="text-xs">Manual</Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <Badge variant="secondary">{lead.niche}</Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {lead.phoneNumber}
-                        </TableCell>
-                        <TableCell className="font-semibold text-red-600 pr-8">
-                          {formatRevenueLeak(lead.revenueLeak)}
-                        </TableCell>
-                        <TableCell className="md:sticky md:right-0 md:z-10 bg-background text-right md:shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.15)]">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditLead(lead)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                              onClick={() => handleStartCall(lead)}
-                              disabled={lead.phoneNumber === "N/A" || callingLeadId === lead.id}
-                            >
-                              {callingLeadId === lead.id ? (
-                                <>
-                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                  Calling...
-                                </>
-                              ) : (
-                                <>
-                                  <Phone className="mr-1 h-3 w-3" />
-                                  Start AI Sales Call
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Collapsible All Leads Table */}
+        <Collapsible open={isAllLeadsOpen} onOpenChange={setIsAllLeadsOpen}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CardTitle>All Leads</CardTitle>
+                    <Badge variant="secondary">{leads.length}</Badge>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {isAllLeadsOpen && (
+                      <div className="relative w-64" onClick={(e) => e.stopPropagation()}>
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search leads..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    )}
+                    {isAllLeadsOpen ? (
+                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                {filteredLeads.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Building2 className="mx-auto h-10 w-10 text-muted-foreground/50" />
+                    <p className="text-muted-foreground mt-2">
+                      {searchQuery ? "No leads found" : "No leads yet"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[180px]">Business Name</TableHead>
+                          <TableHead className="min-w-[140px]">Niche</TableHead>
+                          <TableHead className="min-w-[120px]">Phone Number</TableHead>
+                          <TableHead className="min-w-[120px]">Revenue Leak</TableHead>
+                          <TableHead className="min-w-[100px] text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredLeads.map((lead, index) => (
+                          <TableRow 
+                            key={lead.id}
+                            className={leads[currentLeadIndex]?.id === lead.id ? "bg-primary/5" : ""}
+                          >
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {lead.businessName}
+                                {lead.isManual && (
+                                  <Badge variant="outline" className="text-xs">Manual</Badge>
+                                )}
+                                {leads[currentLeadIndex]?.id === lead.id && (
+                                  <Badge className="text-xs bg-primary/10 text-primary">Current</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              <Badge variant="secondary">{lead.niche}</Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {lead.phoneNumber}
+                            </TableCell>
+                            <TableCell className="font-semibold text-red-600">
+                              {formatRevenueLeak(lead.revenueLeak)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant={leads[currentLeadIndex]?.id === lead.id ? "secondary" : "outline"}
+                                onClick={() => selectLeadFromTable(lead)}
+                                disabled={leads[currentLeadIndex]?.id === lead.id}
+                              >
+                                {leads[currentLeadIndex]?.id === lead.id ? "Viewing" : "Select"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
         {/* Edit Lead Modal */}
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogContent className="sm:max-w-md">
