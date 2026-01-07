@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Activity, Stethoscope, ClipboardList, Phone, FileText, X, Loader2, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuditData {
   painScore: number;
@@ -46,19 +47,18 @@ export default function LeadAuditPanel({
     setIsSendingCall(true);
     
     try {
-      await fetch("https://hook.us2.make.com/w7c213pu9sygbum5kf8js7tf9432pt5s", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        mode: "no-cors",
-        body: JSON.stringify({
+      const { error } = await supabase.functions.invoke('trigger-sales-call', {
+        body: {
           business_name: businessName,
           phone_number: phoneNumber,
           pain_score: auditData.painScore,
           evidence_summary: auditData.evidence.join(" | "),
-        }),
+          niche,
+          revenue_leak: auditData.calculatedLeak,
+        },
       });
+
+      if (error) throw error;
 
       toast({
         title: "Outreach Initiated",

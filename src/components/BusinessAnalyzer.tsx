@@ -180,23 +180,23 @@ export default function BusinessAnalyzer() {
     setIsCalling(true);
 
     try {
-      await fetch("https://hook.us2.make.com/w7c213pu9sygbum5kf8js7tf9432pt5s", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        mode: "no-cors",
-        body: JSON.stringify({
+      const { error } = await supabase.functions.invoke('trigger-sales-call', {
+        body: {
           business_name: businessData.business_name || "",
           phone_number: phoneNumber,
           pain_score: businessData.audit_pain_score || null,
           evidence_summary: [businessData.audit_evidence_1, businessData.audit_evidence_2]
             .filter(Boolean)
             .join(" | "),
-        }),
+          niche: businessData.niche || "Unknown",
+        },
       });
+
+      if (error) throw error;
 
       toast({
         title: "Call Initiated",
-        description: "AI sales call has been triggered. Check Make.com for status.",
+        description: "AI sales call has been triggered successfully.",
       });
     } catch (error) {
       console.error("Error triggering call:", error);
