@@ -36,6 +36,7 @@ interface Lead {
   businessName: string;
   niche: string;
   phoneNumber: string;
+  monthlyRevenue: number | null;
   revenueLeak: number | null;
   painScore: number | null;
   evidenceSummary: string | null;
@@ -49,7 +50,7 @@ const Leads = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [callingLeadId, setCallingLeadId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newLead, setNewLead] = useState({ businessName: "", phoneNumber: "", niche: "" });
+  const [newLead, setNewLead] = useState({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
   const [isAddingLead, setIsAddingLead] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -104,7 +105,8 @@ const Leads = () => {
               businessName: result.business_name || "Unknown",
               niche: result.niche || result.category || "General",
               phoneNumber: result.phone || result.phone_number || "N/A",
-              revenueLeak: result.audit?.estimatedLeak || null,
+              monthlyRevenue: result.monthlyRevenue || null,
+              revenueLeak: result.audit?.estimatedLeak || result.revenueLeak || null,
               painScore: result.audit?.painScore || null,
               evidenceSummary: result.audit?.evidenceSummary || null,
             });
@@ -115,6 +117,7 @@ const Leads = () => {
               businessName: result.businessName || result.name || result.title || "Unknown",
               niche: result.niche || result.category || result.type || "General",
               phoneNumber: result.phone || result.phoneNumber || result.phone_number || "N/A",
+              monthlyRevenue: result.monthlyRevenue || null,
               revenueLeak: result.audit?.estimatedLeak || result.revenueLeak || null,
               painScore: result.audit?.painScore || result.painScore || null,
               evidenceSummary: result.audit?.evidenceSummary || null,
@@ -155,13 +158,17 @@ const Leads = () => {
 
     setIsAddingLead(true);
 
+    const monthlyRevenue = newLead.monthlyRevenue ? parseFloat(newLead.monthlyRevenue) : null;
+    const revenueLeak = monthlyRevenue ? Math.round(monthlyRevenue * 0.15) : null;
+
     const manualLead: Lead = {
       id: `manual-${Date.now()}`,
       jobId: "manual",
       businessName: newLead.businessName.trim(),
       niche: newLead.niche.trim(),
       phoneNumber: newLead.phoneNumber.trim(),
-      revenueLeak: null,
+      monthlyRevenue: monthlyRevenue,
+      revenueLeak: revenueLeak,
       painScore: null,
       evidenceSummary: null,
       isManual: true,
@@ -175,7 +182,7 @@ const Leads = () => {
 
     // Update state
     setLeads((prev) => [manualLead, ...prev]);
-    setNewLead({ businessName: "", phoneNumber: "", niche: "" });
+    setNewLead({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
     setIsAddModalOpen(false);
     setIsAddingLead(false);
 
@@ -392,6 +399,19 @@ const Leads = () => {
                     onChange={(e) => setNewLead((prev) => ({ ...prev, niche: e.target.value }))}
                     maxLength={50}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyRevenue">Monthly Revenue (Optional)</Label>
+                  <Input
+                    id="monthlyRevenue"
+                    type="number"
+                    placeholder="e.g., 50000"
+                    value={newLead.monthlyRevenue}
+                    onChange={(e) => setNewLead((prev) => ({ ...prev, monthlyRevenue: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Revenue Leak will be calculated as 15% of this amount
+                  </p>
                 </div>
                 <Button 
                   className="w-full mt-4" 
