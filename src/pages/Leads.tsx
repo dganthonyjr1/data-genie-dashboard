@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,6 +86,7 @@ const Leads = () => {
   const [currentLeadIndex, setCurrentLeadIndex] = useState(0);
   const [isAllLeadsOpen, setIsAllLeadsOpen] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const currentLead = leads.length > 0 ? leads[currentLeadIndex] : null;
 
@@ -100,8 +102,31 @@ const Leads = () => {
   }, [leads, searchQuery]);
 
   useEffect(() => {
-    fetchLeads();
-  }, []);
+    let cancelled = false;
+
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        if (!cancelled) setIsLoading(false);
+        toast({
+          title: "Sign in required",
+          description: "Please sign in to view leads and place calls.",
+          variant: "destructive",
+        });
+        navigate("/login");
+        return;
+      }
+
+      fetchLeads();
+    };
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, toast]);
 
   const fetchLeads = async () => {
     try {
@@ -221,10 +246,10 @@ const Leads = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast({
-          title: "Lead Added",
-          description: `${manualLead.businessName} added successfully`,
+          title: "Lead added (call needs sign-in)",
+          description: "Sign in to start the AI sales call.",
         });
-        setIsAddingLead(false);
+        navigate("/login");
         return;
       }
 
@@ -330,8 +355,18 @@ const Leads = () => {
       return;
     }
 
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to start a call.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
     setCallingLeadId(lead.id);
-    
     try {
       const { error } = await supabase.functions.invoke('trigger-sales-call', {
         body: {
