@@ -612,14 +612,73 @@ async function triggerAutoSalesCalls(supabase: any, userId: string, results: any
       return;
     }
 
+    const normalizeToE164 = (input: string): string | null => {
+      const raw = (input ?? '').toString().trim();
+      if (!raw || raw === 'N/A') return null;
+
+      // Already has a country code
+      if (raw.startsWith('+')) {
+        const digits = raw.replace(/\D/g, '');
+        if (digits.length < 8) return null;
+        return `+${digits}`;
+      }
+
+      const digits = raw.replace(/\D/g, '');
+      if (!digits) return null;
+
+      // US defaults
+      if (digits.length === 10) return `+1${digits}`;
+      if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+
+      // Fallback: assume it already includes country code
+      if (digits.length >= 11 && digits.length <= 15) return `+${digits}`;
+
+      return null;
+    };
+
+    const getPhoneCandidates = (result: any): string[] => {
+      const candidates: any[] = [
+        result?.phone_number,
+        result?.phone,
+        result?.phoneNumber,
+        ...(Array.isArray(result?.phone_numbers) ? result.phone_numbers : []),
+        ...(Array.isArray(result?.phoneNumbers) ? result.phoneNumbers : []),
+      ];
+
+      const flattened: string[] = [];
+      for (const c of candidates) {
+        if (!c) continue;
+        if (typeof c === 'string' || typeof c === 'number') {
+          flattened.push(String(c));
+          continue;
+        }
+        if (typeof c === 'object') {
+          if (typeof c.phone_number === 'string') flattened.push(c.phone_number);
+          if (typeof c.phone === 'string') flattened.push(c.phone);
+        }
+      }
+
+      return [...new Set(flattened.map((s) => s.trim()).filter(Boolean))];
+    };
+
+    const pickBestPhone = (result: any): string | null => {
+      const normalized = getPhoneCandidates(result)
+        .map((p) => normalizeToE164(p))
+        .filter(Boolean) as string[];
+
+      if (normalized.length === 0) return null;
+
+      // Prefer longer digit strings (usually includes country code)
+      normalized.sort((a, b) => b.replace(/\D/g, '').length - a.replace(/\D/g, '').length);
+      return normalized[0];
+    };
+
     let callsTriggered = 0;
 
     for (const result of results) {
-      // Extract phone number from various possible field names
-      const phoneNumber = result.phone_number || result.phone || result.phone_numbers?.[0] || 
-                         (Array.isArray(result.phone_numbers) ? result.phone_numbers[0] : null);
-      
-      if (!phoneNumber || phoneNumber === 'N/A') {
+      const phoneNumber = pickBestPhone(result);
+
+      if (!phoneNumber) {
         continue;
       }
 
@@ -650,7 +709,8 @@ async function triggerAutoSalesCalls(supabase: any, userId: string, results: any
           callsTriggered++;
           console.log(`Auto-call triggered for: ${businessName}`);
         } else {
-          console.error(`Auto-call failed for ${businessName}: ${response.status}`);
+          const errorText = await response.text().catch(() => '');
+          console.error(`Auto-call failed for ${businessName}: ${response.status} ${errorText}`);
         }
       } catch (callError) {
         console.error(`Error triggering auto-call for ${businessName}:`, callError);
