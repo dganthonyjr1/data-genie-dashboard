@@ -172,7 +172,7 @@ const Leads = () => {
     }
   };
 
-  const handleAddLead = () => {
+  const handleAddLead = async () => {
     if (!newLead.businessName.trim() || !newLead.phoneNumber.trim() || !newLead.niche.trim()) {
       toast({
         title: "Missing Information",
@@ -202,22 +202,47 @@ const Leads = () => {
       isManual: true,
     };
 
-    // Store in localStorage
-    const storedManualLeads = localStorage.getItem("manualLeads");
-    const manualLeads: Lead[] = storedManualLeads ? JSON.parse(storedManualLeads) : [];
-    manualLeads.unshift(manualLead);
-    localStorage.setItem("manualLeads", JSON.stringify(manualLeads));
+    try {
+      // Send to Make.com webhook
+      const payload = {
+        business_name: manualLead.businessName,
+        phone_number: manualLead.phoneNumber,
+        niche: manualLead.niche,
+        monthly_revenue: manualLead.monthlyRevenue,
+        revenue_leak: manualLead.revenueLeak,
+      };
 
-    // Update state
-    setLeads((prev) => [manualLead, ...prev]);
-    setNewLead({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
-    setIsAddModalOpen(false);
-    setIsAddingLead(false);
+      await fetch(MAKE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    toast({
-      title: "Lead Added",
-      description: `${manualLead.businessName} has been added to your leads`,
-    });
+      // Store in localStorage
+      const storedManualLeads = localStorage.getItem("manualLeads");
+      const manualLeads: Lead[] = storedManualLeads ? JSON.parse(storedManualLeads) : [];
+      manualLeads.unshift(manualLead);
+      localStorage.setItem("manualLeads", JSON.stringify(manualLeads));
+
+      // Update state
+      setLeads((prev) => [manualLead, ...prev]);
+      setNewLead({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
+      setIsAddModalOpen(false);
+
+      toast({
+        title: "Lead Added & Sent",
+        description: `${manualLead.businessName} has been added and sent to webhook`,
+      });
+    } catch (error) {
+      console.error("Error sending to webhook:", error);
+      toast({
+        title: "Webhook Error",
+        description: "Lead saved locally but failed to send to webhook",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingLead(false);
+    }
   };
 
   const handleEditLead = (lead: Lead) => {
