@@ -161,6 +161,11 @@ const Leads = () => {
     // Determine default monthly revenue based on practice type
     const getDefaultRevenue = (niche: string): number => {
       const nicheNormalized = niche.toLowerCase().trim();
+      if (nicheNormalized.includes('dermatology')) return 150000;
+      if (nicheNormalized.includes('orthopedic')) return 200000;
+      if (nicheNormalized.includes('plastic surgery')) return 175000;
+      if (nicheNormalized.includes('pediatric')) return 80000;
+      if (nicheNormalized.includes('optometry')) return 60000;
       if (nicheNormalized.includes('dental')) return 75000;
       if (nicheNormalized.includes('chiropractic')) return 40000;
       if (nicheNormalized.includes('general practice')) return 120000;
