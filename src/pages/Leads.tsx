@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +29,31 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const PRACTICE_TYPES = [
+  { value: "Dental", revenue: 75000 },
+  { value: "Chiropractic", revenue: 40000 },
+  { value: "General Practice", revenue: 120000 },
+  { value: "Dermatology", revenue: 150000 },
+  { value: "Orthopedics", revenue: 200000 },
+  { value: "Plastic Surgery", revenue: 175000 },
+  { value: "Pediatrics", revenue: 80000 },
+  { value: "Optometry", revenue: 60000 },
+] as const;
+
+const getDefaultRevenue = (niche: string): number => {
+  const found = PRACTICE_TYPES.find(
+    (pt) => pt.value.toLowerCase() === niche.toLowerCase().trim()
+  );
+  return found?.revenue ?? 50000;
+};
 
 interface Lead {
   id: string;
@@ -157,20 +182,6 @@ const Leads = () => {
     }
 
     setIsAddingLead(true);
-
-    // Determine default monthly revenue based on practice type
-    const getDefaultRevenue = (niche: string): number => {
-      const nicheNormalized = niche.toLowerCase().trim();
-      if (nicheNormalized.includes('dermatology')) return 150000;
-      if (nicheNormalized.includes('orthopedic')) return 200000;
-      if (nicheNormalized.includes('plastic surgery')) return 175000;
-      if (nicheNormalized.includes('pediatric')) return 80000;
-      if (nicheNormalized.includes('optometry')) return 60000;
-      if (nicheNormalized.includes('dental')) return 75000;
-      if (nicheNormalized.includes('chiropractic')) return 40000;
-      if (nicheNormalized.includes('general practice')) return 120000;
-      return 50000;
-    };
 
     const monthlyRevenue = newLead.monthlyRevenue 
       ? parseFloat(newLead.monthlyRevenue) 
@@ -408,28 +419,74 @@ const Leads = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="niche">Niche</Label>
-                  <Input
-                    id="niche"
-                    placeholder="e.g., Dental, MedSpa, Chiropractic"
+                  <Label htmlFor="niche">Practice Type</Label>
+                  <Select
                     value={newLead.niche}
-                    onChange={(e) => setNewLead((prev) => ({ ...prev, niche: e.target.value }))}
-                    maxLength={50}
-                  />
+                    onValueChange={(value) => setNewLead((prev) => ({ ...prev, niche: value }))}
+                  >
+                    <SelectTrigger className="w-full bg-background">
+                      <SelectValue placeholder="Select a practice type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      {PRACTICE_TYPES.map((pt) => (
+                        <SelectItem key={pt.value} value={pt.value}>
+                          {pt.value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="monthlyRevenue">Monthly Revenue (Optional)</Label>
+                  <Label htmlFor="monthlyRevenue">Monthly Revenue (Optional Override)</Label>
                   <Input
                     id="monthlyRevenue"
                     type="number"
-                    placeholder="e.g., 50000"
+                    placeholder="Leave blank to use default"
                     value={newLead.monthlyRevenue}
                     onChange={(e) => setNewLead((prev) => ({ ...prev, monthlyRevenue: e.target.value }))}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Revenue Leak will be calculated as 15% of this amount
-                  </p>
                 </div>
+                {/* Live Preview */}
+                {newLead.niche && (
+                  <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      Revenue Preview
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Estimated Monthly Revenue</p>
+                        <p className="text-lg font-semibold text-foreground">
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                            maximumFractionDigits: 0,
+                          }).format(
+                            newLead.monthlyRevenue
+                              ? parseFloat(newLead.monthlyRevenue)
+                              : getDefaultRevenue(newLead.niche)
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Calculated Revenue Leak (20%)</p>
+                        <p className="text-lg font-semibold text-red-600">
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                            maximumFractionDigits: 0,
+                          }).format(
+                            Math.round(
+                              (newLead.monthlyRevenue
+                                ? parseFloat(newLead.monthlyRevenue)
+                                : getDefaultRevenue(newLead.niche)) * 0.2
+                            )
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <Button 
                   className="w-full mt-4" 
                   onClick={handleAddLead}
