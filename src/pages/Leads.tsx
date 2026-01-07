@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2 } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +86,7 @@ const Leads = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [currentLeadIndex, setCurrentLeadIndex] = useState(0);
   const [isAllLeadsOpen, setIsAllLeadsOpen] = useState(false);
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -421,6 +423,56 @@ const Leads = () => {
       title: "Lead Deleted",
       description: `${lead.businessName} has been removed`,
     });
+  };
+
+  const handleBulkDelete = () => {
+    const leadsToDelete = leads.filter((l) => selectedLeads.has(l.id));
+    
+    // Remove from state
+    setLeads((prev) => prev.filter((l) => !selectedLeads.has(l.id)));
+    
+    // Remove manual leads from localStorage
+    const storedManualLeads = localStorage.getItem("manualLeads");
+    if (storedManualLeads) {
+      const manualLeads: Lead[] = JSON.parse(storedManualLeads);
+      const updatedManualLeads = manualLeads.filter((l) => !selectedLeads.has(l.id));
+      localStorage.setItem("manualLeads", JSON.stringify(updatedManualLeads));
+    }
+    
+    // Adjust currentLeadIndex if needed
+    const newLeadsCount = leads.length - selectedLeads.size;
+    if (currentLeadIndex >= newLeadsCount && newLeadsCount > 0) {
+      setCurrentLeadIndex(newLeadsCount - 1);
+    } else if (newLeadsCount === 0) {
+      setCurrentLeadIndex(0);
+    }
+    
+    toast({
+      title: "Leads Deleted",
+      description: `${selectedLeads.size} lead(s) have been removed`,
+    });
+    
+    setSelectedLeads(new Set());
+  };
+
+  const toggleSelectLead = (leadId: string) => {
+    setSelectedLeads((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(leadId)) {
+        newSet.delete(leadId);
+      } else {
+        newSet.add(leadId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeads.size === filteredLeads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filteredLeads.map((l) => l.id)));
+    }
   };
 
   const formatRevenueLeak = (amount: number | null) => {
@@ -816,7 +868,42 @@ const Leads = () => {
               </CardHeader>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Bulk actions bar */}
+                <div className="bg-card/50 border border-border/50 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Checkbox
+                      checked={selectedLeads.size === filteredLeads.length && filteredLeads.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {selectedLeads.size > 0 
+                        ? `${selectedLeads.size} of ${filteredLeads.length} selected`
+                        : `Select leads to delete`
+                      }
+                    </span>
+                  </div>
+                  {selectedLeads.size > 0 && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedLeads(new Set())}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete {selectedLeads.size}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 {filteredLeads.length === 0 ? (
                   <div className="text-center py-8">
                     <Building2 className="mx-auto h-10 w-10 text-muted-foreground/50" />
@@ -829,19 +916,26 @@ const Leads = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-[40px]"></TableHead>
                           <TableHead className="min-w-[180px]">Business Name</TableHead>
                           <TableHead className="min-w-[140px]">Niche</TableHead>
                           <TableHead className="min-w-[120px]">Phone Number</TableHead>
                           <TableHead className="min-w-[120px]">Revenue Leak</TableHead>
-                          <TableHead className="min-w-[100px] text-right">Action</TableHead>
+                          <TableHead className="min-w-[100px] text-right md:sticky md:right-0 md:bg-background">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredLeads.map((lead, index) => (
+                        {filteredLeads.map((lead) => (
                           <TableRow 
                             key={lead.id}
                             className={leads[currentLeadIndex]?.id === lead.id ? "bg-primary/5" : ""}
                           >
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedLeads.has(lead.id)}
+                                onCheckedChange={() => toggleSelectLead(lead.id)}
+                              />
+                            </TableCell>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
                                 {lead.businessName}
@@ -862,7 +956,7 @@ const Leads = () => {
                             <TableCell className="font-semibold text-red-600">
                               {formatRevenueLeak(lead.revenueLeak)}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right md:sticky md:right-0 md:bg-background">
                               <div className="flex items-center justify-end gap-2">
                                 <Button
                                   size="sm"
