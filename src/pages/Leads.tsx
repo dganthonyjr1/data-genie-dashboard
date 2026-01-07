@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,9 @@ const Leads = () => {
   const [newLead, setNewLead] = useState({ businessName: "", phoneNumber: "", niche: "" });
   const [isAddingLead, setIsAddingLead] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const { toast } = useToast();
 
   const filteredLeads = useMemo(() => {
@@ -170,6 +173,58 @@ const Leads = () => {
     toast({
       title: "Lead Added",
       description: `${manualLead.businessName} has been added to your leads`,
+    });
+  };
+
+  const handleEditLead = (lead: Lead) => {
+    setEditingLead({ ...lead });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingLead) return;
+    
+    if (!editingLead.businessName.trim() || !editingLead.phoneNumber.trim() || !editingLead.niche.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingEdit(true);
+
+    // Update in state
+    setLeads((prev) =>
+      prev.map((lead) =>
+        lead.id === editingLead.id
+          ? { ...lead, businessName: editingLead.businessName.trim(), phoneNumber: editingLead.phoneNumber.trim(), niche: editingLead.niche.trim() }
+          : lead
+      )
+    );
+
+    // If it's a manual lead, update localStorage
+    if (editingLead.isManual) {
+      const storedManualLeads = localStorage.getItem("manualLeads");
+      if (storedManualLeads) {
+        const manualLeads: Lead[] = JSON.parse(storedManualLeads);
+        const updatedManualLeads = manualLeads.map((lead) =>
+          lead.id === editingLead.id
+            ? { ...lead, businessName: editingLead.businessName.trim(), phoneNumber: editingLead.phoneNumber.trim(), niche: editingLead.niche.trim() }
+            : lead
+        );
+        localStorage.setItem("manualLeads", JSON.stringify(updatedManualLeads));
+      }
+    }
+
+    setIsEditModalOpen(false);
+    setEditingLead(null);
+    setIsSavingEdit(false);
+
+    toast({
+      title: "Lead Updated",
+      description: `${editingLead.businessName} has been updated`,
     });
   };
 
@@ -420,24 +475,33 @@ const Leads = () => {
                           {formatRevenueLeak(lead.revenueLeak)}
                         </TableCell>
                         <TableCell className="sticky right-0 bg-background text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                          <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                            onClick={() => handleStartCall(lead)}
-                            disabled={lead.phoneNumber === "N/A" || callingLeadId === lead.id}
-                          >
-                            {callingLeadId === lead.id ? (
-                              <>
-                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                Calling...
-                              </>
-                            ) : (
-                              <>
-                                <Phone className="mr-1 h-3 w-3" />
-                                Start AI Sales Call
-                              </>
-                            )}
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditLead(lead)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                              onClick={() => handleStartCall(lead)}
+                              disabled={lead.phoneNumber === "N/A" || callingLeadId === lead.id}
+                            >
+                              {callingLeadId === lead.id ? (
+                                <>
+                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                  Calling...
+                                </>
+                              ) : (
+                                <>
+                                  <Phone className="mr-1 h-3 w-3" />
+                                  Start AI Sales Call
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -447,6 +511,59 @@ const Leads = () => {
             )}
           </CardContent>
         </Card>
+        {/* Edit Lead Modal */}
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Lead</DialogTitle>
+            </DialogHeader>
+            {editingLead && (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editBusinessName">Business Name</Label>
+                  <Input
+                    id="editBusinessName"
+                    value={editingLead.businessName}
+                    onChange={(e) => setEditingLead((prev) => prev ? { ...prev, businessName: e.target.value } : null)}
+                    maxLength={100}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editPhoneNumber">Phone Number</Label>
+                  <Input
+                    id="editPhoneNumber"
+                    value={editingLead.phoneNumber}
+                    onChange={(e) => setEditingLead((prev) => prev ? { ...prev, phoneNumber: e.target.value } : null)}
+                    maxLength={20}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editNiche">Niche</Label>
+                  <Input
+                    id="editNiche"
+                    value={editingLead.niche}
+                    onChange={(e) => setEditingLead((prev) => prev ? { ...prev, niche: e.target.value } : null)}
+                    maxLength={50}
+                  />
+                </div>
+                <Button 
+                  className="w-full mt-4" 
+                  onClick={handleSaveEdit}
+                  disabled={isSavingEdit}
+                >
+                  {isSavingEdit ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
