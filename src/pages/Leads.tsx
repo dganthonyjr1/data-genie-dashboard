@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -216,16 +216,19 @@ const Leads = () => {
     setNewLead({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
     setIsAddModalOpen(false);
 
+    // Auto-trigger AI Sales Call via Make.com webhook
     try {
-      // Send to Make.com webhook (requested fields)
       const payload = {
-        name: manualLead.businessName,
-        phone: manualLead.phoneNumber,
-        practice_type: manualLead.niche,
+        business_name: manualLead.businessName,
+        phone_number: manualLead.phoneNumber,
+        pain_score: 0,
+        evidence_summary: "New lead added",
+        niche: manualLead.niche,
+        monthly_revenue: manualLead.monthlyRevenue,
         revenue_leak: manualLead.revenueLeak,
       };
 
-      console.log("Posting lead to Make.com:", MAKE_WEBHOOK_URL, payload);
+      console.log("Auto-triggering AI Sales Call:", MAKE_WEBHOOK_URL, payload);
 
       const response = await fetch(MAKE_WEBHOOK_URL, {
         method: "POST",
@@ -238,14 +241,14 @@ const Leads = () => {
       }
 
       toast({
-        title: "Lead Added",
-        description: `${manualLead.businessName} was sent to Make.com`,
+        title: "Lead Added & Call Initiated",
+        description: `${manualLead.businessName} added and AI Sales Call started automatically`,
       });
     } catch (error) {
       console.error("Make.com webhook error:", error);
       toast({
-        title: "Lead Added (Webhook Failed)",
-        description: "The lead was added, but sending to Make.com failed. Please check your Make.com run history.",
+        title: "Lead Added (Call Failed)",
+        description: "Lead was added, but failed to start AI Sales Call automatically.",
         variant: "destructive",
       });
     } finally {
@@ -362,6 +365,31 @@ const Leads = () => {
     } finally {
       setCallingLeadId(null);
     }
+  };
+
+  const handleDeleteLead = (lead: Lead) => {
+    // Remove from state
+    setLeads((prev) => prev.filter((l) => l.id !== lead.id));
+
+    // If it's a manual lead, remove from localStorage
+    if (lead.isManual) {
+      const storedManualLeads = localStorage.getItem("manualLeads");
+      if (storedManualLeads) {
+        const manualLeads: Lead[] = JSON.parse(storedManualLeads);
+        const updatedManualLeads = manualLeads.filter((l) => l.id !== lead.id);
+        localStorage.setItem("manualLeads", JSON.stringify(updatedManualLeads));
+      }
+    }
+
+    // Adjust currentLeadIndex if needed
+    if (currentLeadIndex >= leads.length - 1 && currentLeadIndex > 0) {
+      setCurrentLeadIndex(currentLeadIndex - 1);
+    }
+
+    toast({
+      title: "Lead Deleted",
+      description: `${lead.businessName} has been removed`,
+    });
   };
 
   const formatRevenueLeak = (amount: number | null) => {
@@ -804,14 +832,23 @@ const Leads = () => {
                               {formatRevenueLeak(lead.revenueLeak)}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant={leads[currentLeadIndex]?.id === lead.id ? "secondary" : "outline"}
-                                onClick={() => selectLeadFromTable(lead)}
-                                disabled={leads[currentLeadIndex]?.id === lead.id}
-                              >
-                                {leads[currentLeadIndex]?.id === lead.id ? "Viewing" : "Select"}
-                              </Button>
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant={leads[currentLeadIndex]?.id === lead.id ? "secondary" : "outline"}
+                                  onClick={() => selectLeadFromTable(lead)}
+                                  disabled={leads[currentLeadIndex]?.id === lead.id}
+                                >
+                                  {leads[currentLeadIndex]?.id === lead.id ? "Viewing" : "Select"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteLead(lead)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
