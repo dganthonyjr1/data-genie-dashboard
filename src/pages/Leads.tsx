@@ -159,7 +159,7 @@ const Leads = () => {
     setIsAddingLead(true);
 
     const monthlyRevenue = newLead.monthlyRevenue ? parseFloat(newLead.monthlyRevenue) : null;
-    const revenueLeak = monthlyRevenue ? Math.round(monthlyRevenue * 0.15) : null;
+    const revenueLeak = monthlyRevenue ? Math.round(monthlyRevenue * 0.20) : null;
 
     const manualLead: Lead = {
       id: `manual-${Date.now()}`,
@@ -273,6 +273,7 @@ const Leads = () => {
         pain_score: lead.painScore || 0,
         evidence_summary: lead.evidenceSummary || "No audit data available",
         niche: lead.niche,
+        monthly_revenue: lead.monthlyRevenue || 0,
         revenue_leak: lead.revenueLeak || 0,
       };
 
