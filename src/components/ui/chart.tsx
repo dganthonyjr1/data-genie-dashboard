@@ -65,25 +65,30 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitize id to prevent CSS injection - only allow alphanumeric, hyphens, underscores
+  const sanitizedId = id.replace(/[^a-zA-Z0-9_-]/g, '');
+  
+  // Build CSS safely by validating each value
+  const cssRules = Object.entries(THEMES).map(([theme, prefix]) => {
+    const properties = colorConfig
+      .map(([key, itemConfig]) => {
+        const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+        if (!color) return null;
+        // Sanitize key and color to prevent injection
+        const sanitizedKey = key.replace(/[^a-zA-Z0-9_-]/g, '');
+        // Only allow valid CSS color values (hex, rgb, hsl, named colors)
+        const colorPattern = /^(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+)$/;
+        if (!colorPattern.test(color.trim())) return null;
+        return `  --color-${sanitizedKey}: ${color};`;
+      })
+      .filter(Boolean)
+      .join("\n");
+    
+    return `${prefix} [data-chart=${sanitizedId}] {\n${properties}\n}`;
+  }).join("\n");
+
   return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
-      }}
-    />
+    <style dangerouslySetInnerHTML={{ __html: cssRules }} />
   );
 };
 

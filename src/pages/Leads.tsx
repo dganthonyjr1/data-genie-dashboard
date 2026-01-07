@@ -69,7 +69,7 @@ interface Lead {
   isManual?: boolean;
 }
 
-const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/w7c213pu9sygbum5kf8js7tf9432pt5s";
+
 
 const Leads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -216,36 +216,38 @@ const Leads = () => {
     setNewLead({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
     setIsAddModalOpen(false);
 
-    // Auto-trigger AI Sales Call via Make.com webhook
+    // Auto-trigger AI Sales Call via secure Edge Function
     try {
-      const payload = {
-        business_name: manualLead.businessName,
-        phone_number: manualLead.phoneNumber,
-        pain_score: 0,
-        evidence_summary: "New lead added",
-        niche: manualLead.niche,
-        monthly_revenue: manualLead.monthlyRevenue,
-        revenue_leak: manualLead.revenueLeak,
-      };
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Lead Added",
+          description: `${manualLead.businessName} added successfully`,
+        });
+        setIsAddingLead(false);
+        return;
+      }
 
-      console.log("Auto-triggering AI Sales Call:", MAKE_WEBHOOK_URL, payload);
-
-      const response = await fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const { error } = await supabase.functions.invoke('trigger-sales-call', {
+        body: {
+          business_name: manualLead.businessName,
+          phone_number: manualLead.phoneNumber,
+          pain_score: 0,
+          evidence_summary: "New lead added",
+          niche: manualLead.niche,
+          monthly_revenue: manualLead.monthlyRevenue,
+          revenue_leak: manualLead.revenueLeak,
+        },
       });
 
-      if (!response.ok) {
-        throw new Error(`Make.com webhook failed: ${response.status}`);
-      }
+      if (error) throw error;
 
       toast({
         title: "Lead Added & Call Initiated",
         description: `${manualLead.businessName} added and AI Sales Call started automatically`,
       });
     } catch (error) {
-      console.error("Make.com webhook error:", error);
+      console.error("Sales call trigger error:", error);
       toast({
         title: "Lead Added (Call Failed)",
         description: "Lead was added, but failed to start AI Sales Call automatically.",
@@ -331,25 +333,19 @@ const Leads = () => {
     setCallingLeadId(lead.id);
     
     try {
-      const payload = {
-        business_name: lead.businessName,
-        phone_number: lead.phoneNumber,
-        pain_score: lead.painScore || 0,
-        evidence_summary: lead.evidenceSummary || "No audit data available",
-        niche: lead.niche,
-        monthly_revenue: lead.monthlyRevenue || 0,
-        revenue_leak: lead.revenueLeak || 0,
-      };
-
-      const response = await fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const { error } = await supabase.functions.invoke('trigger-sales-call', {
+        body: {
+          business_name: lead.businessName,
+          phone_number: lead.phoneNumber,
+          pain_score: lead.painScore || 0,
+          evidence_summary: lead.evidenceSummary || "No audit data available",
+          niche: lead.niche,
+          monthly_revenue: lead.monthlyRevenue || 0,
+          revenue_leak: lead.revenueLeak || 0,
+        },
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to trigger webhook");
-      }
+      if (error) throw error;
 
       toast({
         title: "AI Sales Call Initiated",
