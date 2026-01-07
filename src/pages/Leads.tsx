@@ -183,7 +183,7 @@ const Leads = () => {
 
   const handleSaveEdit = () => {
     if (!editingLead) return;
-    
+
     if (!editingLead.businessName.trim() || !editingLead.phoneNumber.trim() || !editingLead.niche.trim()) {
       toast({
         title: "Missing Information",
@@ -195,26 +195,16 @@ const Leads = () => {
 
     setIsSavingEdit(true);
 
-    // Find the original lead to compare changes
-    const originalLead = leads.find((l) => l.id === editingLead.id);
-    const changes: string[] = [];
-    if (originalLead) {
-      if (originalLead.businessName !== editingLead.businessName.trim()) {
-        changes.push(`Name: "${originalLead.businessName}" → "${editingLead.businessName.trim()}"`);
-      }
-      if (originalLead.phoneNumber !== editingLead.phoneNumber.trim()) {
-        changes.push(`Phone: "${originalLead.phoneNumber}" → "${editingLead.phoneNumber.trim()}"`);
-      }
-      if (originalLead.niche !== editingLead.niche.trim()) {
-        changes.push(`Niche: "${originalLead.niche}" → "${editingLead.niche.trim()}"`);
-      }
-    }
-
     // Update in state
     setLeads((prev) =>
       prev.map((lead) =>
         lead.id === editingLead.id
-          ? { ...lead, businessName: editingLead.businessName.trim(), phoneNumber: editingLead.phoneNumber.trim(), niche: editingLead.niche.trim() }
+          ? {
+              ...lead,
+              businessName: editingLead.businessName.trim(),
+              phoneNumber: editingLead.phoneNumber.trim(),
+              niche: editingLead.niche.trim(),
+            }
           : lead
       )
     );
@@ -226,7 +216,12 @@ const Leads = () => {
         const manualLeads: Lead[] = JSON.parse(storedManualLeads);
         const updatedManualLeads = manualLeads.map((lead) =>
           lead.id === editingLead.id
-            ? { ...lead, businessName: editingLead.businessName.trim(), phoneNumber: editingLead.phoneNumber.trim(), niche: editingLead.niche.trim() }
+            ? {
+                ...lead,
+                businessName: editingLead.businessName.trim(),
+                phoneNumber: editingLead.phoneNumber.trim(),
+                niche: editingLead.niche.trim(),
+              }
             : lead
         );
         localStorage.setItem("manualLeads", JSON.stringify(updatedManualLeads));
@@ -239,7 +234,7 @@ const Leads = () => {
 
     toast({
       title: "Lead Updated",
-      description: changes.length > 0 ? changes.join(" • ") : "No changes made",
+      description: `${editingLead.businessName.trim()} has been updated`,
     });
   };
 
@@ -466,7 +461,7 @@ const Leads = () => {
                       <TableHead className="min-w-[140px]">Niche</TableHead>
                       <TableHead className="min-w-[120px]">Phone Number</TableHead>
                       <TableHead className="min-w-[120px] pr-8">Revenue Leak</TableHead>
-                      <TableHead className="sticky right-0 z-20 bg-background min-w-[220px] text-right shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.15)]">Actions</TableHead>
+                      <TableHead className="md:sticky md:right-0 md:z-20 bg-background min-w-[220px] text-right md:shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.15)]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -489,7 +484,7 @@ const Leads = () => {
                         <TableCell className="font-semibold text-red-600 pr-8">
                           {formatRevenueLeak(lead.revenueLeak)}
                         </TableCell>
-                        <TableCell className="sticky right-0 z-10 bg-background text-right shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.15)]">
+                        <TableCell className="md:sticky md:right-0 md:z-10 bg-background text-right md:shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.15)]">
                           <div className="flex items-center justify-end gap-2">
                             <Button
                               size="sm"
