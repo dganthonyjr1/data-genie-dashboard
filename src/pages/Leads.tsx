@@ -47,6 +47,7 @@ const PRACTICE_TYPES = [
   { value: "Pediatrics", revenue: 80000 },
   { value: "Optometry", revenue: 60000 },
   { value: "Psychiatry", revenue: 100000 },
+  { value: "Psychiatrists", revenue: 100000 },
 ] as const;
 
 const getDefaultRevenue = (niche: string): number => {
