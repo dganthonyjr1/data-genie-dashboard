@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Save, Key, Webhook, ChevronRight } from "lucide-react";
+import { Bell, Save, Key, Webhook, ChevronRight, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -15,6 +15,7 @@ interface UserPreferences {
   email_on_job_failure: boolean;
   email_on_scheduled_job_complete: boolean;
   email_on_scheduled_job_failure: boolean;
+  auto_call_on_scrape_complete: boolean;
 }
 
 const Settings = () => {
@@ -23,6 +24,7 @@ const Settings = () => {
     email_on_job_failure: true,
     email_on_scheduled_job_complete: true,
     email_on_scheduled_job_failure: true,
+    auto_call_on_scrape_complete: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,6 +60,7 @@ const Settings = () => {
           email_on_job_failure: data.email_on_job_failure,
           email_on_scheduled_job_complete: data.email_on_scheduled_job_complete,
           email_on_scheduled_job_failure: data.email_on_scheduled_job_failure,
+          auto_call_on_scrape_complete: data.auto_call_on_scrape_complete ?? false,
         });
       } else {
         const { error: insertError } = await supabase
@@ -184,6 +187,38 @@ const Settings = () => {
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </div>
             </Link>
+          </CardContent>
+        </Card>
+
+        {/* Automation Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Phone className="h-5 w-5 text-green-500" />
+              <div>
+                <CardTitle>Sales Automation</CardTitle>
+                <CardDescription className="mt-1">
+                  Configure automatic AI sales call triggers
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="auto_call_on_scrape_complete" className="text-base">
+                  Auto-Call on Scrape Complete
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically trigger AI sales calls for all leads with phone numbers when a scraping job completes
+                </p>
+              </div>
+              <Switch
+                id="auto_call_on_scrape_complete"
+                checked={preferences.auto_call_on_scrape_complete}
+                onCheckedChange={() => togglePreference('auto_call_on_scrape_complete')}
+              />
+            </div>
           </CardContent>
         </Card>
 
