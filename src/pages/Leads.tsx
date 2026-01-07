@@ -451,7 +451,7 @@ const Leads = () => {
                       <TableHead className="min-w-[100px]">Niche</TableHead>
                       <TableHead className="min-w-[120px]">Phone Number</TableHead>
                       <TableHead className="min-w-[100px]">Revenue Leak</TableHead>
-                      <TableHead className="sticky right-0 bg-background min-w-[180px] text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">Actions</TableHead>
+                      <TableHead className="sticky right-0 bg-background min-w-[220px] text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
