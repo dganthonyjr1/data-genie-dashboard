@@ -158,7 +158,18 @@ const Leads = () => {
 
     setIsAddingLead(true);
 
-    const monthlyRevenue = newLead.monthlyRevenue ? parseFloat(newLead.monthlyRevenue) : 50000;
+    // Determine default monthly revenue based on practice type
+    const getDefaultRevenue = (niche: string): number => {
+      const nicheNormalized = niche.toLowerCase().trim();
+      if (nicheNormalized.includes('dental')) return 75000;
+      if (nicheNormalized.includes('chiropractic')) return 40000;
+      if (nicheNormalized.includes('general practice')) return 120000;
+      return 50000;
+    };
+
+    const monthlyRevenue = newLead.monthlyRevenue 
+      ? parseFloat(newLead.monthlyRevenue) 
+      : getDefaultRevenue(newLead.niche);
     const revenueLeak = Math.round(monthlyRevenue * 0.20);
 
     const manualLead: Lead = {
