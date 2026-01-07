@@ -34,7 +34,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter, Search, Download, FileJson, FileSpreadsheet } from "lucide-react";
+import { Plus, ExternalLink, Eye, Loader2, RefreshCw, StopCircle, Trash2, Filter, Search, Download, FileJson, FileSpreadsheet, Play } from "lucide-react";
 import { JobDetailsModal } from "@/components/JobDetailsModal";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { DateRange } from "react-day-picker";
@@ -915,6 +915,20 @@ const Jobs = () => {
                       >
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Retry
+                      </Button>
+                    )}
+                    {job.status === "pending" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRetryJob(job.id);
+                        }}
+                        className="flex-1 sm:flex-none border-green-500/50 hover:bg-green-500/10 text-green-400"
+                      >
+                        <Play className="mr-2 h-4 w-4" />
+                        Run Now
                       </Button>
                     )}
                     {(job.status === "in_progress" || job.status === "pending") && (
