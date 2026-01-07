@@ -199,7 +199,7 @@ serve(async (req) => {
         console.error('Error updating job:', updateError);
       }
 
-      await sendNotifications(supabase, job, jobId, 'completed', businessResults.length);
+      await sendNotifications(supabase, job, jobId, 'completed', businessResults.length, undefined, businessResults);
 
       return new Response(
         JSON.stringify({ success: true, results: businessResults }),
@@ -375,7 +375,7 @@ serve(async (req) => {
         console.error('Error updating job:', updateError);
       }
 
-      await sendNotifications(supabase, job, jobId, 'completed', businessResults.length);
+      await sendNotifications(supabase, job, jobId, 'completed', businessResults.length, undefined, businessResults);
 
       return new Response(
         JSON.stringify({ success: true, results: businessResults }),
@@ -492,7 +492,7 @@ serve(async (req) => {
     }
 
     // Send success notifications
-    await sendNotifications(supabase, job, jobId, 'completed', results.length);
+    await sendNotifications(supabase, job, jobId, 'completed', results.length, undefined, results);
 
     return new Response(
       JSON.stringify({ success: true, results }),
@@ -515,7 +515,8 @@ async function sendNotifications(
   jobId: string, 
   status: 'completed' | 'failed',
   resultsCount: number,
-  errorMessage?: string
+  errorMessage?: string,
+  results?: any[]
 ) {
   const formatScrapeType = (type: string) => {
     return type.split("_").map(word => 
@@ -579,6 +580,86 @@ async function sendNotifications(
     console.log(`Webhook triggered for ${webhookEvent}`);
   } catch (webhookError) {
     console.error('Failed to trigger webhook:', webhookError);
+  }
+
+  // Auto-trigger sales calls if enabled and job completed with results
+  if (status === 'completed' && results && results.length > 0) {
+    await triggerAutoSalesCalls(supabase, job.user_id, results);
+  }
+}
+
+// Helper function to trigger auto sales calls for leads with phone numbers
+async function triggerAutoSalesCalls(supabase: any, userId: string, results: any[]) {
+  try {
+    // Check if user has auto-call enabled
+    const { data: prefs, error: prefsError } = await supabase
+      .from('user_preferences')
+      .select('auto_call_on_scrape_complete')
+      .eq('user_id', userId)
+      .single();
+
+    if (prefsError || !prefs?.auto_call_on_scrape_complete) {
+      console.log('Auto-call disabled or preferences not found');
+      return;
+    }
+
+    console.log(`Auto-call enabled, processing ${results.length} results`);
+
+    // Get the Make.com webhook URL
+    const MAKE_WEBHOOK_URL = Deno.env.get('MAKE_WEBHOOK_URL');
+    if (!MAKE_WEBHOOK_URL) {
+      console.error('MAKE_WEBHOOK_URL not configured for auto-calls');
+      return;
+    }
+
+    let callsTriggered = 0;
+
+    for (const result of results) {
+      // Extract phone number from various possible field names
+      const phoneNumber = result.phone_number || result.phone || result.phone_numbers?.[0] || 
+                         (Array.isArray(result.phone_numbers) ? result.phone_numbers[0] : null);
+      
+      if (!phoneNumber || phoneNumber === 'N/A') {
+        continue;
+      }
+
+      const businessName = result.business_name || result.name || result.title || 'Unknown Business';
+      const niche = result.niche || result.category || result.type || 'General';
+
+      try {
+        const payload = {
+          business_name: businessName,
+          phone_number: phoneNumber,
+          pain_score: result.audit?.painScore || result.painScore || 0,
+          evidence_summary: result.audit?.evidenceSummary || 'Scraped lead - auto-call',
+          niche: niche,
+          monthly_revenue: result.monthlyRevenue || 0,
+          revenue_leak: result.audit?.estimatedLeak || result.revenueLeak || 0,
+          user_id: userId,
+          triggered_at: new Date().toISOString(),
+          auto_triggered: true,
+        };
+
+        const response = await fetch(MAKE_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+          callsTriggered++;
+          console.log(`Auto-call triggered for: ${businessName}`);
+        } else {
+          console.error(`Auto-call failed for ${businessName}: ${response.status}`);
+        }
+      } catch (callError) {
+        console.error(`Error triggering auto-call for ${businessName}:`, callError);
+      }
+    }
+
+    console.log(`Auto-calls completed: ${callsTriggered} of ${results.length} leads`);
+  } catch (error) {
+    console.error('Error in triggerAutoSalesCalls:', error);
   }
 }
 

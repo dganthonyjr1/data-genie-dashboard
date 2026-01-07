@@ -225,6 +225,7 @@ export type Database = {
       }
       user_preferences: {
         Row: {
+          auto_call_on_scrape_complete: boolean
           created_at: string
           email_on_job_complete: boolean
           email_on_job_failure: boolean
@@ -235,6 +236,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_call_on_scrape_complete?: boolean
           created_at?: string
           email_on_job_complete?: boolean
           email_on_job_failure?: boolean
@@ -245,6 +247,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_call_on_scrape_complete?: boolean
           created_at?: string
           email_on_job_complete?: boolean
           email_on_job_failure?: boolean
