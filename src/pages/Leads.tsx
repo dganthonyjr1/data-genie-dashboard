@@ -173,7 +173,11 @@ const Leads = () => {
   };
 
   const handleAddLead = async () => {
-    if (!newLead.businessName.trim() || !newLead.phoneNumber.trim() || !newLead.niche.trim()) {
+    const businessName = newLead.businessName.trim();
+    const phoneNumber = newLead.phoneNumber.trim();
+    const niche = newLead.niche.trim();
+
+    if (!businessName || !phoneNumber || !niche) {
       toast({
         title: "Missing Information",
         description: "Please fill in all fields",
@@ -184,60 +188,64 @@ const Leads = () => {
 
     setIsAddingLead(true);
 
-    const monthlyRevenue = newLead.monthlyRevenue 
-      ? parseFloat(newLead.monthlyRevenue) 
-      : getDefaultRevenue(newLead.niche);
-    const revenueLeak = Math.round(monthlyRevenue * 0.20);
+    const monthlyRevenue = newLead.monthlyRevenue
+      ? parseFloat(newLead.monthlyRevenue)
+      : getDefaultRevenue(niche);
+    const revenueLeak = Math.round(monthlyRevenue * 0.2);
 
     const manualLead: Lead = {
       id: `manual-${Date.now()}`,
       jobId: "manual",
-      businessName: newLead.businessName.trim(),
-      niche: newLead.niche.trim(),
-      phoneNumber: newLead.phoneNumber.trim(),
-      monthlyRevenue: monthlyRevenue,
-      revenueLeak: revenueLeak,
+      businessName,
+      niche,
+      phoneNumber,
+      monthlyRevenue,
+      revenueLeak,
       painScore: null,
       evidenceSummary: null,
       isManual: true,
     };
 
+    // Save locally first (so "Add Lead" always works)
+    const storedManualLeads = localStorage.getItem("manualLeads");
+    const manualLeads: Lead[] = storedManualLeads ? JSON.parse(storedManualLeads) : [];
+    manualLeads.unshift(manualLead);
+    localStorage.setItem("manualLeads", JSON.stringify(manualLeads));
+
+    setLeads((prev) => [manualLead, ...prev]);
+    setNewLead({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
+    setIsAddModalOpen(false);
+
     try {
-      // Send to Make.com webhook
+      // Send to Make.com webhook (requested fields)
       const payload = {
-        business_name: manualLead.businessName,
-        phone_number: manualLead.phoneNumber,
-        niche: manualLead.niche,
-        monthly_revenue: manualLead.monthlyRevenue,
+        name: manualLead.businessName,
+        phone: manualLead.phoneNumber,
+        practice_type: manualLead.niche,
         revenue_leak: manualLead.revenueLeak,
       };
 
-      await fetch(MAKE_WEBHOOK_URL, {
+      console.log("Posting lead to Make.com:", MAKE_WEBHOOK_URL, payload);
+
+      const response = await fetch(MAKE_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      // Store in localStorage
-      const storedManualLeads = localStorage.getItem("manualLeads");
-      const manualLeads: Lead[] = storedManualLeads ? JSON.parse(storedManualLeads) : [];
-      manualLeads.unshift(manualLead);
-      localStorage.setItem("manualLeads", JSON.stringify(manualLeads));
-
-      // Update state
-      setLeads((prev) => [manualLead, ...prev]);
-      setNewLead({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
-      setIsAddModalOpen(false);
+      if (!response.ok) {
+        throw new Error(`Make.com webhook failed: ${response.status}`);
+      }
 
       toast({
-        title: "Lead Added & Sent",
-        description: `${manualLead.businessName} has been added and sent to webhook`,
+        title: "Lead Added",
+        description: `${manualLead.businessName} was sent to Make.com`,
       });
     } catch (error) {
-      console.error("Error sending to webhook:", error);
+      console.error("Make.com webhook error:", error);
       toast({
-        title: "Webhook Error",
-        description: "Lead saved locally but failed to send to webhook",
+        title: "Lead Added (Webhook Failed)",
+        description: "The lead was added, but sending to Make.com failed. Please check your Make.com run history.",
         variant: "destructive",
       });
     } finally {
