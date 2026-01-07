@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Phone, Building2, TrendingDown, Loader2, Plus } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -46,7 +46,19 @@ const Leads = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newLead, setNewLead] = useState({ businessName: "", phoneNumber: "", niche: "" });
   const [isAddingLead, setIsAddingLead] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+
+  const filteredLeads = useMemo(() => {
+    if (!searchQuery.trim()) return leads;
+    const query = searchQuery.toLowerCase();
+    return leads.filter(
+      (lead) =>
+        lead.businessName.toLowerCase().includes(query) ||
+        lead.niche.toLowerCase().includes(query) ||
+        lead.phoneNumber.toLowerCase().includes(query)
+    );
+  }, [leads, searchQuery]);
 
   useEffect(() => {
     fetchLeads();
@@ -344,8 +356,17 @@ const Leads = () => {
 
         {/* Leads Table */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>All Leads</CardTitle>
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search leads..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -354,12 +375,16 @@ const Leads = () => {
                   <Skeleton key={i} className="h-16 w-full" />
                 ))}
               </div>
-            ) : leads.length === 0 ? (
+            ) : filteredLeads.length === 0 ? (
               <div className="text-center py-12">
                 <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-medium">No leads yet</h3>
+                <h3 className="mt-4 text-lg font-medium">
+                  {searchQuery ? "No leads found" : "No leads yet"}
+                </h3>
                 <p className="text-muted-foreground mt-1">
-                  Start scraping businesses or add leads manually
+                  {searchQuery
+                    ? "Try a different search term"
+                    : "Start scraping businesses or add leads manually"}
                 </p>
               </div>
             ) : (
@@ -375,7 +400,7 @@ const Leads = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leads.map((lead) => (
+                    {filteredLeads.map((lead) => (
                       <TableRow key={lead.id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
