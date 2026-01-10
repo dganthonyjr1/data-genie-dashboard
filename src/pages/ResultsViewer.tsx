@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { EnhancedGoogleMapsResult } from "@/components/EnhancedGoogleMapsResult";
 import {
   Select,
   SelectContent,
@@ -566,7 +567,42 @@ export default function ResultsViewer() {
 
   const hasResults = job.results && job.results.length > 0;
   const isCompleteBusinessData = job.scrape_type === 'complete_business_data' && hasResults;
+  const isGoogleBusinessProfiles = job.scrape_type === 'google_business_profiles' && hasResults;
+  const isEnhancedGoogleMaps = isGoogleBusinessProfiles && job.results[0]?.source === 'google_maps_enhanced';
   const businessData = isCompleteBusinessData ? job.results[0] : null;
+
+  // Render enhanced Google Maps results
+  const renderEnhancedGoogleMapsResults = () => {
+    if (!isEnhancedGoogleMaps) return null;
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Enhanced Business Profiles</h3>
+            <p className="text-sm text-muted-foreground">
+              {job.results.length} businesses found with detailed reviews & competitor analysis
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleCopyData}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy JSON
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDownloadCSV}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+        </div>
+        <div className="grid gap-6">
+          {job.results.map((result, index) => (
+            <EnhancedGoogleMapsResult key={index} data={result} index={index} />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // Render complete business data in a nice card layout
   const renderCompleteBusinessData = () => {
@@ -1293,6 +1329,8 @@ export default function ResultsViewer() {
           <div className="text-center py-12 border border-border rounded-lg">
             <p className="text-muted-foreground">No results available for this job yet.</p>
           </div>
+        ) : isEnhancedGoogleMaps ? (
+          renderEnhancedGoogleMapsResults()
         ) : isCompleteBusinessData ? (
           renderCompleteBusinessData()
         ) : (
