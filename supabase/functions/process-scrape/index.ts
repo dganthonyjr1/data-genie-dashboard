@@ -753,6 +753,24 @@ async function triggerAutoSalesCalls(supabase: any, userId: string, jobId: strin
     }
 
     console.log(`Auto-calls completed: ${callsTriggered} of ${results.length} leads`);
+
+    // Create in-app notification for auto-calls
+    if (callsTriggered > 0) {
+      try {
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: userId,
+            job_id: jobId,
+            type: 'auto_call_triggered',
+            title: 'AI Sales Calls Triggered',
+            message: `${callsTriggered} auto-call${callsTriggered > 1 ? 's' : ''} triggered for leads with phone numbers`,
+          });
+        console.log(`Auto-call notification created for ${callsTriggered} calls`);
+      } catch (notifError) {
+        console.error('Failed to create auto-call notification:', notifError);
+      }
+    }
   } catch (error) {
     console.error('Error in triggerAutoSalesCalls:', error);
   }
