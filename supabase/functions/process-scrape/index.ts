@@ -459,7 +459,15 @@ serve(async (req) => {
         results = await extractCompleteBusinessData(markdownContent, htmlContent, job.url);
         break;
       default:
-        results = [{ content: markdownContent }];
+        // For full_page and other default scrapes, also extract phone numbers for auto-call
+        const extractedPhones = extractPhoneNumbers(markdownContent, htmlContent);
+        const phoneNumbers = extractedPhones.map((p: any) => p.phone_number || p).filter(Boolean);
+        results = [{ 
+          content: markdownContent,
+          phone_numbers: phoneNumbers,
+          // Also try to extract a business name from the page title or first heading
+          business_name: scrapeData.data?.metadata?.title || job.url.replace(/https?:\/\/(www\.)?/, '').split('/')[0],
+        }];
     }
 
     console.log(`Extracted ${results.length} results`);
