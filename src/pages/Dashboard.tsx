@@ -7,6 +7,7 @@ import UsageTracking from "@/components/UsageTracking";
 import BusinessAnalyzer from "@/components/BusinessAnalyzer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   BarChart, 
   Bar, 
@@ -29,9 +30,13 @@ import {
   TrendingUp,
   Activity,
   Plus,
-  BookOpen
+  BookOpen,
+  Play,
+  Phone,
+  Users
 } from "lucide-react";
 import { format, subDays, startOfDay, isWithinInterval } from "date-fns";
+import { useDemoMode } from "@/contexts/DemoModeContext";
 
 interface Job {
   id: string;
@@ -53,6 +58,7 @@ interface Stats {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isDemoMode, demoStats } = useDemoMode();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats>({
@@ -128,11 +134,47 @@ const Dashboard = () => {
     });
   };
 
+  // Demo mode data
+  const getDemoTrendData = () => {
+    const trends = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = subDays(new Date(), i);
+      trends.push({
+        date: format(date, "MMM dd"),
+        total: Math.floor(Math.random() * 30) + 15,
+        completed: Math.floor(Math.random() * 25) + 12,
+        failed: Math.floor(Math.random() * 3),
+      });
+    }
+    return trends;
+  };
+
+  const getDemoTypeData = () => [
+    { name: "Google Business Profiles", value: 89 },
+    { name: "Complete Business Data", value: 45 },
+    { name: "Bulk Business Search", value: 22 },
+  ];
+
+  const getDemoSuccessRateByType = () => [
+    { name: "Google Business Profiles", successRate: 97, completed: 86, total: 89 },
+    { name: "Complete Business Data", successRate: 91, completed: 41, total: 45 },
+    { name: "Bulk Business Search", successRate: 95, completed: 21, total: 22 },
+  ];
+
   // Data for charts
+  const displayStats = isDemoMode ? {
+    total: demoStats.totalJobs,
+    completed: demoStats.completedJobs,
+    failed: demoStats.failedJobs,
+    pending: demoStats.pendingJobs,
+    successRate: demoStats.successRate,
+    avgProcessingTime: demoStats.avgProcessingTime,
+  } : stats;
+
   const statusData = [
-    { name: "Completed", value: stats.completed, color: "#10b981" },
-    { name: "Failed", value: stats.failed, color: "#ef4444" },
-    { name: "Pending", value: stats.pending, color: "#eab308" },
+    { name: "Completed", value: displayStats.completed, color: "#10b981" },
+    { name: "Failed", value: displayStats.failed, color: "#ef4444" },
+    { name: "Pending", value: displayStats.pending, color: "#eab308" },
   ];
 
   // Get job trends for the last 7 days
@@ -207,9 +249,9 @@ const Dashboard = () => {
     return `${hours}h ${minutes}m`;
   };
 
-  const trendData = getLast7DaysTrends();
-  const typeData = getJobTypeDistribution();
-  const successByTypeData = getSuccessRateByType();
+  const trendData = isDemoMode ? getDemoTrendData() : getLast7DaysTrends();
+  const typeData = isDemoMode ? getDemoTypeData() : getJobTypeDistribution();
+  const successByTypeData = isDemoMode ? getDemoSuccessRateByType() : getSuccessRateByType();
 
   if (loading) {
     return (
@@ -244,6 +286,17 @@ const Dashboard = () => {
           </Button>
         </div>
 
+        {/* Demo Mode Banner */}
+        {isDemoMode && (
+          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-lg p-4 flex items-center gap-3">
+            <Play className="h-5 w-5 text-green-500 fill-green-500" />
+            <div>
+              <p className="font-medium text-green-400">Demo Mode Active</p>
+              <p className="text-sm text-muted-foreground">Showing sample data for investor demonstrations</p>
+            </div>
+          </div>
+        )}
+
         {/* Business Analyzer - Main Feature */}
         <BusinessAnalyzer />
 
@@ -255,7 +308,7 @@ const Dashboard = () => {
               <Briefcase className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{displayStats.total}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 All time scraping jobs
               </p>
@@ -268,9 +321,9 @@ const Dashboard = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-500">{stats.successRate}%</div>
+              <div className="text-2xl font-bold text-green-500">{displayStats.successRate}%</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {stats.completed} completed jobs
+                {displayStats.completed} completed jobs
               </p>
             </CardContent>
           </Card>
@@ -281,7 +334,7 @@ const Dashboard = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatTime(stats.avgProcessingTime)}</div>
+              <div className="text-2xl font-bold">{formatTime(displayStats.avgProcessingTime)}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Per completed job
               </p>
@@ -294,13 +347,57 @@ const Dashboard = () => {
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-500">{stats.pending}</div>
+              <div className="text-2xl font-bold text-yellow-500">{displayStats.pending}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Currently processing
               </p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Demo Mode Additional Stats */}
+        {isDemoMode && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+                <Users className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">{demoStats.totalLeads.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Businesses discovered
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-accent/10 to-secondary/10 border-accent/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Calls Initiated</CardTitle>
+                <Phone className="h-4 w-4 text-accent" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-accent">{demoStats.callsInitiated}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {demoStats.callsCompleted} completed ({((demoStats.callsCompleted / demoStats.callsInitiated) * 100).toFixed(0)}%)
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-500">{demoStats.conversionRate}%</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Leads to customers
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Charts Row */}
         <div className="grid gap-4 md:grid-cols-2">

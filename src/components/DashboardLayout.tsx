@@ -1,12 +1,14 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall } from "lucide-react";
+import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall, Play, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { NotificationBell } from "./NotificationBell";
+import { useDemoMode } from "@/contexts/DemoModeContext";
+import { Switch } from "./ui/switch";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -16,6 +18,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isDemoMode, toggleDemoMode } = useDemoMode();
   const [isLoading, setIsLoading] = useState(true);
   
   const navigation = [
@@ -148,13 +151,37 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             })}
           </nav>
 
+          {/* Demo Mode Toggle */}
+          <div className="border-t border-sidebar-border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {isDemoMode ? (
+                  <Play className="h-4 w-4 text-green-500 fill-green-500" />
+                ) : (
+                  <Square className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="text-sm text-sidebar-foreground">Demo Mode</span>
+              </div>
+              <Switch
+                checked={isDemoMode}
+                onCheckedChange={toggleDemoMode}
+                className="data-[state=checked]:bg-green-500"
+              />
+            </div>
+            {isDemoMode && (
+              <p className="text-xs text-muted-foreground">
+                Showing sample data for investor demos
+              </p>
+            )}
+          </div>
+
           {/* Credits Badge */}
           <div className="border-t border-sidebar-border p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-sidebar-foreground">Credits</span>
               <Badge className="bg-gradient-primary text-white">
                 <Sparkles className="mr-1 h-3 w-3" />
-                1,250
+                {isDemoMode ? "∞" : "1,250"}
               </Badge>
             </div>
             <Button 

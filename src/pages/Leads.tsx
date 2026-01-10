@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare, Mail, ShieldCheck } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare, Mail, ShieldCheck, Play } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import DashboardLayout from "@/components/DashboardLayout";
 import { EmailVerificationBadge, BulkEmailVerifier } from "@/components/EmailVerification";
@@ -39,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDemoMode } from "@/contexts/DemoModeContext";
 
 const PRACTICE_TYPES = [
   { value: "Dental", revenue: 75000 },
@@ -95,6 +96,7 @@ interface Lead {
 
 
 const Leads = () => {
+  const { isDemoMode, demoLeads } = useDemoMode();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [callingLeadId, setCallingLeadId] = useState<string | null>(null);
@@ -111,18 +113,37 @@ const Leads = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const currentLead = leads.length > 0 ? leads[currentLeadIndex] : null;
+  // Transform demo leads to Lead interface
+  const transformedDemoLeads: Lead[] = useMemo(() => 
+    demoLeads.map(dl => ({
+      id: dl.id,
+      jobId: "demo-job",
+      businessName: dl.business_name,
+      niche: dl.niche,
+      phoneNumber: dl.phone,
+      email: dl.email,
+      monthlyRevenue: 75000,
+      revenueLeak: dl.estimated_revenue_leak,
+      painScore: dl.pain_score,
+      evidenceSummary: dl.evidence.join("; "),
+      isManual: false,
+    }))
+  , [demoLeads]);
+
+  const displayLeads = isDemoMode ? transformedDemoLeads : leads;
+  const currentLead = displayLeads.length > 0 ? displayLeads[currentLeadIndex] : null;
 
   const filteredLeads = useMemo(() => {
-    if (!searchQuery.trim()) return leads;
+    const leadsToFilter = isDemoMode ? transformedDemoLeads : leads;
+    if (!searchQuery.trim()) return leadsToFilter;
     const query = searchQuery.toLowerCase();
-    return leads.filter(
+    return leadsToFilter.filter(
       (lead) =>
         lead.businessName.toLowerCase().includes(query) ||
         lead.niche.toLowerCase().includes(query) ||
         lead.phoneNumber.toLowerCase().includes(query)
     );
-  }, [leads, searchQuery]);
+  }, [leads, transformedDemoLeads, isDemoMode, searchQuery]);
 
   useEffect(() => {
     let cancelled = false;

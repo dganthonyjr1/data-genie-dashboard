@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, CheckCircle, XCircle, Clock, Search, Calendar, RefreshCw, Trash2 } from "lucide-react";
+import { Phone, CheckCircle, XCircle, Clock, Search, Calendar, RefreshCw, Trash2, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -11,21 +11,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { useDemoMode } from "@/contexts/DemoModeContext";
 
 interface CallAttempt {
   id: string;
-  user_id: string;
-  job_id: string | null;
+  user_id?: string;
+  job_id?: string | null;
   business_name: string;
   phone_number: string;
   status: string;
-  error_message: string | null;
+  error_message?: string | null;
   auto_triggered: boolean;
-  payload: any;
+  payload?: any;
   created_at: string;
 }
 
 const CallAttempts = () => {
+  const { isDemoMode, demoCallAttempts } = useDemoMode();
   const [attempts, setAttempts] = useState<CallAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,8 +91,20 @@ const CallAttempts = () => {
     }
   };
 
+  // Use demo data when demo mode is active
+  const displayAttempts = isDemoMode ? demoCallAttempts.map(da => ({
+    id: da.id,
+    business_name: da.business_name,
+    phone_number: da.phone_number,
+    status: da.status === "completed" ? "success" : da.status,
+    error_message: da.error_message,
+    auto_triggered: da.auto_triggered,
+    payload: da.payload,
+    created_at: da.created_at,
+  })) : attempts;
+
   const filteredAttempts = useMemo(() => {
-    return attempts.filter(attempt => {
+    return displayAttempts.filter(attempt => {
       // Search filter
       const matchesSearch = 
         attempt.business_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -122,14 +136,14 @@ const CallAttempts = () => {
 
       return matchesSearch && matchesStatus && matchesDate;
     });
-  }, [attempts, searchQuery, statusFilter, dateFilter]);
+  }, [displayAttempts, searchQuery, statusFilter, dateFilter]);
 
   const stats = useMemo(() => ({
-    total: attempts.length,
-    success: attempts.filter(a => a.status === "success").length,
-    failed: attempts.filter(a => a.status === "failed").length,
-    pending: attempts.filter(a => a.status === "pending").length,
-  }), [attempts]);
+    total: displayAttempts.length,
+    success: displayAttempts.filter(a => a.status === "success" || a.status === "completed").length,
+    failed: displayAttempts.filter(a => a.status === "failed").length,
+    pending: displayAttempts.filter(a => a.status === "pending" || a.status === "in_progress").length,
+  }), [displayAttempts]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -185,7 +199,16 @@ const CallAttempts = () => {
           </Button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Demo Mode Banner */}
+        {isDemoMode && (
+          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-lg p-4 flex items-center gap-3">
+            <Play className="h-5 w-5 text-green-500 fill-green-500" />
+            <div>
+              <p className="font-medium text-green-400">Demo Mode Active</p>
+              <p className="text-sm text-muted-foreground">Showing sample call data for demonstrations</p>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-card/50 border-border/50">
             <CardContent className="pt-6">
@@ -294,7 +317,7 @@ const CallAttempts = () => {
                 <Phone className="mx-auto h-12 w-12 text-muted-foreground/50" />
                 <h3 className="mt-4 text-lg font-semibold">No call attempts found</h3>
                 <p className="text-muted-foreground mt-2">
-                  {attempts.length === 0 
+                  {displayAttempts.length === 0 
                     ? "Call attempts will appear here when auto-calls are triggered"
                     : "No calls match your current filters"}
                 </p>
@@ -343,14 +366,16 @@ const CallAttempts = () => {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(attempt.id)}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {!isDemoMode && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(attempt.id)}
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
