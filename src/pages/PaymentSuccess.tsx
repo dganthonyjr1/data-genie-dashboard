@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CheckCircle, Loader2, XCircle, Zap, ArrowRight, Sparkles, Crown, Star } from "lucide-react";
+import { CheckCircle, Loader2, XCircle, Zap, ArrowRight, Sparkles, Crown, Star, Download, FileText, Calendar, CreditCard, Hash } from "lucide-react";
 import confetti from "canvas-confetti";
+import html2pdf from "html2pdf.js";
 
 type PaymentStatus = "verifying" | "success" | "pending" | "failed";
 
@@ -18,17 +19,51 @@ interface VerificationResult {
   error?: string;
 }
 
+interface InvoiceDetails {
+  transactionId: string;
+  date: string;
+  amount: string;
+  plan: string;
+  email: string;
+}
+
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<PaymentStatus>("verifying");
   const [planName, setPlanName] = useState<string>("");
   const [retryCount, setRetryCount] = useState(0);
+  const [invoiceDetails, setInvoiceDetails] = useState<InvoiceDetails | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
   const maxRetries = 5;
 
   const sessionId = searchParams.get("session_id");
   const plan = searchParams.get("plan");
   const preview = searchParams.get("preview");
+
+  // Generate mock invoice details for preview or real data
+  const generateInvoiceDetails = useCallback((planNameValue: string, email?: string): InvoiceDetails => {
+    const planPrices: Record<string, string> = {
+      Pro: "$99.00",
+      Enterprise: "Custom",
+      Starter: "$0.00",
+    };
+
+    return {
+      transactionId: sessionId ? `TXN-${sessionId.slice(0, 12).toUpperCase()}` : `TXN-${Date.now().toString(36).toUpperCase()}`,
+      date: new Date().toLocaleDateString("en-US", { 
+        year: "numeric", 
+        month: "long", 
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }),
+      amount: planPrices[planNameValue] || "$99.00",
+      plan: planNameValue,
+      email: email || "user@example.com",
+    };
+  }, [sessionId]);
 
   // Trigger confetti celebration
   const triggerConfetti = useCallback(() => {
@@ -48,7 +83,6 @@ const PaymentSuccess = () => {
 
       const particleCount = 50 * (timeLeft / duration);
 
-      // Confetti from both sides
       confetti({
         ...defaults,
         particleCount,
@@ -67,10 +101,12 @@ const PaymentSuccess = () => {
   // Preview mode - show success state without verification
   useEffect(() => {
     if (preview === "true") {
-      setPlanName(plan || "Pro");
+      const planValue = plan || "Pro";
+      setPlanName(planValue);
       setStatus("success");
+      setInvoiceDetails(generateInvoiceDetails(planValue, "demo@scrapex.io"));
     }
-  }, [preview, plan]);
+  }, [preview, plan, generateInvoiceDetails]);
 
   // Trigger confetti on success
   useEffect(() => {
@@ -80,7 +116,6 @@ const PaymentSuccess = () => {
   }, [status, triggerConfetti]);
 
   const verifyPayment = useCallback(async () => {
-    // Skip verification in preview mode
     if (preview === "true") return;
 
     if (!sessionId) {
@@ -110,7 +145,9 @@ const PaymentSuccess = () => {
 
       if (data?.status === "completed") {
         setStatus("success");
-        if (data.planName) setPlanName(data.planName);
+        const finalPlanName = data.planName || plan || "Pro";
+        setPlanName(finalPlanName);
+        setInvoiceDetails(generateInvoiceDetails(finalPlanName, session.user.email || undefined));
       } else if (data?.status === "failed" || data?.status === "cancelled") {
         setStatus("failed");
       } else {
@@ -125,11 +162,34 @@ const PaymentSuccess = () => {
       console.error("Error verifying payment:", err);
       setStatus("pending");
     }
-  }, [sessionId, plan, navigate, retryCount, preview]);
+  }, [sessionId, plan, navigate, retryCount, preview, generateInvoiceDetails]);
 
   useEffect(() => {
     verifyPayment();
   }, [verifyPayment]);
+
+  // Download receipt as PDF
+  const handleDownloadReceipt = async () => {
+    if (!receiptRef.current || !invoiceDetails) return;
+    
+    setIsDownloading(true);
+    
+    try {
+      const opt = {
+        margin: 0.5,
+        filename: `ScrapeX-Receipt-${invoiceDetails.transactionId}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+
+      await html2pdf().set(opt).from(receiptRef.current).save();
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const planFeatures = {
     Pro: ["2,500 scrapes/month", "AI Revenue Analysis", "100 AI Sales Calls", "API Access"],
@@ -196,9 +256,7 @@ const PaymentSuccess = () => {
                       <CheckCircle className="w-10 h-10 text-white" />
                     </div>
                   </div>
-                  {/* Rotating ring */}
                   <div className="absolute inset-0 rounded-full border-2 border-dashed border-cyan-400/50 animate-spin" style={{ animationDuration: '10s' }} />
-                  {/* Sparkles */}
                   <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-400 animate-bounce" />
                   <Star className="absolute -bottom-1 -left-1 w-5 h-5 text-pink-400 animate-bounce" style={{ animationDelay: '0.3s' }} />
                 </div>
@@ -248,7 +306,7 @@ const PaymentSuccess = () => {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-6 pt-2 pb-8">
+          <CardContent className="space-y-5 pt-2 pb-8">
             {(status === "success" || status === "pending") && (
               <>
                 {/* Plan badge */}
@@ -268,14 +326,71 @@ const PaymentSuccess = () => {
                   </div>
                 </div>
 
+                {/* Invoice Details */}
+                {status === "success" && invoiceDetails && (
+                  <div className="bg-gradient-to-br from-muted/60 to-muted/40 rounded-xl p-4 border border-border/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-cyan-400" />
+                        Invoice Details
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                        onClick={handleDownloadReceipt}
+                        disabled={isDownloading}
+                      >
+                        {isDownloading ? (
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        ) : (
+                          <Download className="w-3 h-3 mr-1" />
+                        )}
+                        Download PDF
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Hash className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Transaction ID</p>
+                          <p className="font-mono text-xs text-foreground">{invoiceDetails.transactionId}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Date</p>
+                          <p className="text-xs text-foreground">{invoiceDetails.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Amount</p>
+                          <p className="text-foreground font-semibold">{invoiceDetails.amount}<span className="text-xs text-muted-foreground font-normal">/mo</span></p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Crown className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Plan</p>
+                          <p className="text-foreground">{invoiceDetails.plan}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Features unlocked */}
                 {status === "success" && (
-                  <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl p-5 border border-border/50">
+                  <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl p-4 border border-border/50">
                     <p className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-cyan-400" />
                       Features Unlocked
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       {features.map((feature, i) => (
                         <div 
                           key={i} 
@@ -283,7 +398,7 @@ const PaymentSuccess = () => {
                           style={{ animationDelay: `${i * 0.1}s` }}
                         >
                           <CheckCircle className="w-4 h-4 text-cyan-400 shrink-0" />
-                          <span className="text-foreground">{feature}</span>
+                          <span className="text-foreground text-xs">{feature}</span>
                         </div>
                       ))}
                     </div>
@@ -333,6 +448,68 @@ const PaymentSuccess = () => {
           </CardContent>
         </div>
       </Card>
+
+      {/* Hidden Receipt Template for PDF Generation */}
+      {invoiceDetails && (
+        <div className="fixed left-[-9999px] top-0">
+          <div ref={receiptRef} style={{ width: '600px', padding: '40px', backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }}>
+            {/* Receipt Header */}
+            <div style={{ borderBottom: '2px solid #06b6d4', paddingBottom: '20px', marginBottom: '30px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: '28px', color: '#0f172a', fontWeight: 'bold' }}>ScrapeX</h1>
+                  <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '14px' }}>Payment Receipt</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Receipt #</p>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: '#0f172a', fontFamily: 'monospace' }}>{invoiceDetails.transactionId}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Receipt Body */}
+            <div style={{ marginBottom: '30px' }}>
+              <h2 style={{ fontSize: '16px', color: '#0f172a', marginBottom: '15px' }}>Transaction Details</h2>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '14px' }}>Date</td>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #e2e8f0', color: '#0f172a', fontSize: '14px', textAlign: 'right' }}>{invoiceDetails.date}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '14px' }}>Customer Email</td>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #e2e8f0', color: '#0f172a', fontSize: '14px', textAlign: 'right' }}>{invoiceDetails.email}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '14px' }}>Plan</td>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #e2e8f0', color: '#0f172a', fontSize: '14px', textAlign: 'right' }}>{invoiceDetails.plan} Plan (Monthly)</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '14px' }}>Payment Method</td>
+                    <td style={{ padding: '10px 0', borderBottom: '1px solid #e2e8f0', color: '#0f172a', fontSize: '14px', textAlign: 'right' }}>Credit Card (Stripe)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Amount Section */}
+            <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '16px', color: '#0f172a', fontWeight: 'bold' }}>Total Amount</span>
+                <span style={{ fontSize: '24px', color: '#06b6d4', fontWeight: 'bold' }}>{invoiceDetails.amount}</span>
+              </div>
+              <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#64748b' }}>Billed monthly. Cancel anytime.</p>
+            </div>
+
+            {/* Footer */}
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '20px', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Thank you for your purchase!</p>
+              <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#64748b' }}>Questions? Contact support@scrapex.io</p>
+              <p style={{ margin: '10px 0 0 0', fontSize: '11px', color: '#94a3b8' }}>ScrapeX Inc. • This is an official payment receipt.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
