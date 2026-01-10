@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,56 +7,78 @@ import { CheckCircle, Loader2, XCircle, Zap, ArrowRight } from "lucide-react";
 
 type PaymentStatus = "verifying" | "success" | "pending" | "failed";
 
+interface VerificationResult {
+  success: boolean;
+  status?: string;
+  planName?: string;
+  amount?: number;
+  currency?: string;
+  upgraded?: boolean;
+  error?: string;
+}
+
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<PaymentStatus>("verifying");
   const [planName, setPlanName] = useState<string>("");
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 5;
 
   const paymentLinkId = searchParams.get("paymentLinkId");
   const plan = searchParams.get("plan");
 
-  useEffect(() => {
-    const verifyPayment = async () => {
-      if (!paymentLinkId) {
-        // No paymentLinkId means user came here directly or payment was cancelled
-        setStatus("failed");
+  const verifyPayment = useCallback(async () => {
+    if (!paymentLinkId) {
+      setStatus("failed");
+      return;
+    }
+
+    setPlanName(plan || "Pro");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        // User not logged in - redirect to login
+        navigate("/login?redirect=/payment/success?paymentLinkId=" + paymentLinkId);
         return;
       }
 
-      setPlanName(plan || "Pro");
+      // Call the verify-payment edge function
+      const { data, error } = await supabase.functions.invoke<VerificationResult>("verify-payment", {
+        body: { paymentLinkId },
+      });
 
-      try {
-        // Check if payment exists and its status
-        const { data: payment, error } = await supabase
-          .from("payments")
-          .select("*")
-          .eq("payment_link_id", paymentLinkId)
-          .single();
-
-        if (error || !payment) {
-          // Payment record not found - might be processing
-          setStatus("pending");
-          return;
-        }
-
-        if (payment.status === "completed") {
-          setStatus("success");
-        } else if (payment.status === "failed" || payment.status === "cancelled") {
-          setStatus("failed");
-        } else {
-          // Still pending - Square webhook hasn't fired yet
-          // In production, you'd poll or use webhooks
-          setStatus("pending");
-        }
-      } catch (err) {
-        console.error("Error verifying payment:", err);
+      if (error) {
+        console.error("Verification error:", error);
         setStatus("pending");
+        return;
       }
-    };
 
+      if (data?.status === "completed") {
+        setStatus("success");
+        if (data.planName) setPlanName(data.planName);
+      } else if (data?.status === "failed" || data?.status === "cancelled") {
+        setStatus("failed");
+      } else {
+        // Still pending - schedule retry
+        setStatus("pending");
+        if (retryCount < maxRetries) {
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, 3000); // Retry every 3 seconds
+        }
+      }
+    } catch (err) {
+      console.error("Error verifying payment:", err);
+      setStatus("pending");
+    }
+  }, [paymentLinkId, plan, navigate, retryCount]);
+
+  useEffect(() => {
     verifyPayment();
-  }, [paymentLinkId, plan]);
+  }, [verifyPayment]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
