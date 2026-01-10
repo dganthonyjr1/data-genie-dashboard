@@ -122,12 +122,12 @@ const Pricing = () => {
       cta: "Contact Sales",
       ctaVariant: "outline" as const,
       isPaid: false,
-      // Tier styling - purple with a touch of pink for Enterprise (premium feel)
-      iconBg: "from-violet-500/20 to-fuchsia-400/20",
-      iconColor: "text-violet-400",
-      accentColor: "violet",
-      borderHover: "hover:border-violet-500/50",
-      checkColor: "text-violet-400",
+      // Tier styling - purple for Enterprise (premium feel)
+      iconBg: "from-purple-500/20 to-purple-400/20",
+      iconColor: "text-purple-400",
+      accentColor: "purple",
+      borderHover: "hover:border-purple-500/50",
+      checkColor: "text-purple-400",
     },
   ];
 
@@ -277,7 +277,7 @@ const Pricing = () => {
               const cardStyles = plan.popular 
                 ? "border-cyan-500 shadow-lg shadow-cyan-500/20 scale-105" 
                 : plan.name === "Enterprise" 
-                  ? "border-violet-500/30 hover:border-violet-500/50 hover:shadow-lg hover:shadow-violet-500/10" 
+                  ? "border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10" 
                   : "border-border/50 hover:border-slate-400/50";
               
               return (
@@ -295,7 +295,7 @@ const Pricing = () => {
                   
                   {plan.name === "Enterprise" && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-gradient-to-r from-violet-500 to-fuchsia-400 text-white px-4 py-1 shadow-lg shadow-violet-500/30">
+                      <Badge className="bg-gradient-to-r from-purple-500 to-purple-400 text-white px-4 py-1 shadow-lg shadow-purple-500/30">
                         Premium
                       </Badge>
                     </div>
@@ -305,13 +305,13 @@ const Pricing = () => {
                     <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${plan.iconBg} flex items-center justify-center mx-auto mb-4 transition-transform duration-300 hover:scale-110`}>
                       <plan.icon className={`w-7 h-7 ${plan.iconColor}`} />
                     </div>
-                    <CardTitle className={`text-2xl ${plan.name === "Pro" ? "text-cyan-400" : plan.name === "Enterprise" ? "text-violet-400" : "text-foreground"}`} style={{ fontFamily: 'Orbitron, sans-serif' }}>{plan.name}</CardTitle>
+                    <CardTitle className={`text-2xl ${plan.name === "Pro" ? "text-cyan-400" : plan.name === "Enterprise" ? "text-purple-400" : "text-foreground"}`} style={{ fontFamily: 'Orbitron, sans-serif' }}>{plan.name}</CardTitle>
                     <CardDescription className="text-muted-foreground">{plan.description}</CardDescription>
                   </CardHeader>
                   
                   <CardContent className="space-y-6">
                     <div className="text-center">
-                      <span className={`text-5xl font-bold ${plan.name === "Pro" ? "text-cyan-400" : plan.name === "Enterprise" ? "text-violet-400" : "text-foreground"}`} style={{ fontFamily: 'Orbitron, sans-serif' }}>
+                      <span className={`text-5xl font-bold ${plan.name === "Pro" ? "text-cyan-400" : plan.name === "Enterprise" ? "text-purple-400" : "text-foreground"}`} style={{ fontFamily: 'Orbitron, sans-serif' }}>
                         {plan.price}
                       </span>
                       <span className="text-muted-foreground">{plan.period}</span>
@@ -322,7 +322,7 @@ const Pricing = () => {
                         plan.name === "Pro" 
                             ? "bg-gradient-to-r from-cyan-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-white shadow-lg shadow-cyan-500/30" 
                             : plan.name === "Enterprise"
-                              ? "border-violet-400/50 text-violet-300 hover:bg-violet-500/10 hover:border-fuchsia-400"
+                              ? "border-purple-500/50 text-purple-400 hover:bg-purple-500/10 hover:border-purple-400"
                             : ""
                       }`}
                       variant={plan.ctaVariant}
