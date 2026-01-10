@@ -19,9 +19,29 @@ serve(async (req) => {
   }
 
   try {
-    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
+    const STRIPE_SECRET_KEY_RAW = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+    const STRIPE_SECRET_KEY = STRIPE_SECRET_KEY_RAW.trim();
+
     if (!STRIPE_SECRET_KEY) {
       throw new Error("Stripe secret key not configured");
+    }
+
+    const keyPrefix = STRIPE_SECRET_KEY.slice(0, 8);
+    console.log(`Stripe key prefix=${keyPrefix}, length=${STRIPE_SECRET_KEY.length}`);
+
+    // Stripe secret keys must be sk_test_/sk_live_ or restricted rk_test_/rk_live_
+    const looksValid = /^(sk|rk)_(test|live)_/.test(STRIPE_SECRET_KEY);
+    if (!looksValid) {
+      return new Response(
+        JSON.stringify({
+          error:
+            `Stripe secret key looks invalid (expected sk_test_/sk_live_/rk_test_/rk_live_). Current prefix: ${STRIPE_SECRET_KEY.slice(0, 3)}`,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Validate JWT
