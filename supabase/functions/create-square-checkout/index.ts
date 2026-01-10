@@ -8,13 +8,12 @@ const corsHeaders = {
 
 interface CheckoutRequest {
   planName: string;
-  amount: number; // in cents
+  amount: number;
   currency?: string;
   redirectUrl?: string;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -28,7 +27,6 @@ serve(async (req) => {
       throw new Error("Square credentials not configured");
     }
 
-    // Verify user authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Authorization header required");
@@ -48,21 +46,25 @@ serve(async (req) => {
 
     const { planName, amount, currency = "USD", redirectUrl } = await req.json() as CheckoutRequest;
 
-    // Validate input
     if (!planName || !amount || amount <= 0) {
       throw new Error("Invalid plan name or amount");
     }
 
-    // Sanitize inputs
     const sanitizedPlanName = planName.slice(0, 100).replace(/[<>]/g, '');
     
     console.log(`Creating Square checkout for user ${user.id}, plan: ${sanitizedPlanName}, amount: ${amount}`);
 
-    // Generate idempotency key
     const idempotencyKey = crypto.randomUUID();
 
-    // Create Square Checkout Link
-    const squareResponse = await fetch("https://connect.squareup.com/v2/online-checkout/payment-links", {
+    // Determine environment - sandbox tokens/locations contain "sandbox"
+    const isSandbox = SQUARE_ACCESS_TOKEN.includes("sandbox") || SQUARE_LOCATION_ID.includes("sandbox");
+    const baseUrl = isSandbox 
+      ? "https://connect.squareupsandbox.com" 
+      : "https://connect.squareup.com";
+
+    console.log(`Using Square ${isSandbox ? 'Sandbox' : 'Production'} environment`);
+
+    const squareResponse = await fetch(`${baseUrl}/v2/online-checkout/payment-links`, {
       method: "POST",
       headers: {
         "Square-Version": "2024-01-18",
@@ -74,7 +76,7 @@ serve(async (req) => {
         quick_pay: {
           name: `ScrapeX ${sanitizedPlanName} Plan`,
           price_money: {
-            amount: amount, // Square expects amount in cents
+            amount: amount,
             currency: currency,
           },
           location_id: SQUARE_LOCATION_ID,
