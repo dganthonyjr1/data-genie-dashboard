@@ -121,6 +121,40 @@ serve(async (req) => {
 
       console.log(`User ${userId} upgraded to ${planName}`);
 
+      // Send payment receipt email
+      const customerEmail = session.customer_details?.email || session.customer_email;
+      if (customerEmail) {
+        try {
+          const receiptResponse = await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-payment-receipt`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              },
+              body: JSON.stringify({
+                email: customerEmail,
+                planName,
+                amount: session.amount_total || 0,
+                currency: (session.currency || "usd").toUpperCase(),
+                transactionId: sessionId,
+                customerName: session.customer_details?.name,
+              }),
+            }
+          );
+          
+          if (!receiptResponse.ok) {
+            console.error("Failed to send receipt email:", await receiptResponse.text());
+          } else {
+            console.log(`Receipt email sent to ${customerEmail}`);
+          }
+        } catch (emailError) {
+          console.error("Error sending receipt email:", emailError);
+          // Don't fail the payment verification if email fails
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
