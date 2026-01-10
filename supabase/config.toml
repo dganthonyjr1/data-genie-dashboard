@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.verify-email]
 verify_jwt = false
+
+[functions.predict-lead-score]
+verify_jwt = false
