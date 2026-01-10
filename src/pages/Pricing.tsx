@@ -53,6 +53,12 @@ const Pricing = () => {
       cta: "Get Started Free",
       ctaVariant: "outline" as const,
       isPaid: false,
+      // Tier styling
+      iconBg: "from-slate-500/20 to-slate-400/20",
+      iconColor: "text-slate-400",
+      accentColor: "slate",
+      borderHover: "hover:border-slate-400/50",
+      checkColor: "text-slate-400",
     },
     {
       name: "Pro",
@@ -81,6 +87,12 @@ const Pricing = () => {
       cta: "Start Pro Trial",
       ctaVariant: "default" as const,
       isPaid: true,
+      // Tier styling - cyan/teal for Pro (matches ScrapeX brand)
+      iconBg: "from-cyan-500/20 to-cyan-400/20",
+      iconColor: "text-cyan-500",
+      accentColor: "cyan",
+      borderHover: "hover:border-cyan-500/50",
+      checkColor: "text-cyan-500",
     },
     {
       name: "Enterprise",
@@ -110,6 +122,12 @@ const Pricing = () => {
       cta: "Contact Sales",
       ctaVariant: "outline" as const,
       isPaid: false,
+      // Tier styling - pink/magenta for Enterprise (premium feel)
+      iconBg: "from-pink-500/20 to-pink-400/20",
+      iconColor: "text-pink-500",
+      accentColor: "pink",
+      borderHover: "hover:border-pink-500/50",
+      checkColor: "text-pink-500",
     },
   ];
 
@@ -254,75 +272,96 @@ const Pricing = () => {
       <section className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {plans.map((plan, index) => (
-              <Card 
-                key={index} 
-                className={`relative bg-card/50 border-border/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 ${
-                  plan.popular ? "border-primary shadow-lg shadow-primary/20 scale-105" : ""
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-gradient-to-r from-primary to-secondary text-white px-4 py-1">
-                      Most Popular
-                    </Badge>
-                  </div>
-                )}
-                
-                <CardHeader className="text-center pb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-400/20 flex items-center justify-center mx-auto mb-4">
-                    <plan.icon className="w-6 h-6 text-cyan-500" />
-                  </div>
-                  <CardTitle className="text-2xl" style={{ fontFamily: 'Orbitron, sans-serif' }}>{plan.name}</CardTitle>
-                  <CardDescription className="text-muted-foreground">{plan.description}</CardDescription>
-                </CardHeader>
-                
-                <CardContent className="space-y-6">
-                  <div className="text-center">
-                    <span className="text-5xl font-bold text-foreground" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                      {plan.price}
-                    </span>
-                    <span className="text-muted-foreground">{plan.period}</span>
-                  </div>
+            {plans.map((plan, index) => {
+              // Dynamic styling based on tier
+              const cardStyles = plan.popular 
+                ? "border-cyan-500 shadow-lg shadow-cyan-500/20 scale-105" 
+                : plan.name === "Enterprise" 
+                  ? "border-pink-500/30 hover:border-pink-500/50 hover:shadow-lg hover:shadow-pink-500/10" 
+                  : "border-border/50 hover:border-slate-400/50";
+              
+              return (
+                <Card 
+                  key={index} 
+                  className={`relative bg-card/50 backdrop-blur-sm transition-all duration-300 ${cardStyles}`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-gradient-to-r from-cyan-500 to-cyan-400 text-white px-4 py-1 shadow-lg shadow-cyan-500/30">
+                        Most Popular
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  {plan.name === "Enterprise" && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-gradient-to-r from-pink-500 to-pink-400 text-white px-4 py-1 shadow-lg shadow-pink-500/30">
+                        Premium
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  <CardHeader className="text-center pb-4">
+                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${plan.iconBg} flex items-center justify-center mx-auto mb-4 transition-transform duration-300 hover:scale-110`}>
+                      <plan.icon className={`w-7 h-7 ${plan.iconColor}`} />
+                    </div>
+                    <CardTitle className={`text-2xl ${plan.name === "Pro" ? "text-cyan-400" : plan.name === "Enterprise" ? "text-pink-400" : "text-foreground"}`} style={{ fontFamily: 'Orbitron, sans-serif' }}>{plan.name}</CardTitle>
+                    <CardDescription className="text-muted-foreground">{plan.description}</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-6">
+                    <div className="text-center">
+                      <span className={`text-5xl font-bold ${plan.name === "Pro" ? "text-cyan-400" : plan.name === "Enterprise" ? "text-pink-400" : "text-foreground"}`} style={{ fontFamily: 'Orbitron, sans-serif' }}>
+                        {plan.price}
+                      </span>
+                      <span className="text-muted-foreground">{plan.period}</span>
+                    </div>
 
-                  <Button 
-                    className={`w-full ${plan.popular ? "bg-gradient-to-r from-primary to-secondary hover:opacity-90" : ""}`}
-                    variant={plan.ctaVariant}
-                    onClick={() => handlePlanSelect(plan)}
-                    disabled={loadingPlan === plan.name}
-                  >
-                    {loadingPlan === plan.name ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        {plan.cta}
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </>
-                    )}
-                  </Button>
+                    <Button 
+                      className={`w-full ${
+                        plan.name === "Pro" 
+                          ? "bg-gradient-to-r from-cyan-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-white shadow-lg shadow-cyan-500/30" 
+                          : plan.name === "Enterprise"
+                            ? "border-pink-500/50 text-pink-400 hover:bg-pink-500/10 hover:border-pink-500"
+                            : ""
+                      }`}
+                      variant={plan.ctaVariant}
+                      onClick={() => handlePlanSelect(plan)}
+                      disabled={loadingPlan === plan.name}
+                    >
+                      {loadingPlan === plan.name ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          {plan.cta}
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
 
-                  <div className="space-y-3">
-                    {plan.features.map((feature, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <Check className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                        <span className="text-sm text-foreground">{feature}</span>
-                      </div>
-                    ))}
-                    {plan.notIncluded.map((feature, i) => (
-                      <div key={i} className="flex items-start gap-3 opacity-50">
-                        <div className="w-5 h-5 shrink-0 mt-0.5 flex items-center justify-center">
-                          <div className="w-1.5 h-0.5 bg-muted-foreground rounded" />
+                    <div className="space-y-3">
+                      {plan.features.map((feature, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <Check className={`w-5 h-5 ${plan.checkColor} shrink-0 mt-0.5`} />
+                          <span className="text-sm text-foreground">{feature}</span>
                         </div>
-                        <span className="text-sm text-muted-foreground">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      ))}
+                      {plan.notIncluded.map((feature, i) => (
+                        <div key={i} className="flex items-start gap-3 opacity-50">
+                          <div className="w-5 h-5 shrink-0 mt-0.5 flex items-center justify-center">
+                            <div className="w-1.5 h-0.5 bg-muted-foreground rounded" />
+                          </div>
+                          <span className="text-sm text-muted-foreground">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>
