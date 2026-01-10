@@ -122,12 +122,12 @@ const Pricing = () => {
       cta: "Contact Sales",
       ctaVariant: "outline" as const,
       isPaid: false,
-      // Tier styling - purple for Enterprise (premium feel)
-      iconBg: "from-violet-500/20 to-purple-400/20",
-      iconColor: "text-violet-500",
+      // Tier styling - purple with a touch of pink for Enterprise (premium feel)
+      iconBg: "from-violet-500/20 to-fuchsia-400/20",
+      iconColor: "text-violet-400",
       accentColor: "violet",
       borderHover: "hover:border-violet-500/50",
-      checkColor: "text-violet-500",
+      checkColor: "text-violet-400",
     },
   ];
 
@@ -295,7 +295,7 @@ const Pricing = () => {
                   
                   {plan.name === "Enterprise" && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-gradient-to-r from-violet-500 to-purple-400 text-white px-4 py-1 shadow-lg shadow-violet-500/30">
+                      <Badge className="bg-gradient-to-r from-violet-500 to-fuchsia-400 text-white px-4 py-1 shadow-lg shadow-violet-500/30">
                         Premium
                       </Badge>
                     </div>
@@ -322,7 +322,7 @@ const Pricing = () => {
                         plan.name === "Pro" 
                             ? "bg-gradient-to-r from-cyan-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-white shadow-lg shadow-cyan-500/30" 
                             : plan.name === "Enterprise"
-                              ? "border-violet-500/50 text-violet-400 hover:bg-violet-500/10 hover:border-violet-500"
+                              ? "border-violet-400/50 text-violet-300 hover:bg-violet-500/10 hover:border-fuchsia-400"
                             : ""
                       }`}
                       variant={plan.ctaVariant}
