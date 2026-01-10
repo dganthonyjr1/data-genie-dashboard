@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare, Mail, ShieldCheck, Play } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare, Mail, ShieldCheck, Play, Brain } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import DashboardLayout from "@/components/DashboardLayout";
 import { EmailVerificationBadge, BulkEmailVerifier } from "@/components/EmailVerification";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import LeadScoreCard from "@/components/LeadScoreCard";
 import {
   Table,
   TableBody,
@@ -78,6 +79,17 @@ interface EmailVerificationResult {
   verified_at: string;
 }
 
+interface LeadPrediction {
+  conversionProbability: number;
+  confidence: string;
+  optimalContactTime: string;
+  optimalContactDay: string;
+  urgencyLevel: string;
+  reasoning: string;
+  keyFactors: string[];
+  recommendedApproach: string;
+}
+
 interface Lead {
   id: string;
   jobId: string;
@@ -91,6 +103,10 @@ interface Lead {
   painScore: number | null;
   evidenceSummary: string | null;
   isManual?: boolean;
+  prediction?: LeadPrediction;
+  evidence?: string[];
+  reviewRating?: number;
+  reviewCount?: number;
 }
 
 
@@ -113,6 +129,9 @@ const Leads = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // State for lead predictions
+  const [leadPredictions, setLeadPredictions] = useState<Record<string, LeadPrediction>>({});
+
   // Transform demo leads to Lead interface
   const transformedDemoLeads: Lead[] = useMemo(() => 
     demoLeads.map(dl => ({
@@ -127,8 +146,20 @@ const Leads = () => {
       painScore: dl.pain_score,
       evidenceSummary: dl.evidence.join("; "),
       isManual: false,
+      evidence: dl.evidence,
+      reviewRating: dl.rating,
+      reviewCount: dl.reviews_count,
+      prediction: (dl as any).prediction,
     }))
   , [demoLeads]);
+
+  // Handler to update prediction for a lead
+  const handlePredictionUpdate = (leadId: string, prediction: LeadPrediction) => {
+    setLeadPredictions(prev => ({
+      ...prev,
+      [leadId]: prediction
+    }));
+  };
 
   const displayLeads = isDemoMode ? transformedDemoLeads : leads;
   const currentLead = displayLeads.length > 0 ? displayLeads[currentLeadIndex] : null;
@@ -828,6 +859,24 @@ const Leads = () => {
                   <p className="text-sm text-muted-foreground">{currentLead.evidenceSummary}</p>
                 </div>
               )}
+
+              {/* AI Lead Scoring */}
+              <LeadScoreCard
+                lead={{
+                  businessName: currentLead.businessName,
+                  niche: currentLead.niche,
+                  painScore: currentLead.painScore,
+                  revenueLeak: currentLead.revenueLeak,
+                  phoneNumber: currentLead.phoneNumber,
+                  email: currentLead.email,
+                  evidence: currentLead.evidence,
+                  reviewRating: currentLead.reviewRating,
+                  reviewCount: currentLead.reviewCount,
+                }}
+                prediction={currentLead.prediction || leadPredictions[currentLead.id]}
+                onPredictionUpdate={(prediction) => handlePredictionUpdate(currentLead.id, prediction)}
+                isDemoMode={isDemoMode}
+              />
 
               {/* Action Buttons */}
               <div className="flex items-center gap-3 pt-2">

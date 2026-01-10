@@ -24,6 +24,17 @@ export const DEMO_LEADS = [
     ],
     scraped_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     call_status: "completed",
+    // Predictive scoring
+    prediction: {
+      conversionProbability: 87,
+      confidence: "high",
+      optimalContactTime: "10:00 AM",
+      optimalContactDay: "Tuesday",
+      urgencyLevel: "high",
+      reasoning: "High pain score combined with significant revenue leak creates strong motivation. Multiple unaddressed pain points indicate openness to solutions.",
+      keyFactors: ["High pain score (78)", "Revenue leak $8,500/mo", "Unanswered negative reviews"],
+      recommendedApproach: "Lead with mobile optimization ROI and online booking benefits."
+    }
   },
   {
     id: "demo-2", 
@@ -46,6 +57,16 @@ export const DEMO_LEADS = [
     ],
     scraped_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
     call_status: "pending",
+    prediction: {
+      conversionProbability: 52,
+      confidence: "medium",
+      optimalContactTime: "2:00 PM",
+      optimalContactDay: "Wednesday",
+      urgencyLevel: "medium",
+      reasoning: "Moderate pain indicators with strong existing reviews. May be satisfied with current state but open to growth opportunities.",
+      keyFactors: ["Moderate pain score (45)", "Strong reviews (4.7)", "Competitor pressure"],
+      recommendedApproach: "Focus on competitive advantage and customer retention tools."
+    }
   },
   {
     id: "demo-3",
@@ -68,6 +89,16 @@ export const DEMO_LEADS = [
     ],
     scraped_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     call_status: "scheduled",
+    prediction: {
+      conversionProbability: 34,
+      confidence: "medium",
+      optimalContactTime: "11:00 AM",
+      optimalContactDay: "Thursday",
+      urgencyLevel: "low",
+      reasoning: "Excellent reviews and low pain score indicate satisfaction. Growth opportunities exist but urgency is low.",
+      keyFactors: ["Low pain score (32)", "Excellent reviews (4.9)", "Untapped revenue streams"],
+      recommendedApproach: "Position as growth acceleration, not problem-solving."
+    }
   },
   {
     id: "demo-4",
@@ -92,6 +123,16 @@ export const DEMO_LEADS = [
     ],
     scraped_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     call_status: "in_progress",
+    prediction: {
+      conversionProbability: 94,
+      confidence: "high",
+      optimalContactTime: "9:00 AM",
+      optimalContactDay: "Monday",
+      urgencyLevel: "critical",
+      reasoning: "Extremely high pain score with massive revenue leak. Multiple critical issues indicate urgent need for help and high likelihood of conversion.",
+      keyFactors: ["Critical pain score (89)", "Massive leak $15,000/mo", "Credibility issues"],
+      recommendedApproach: "Lead with SSL/security credibility issue - it's embarrassing for a cybersecurity company."
+    }
   },
   {
     id: "demo-5",
@@ -115,6 +156,16 @@ export const DEMO_LEADS = [
     ],
     scraped_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
     call_status: "failed",
+    prediction: {
+      conversionProbability: 71,
+      confidence: "high",
+      optimalContactTime: "3:00 PM",
+      optimalContactDay: "Tuesday",
+      urgencyLevel: "high",
+      reasoning: "Trust is paramount in senior care. Missing accreditation badges and family portal are significant competitive disadvantages.",
+      keyFactors: ["Trust signals missing", "Revenue leak $6,800/mo", "Competitor advantages"],
+      recommendedApproach: "Emphasize trust-building features that drive family decision-making."
+    }
   },
 ];
 
