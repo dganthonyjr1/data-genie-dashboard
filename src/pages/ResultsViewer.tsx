@@ -811,26 +811,64 @@ export default function ResultsViewer() {
           </CardContent>
         </Card>
 
-        {/* Social Media Links */}
+        {/* Social Media Links - Enhanced */}
         {businessData.social_links && Object.values(businessData.social_links).some(v => v) && (
           <Card className="bg-card/50 border-border/50">
             <CardHeader>
-              <CardTitle>Social Media</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-purple-500" />
+                Social Media ({Object.values(businessData.social_links).filter(v => v).length} platforms)
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {Object.entries(businessData.social_links).map(([platform, url]) => {
                   if (!url) return null;
+                  // Find matching profile data
+                  const profile = businessData.social_profiles?.find((p: any) => p.platform === platform);
+                  
+                  // Platform-specific colors
+                  const platformColors: Record<string, string> = {
+                    facebook: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20',
+                    instagram: 'bg-pink-500/10 border-pink-500/30 hover:bg-pink-500/20',
+                    twitter: 'bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20',
+                    linkedin: 'bg-blue-700/10 border-blue-700/30 hover:bg-blue-700/20',
+                    youtube: 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20',
+                    tiktok: 'bg-black/10 border-black/30 hover:bg-black/20 dark:bg-white/10 dark:border-white/30',
+                    pinterest: 'bg-red-600/10 border-red-600/30 hover:bg-red-600/20',
+                    snapchat: 'bg-yellow-400/10 border-yellow-400/30 hover:bg-yellow-400/20',
+                    threads: 'bg-gray-800/10 border-gray-800/30 hover:bg-gray-800/20',
+                    telegram: 'bg-sky-600/10 border-sky-600/30 hover:bg-sky-600/20',
+                    discord: 'bg-indigo-500/10 border-indigo-500/30 hover:bg-indigo-500/20',
+                    whatsapp: 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20',
+                    github: 'bg-gray-700/10 border-gray-700/30 hover:bg-gray-700/20',
+                    twitch: 'bg-purple-600/10 border-purple-600/30 hover:bg-purple-600/20',
+                    medium: 'bg-gray-900/10 border-gray-900/30 hover:bg-gray-900/20',
+                    yelp: 'bg-red-700/10 border-red-700/30 hover:bg-red-700/20',
+                  };
+                  
                   return (
                     <a
                       key={platform}
                       href={url as string}
                       target="_blank"
                       rel="noopener noreferrer"
+                      className={`block p-3 rounded-lg border transition-colors ${platformColors[platform] || 'bg-muted/50 hover:bg-muted'}`}
                     >
-                      <Badge variant="secondary" className="capitalize hover:bg-primary/20 cursor-pointer">
-                        {platform} <ExternalLink className="h-3 w-3 ml-1" />
-                      </Badge>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium capitalize">{platform}</span>
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      {profile?.username && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          @{profile.username}
+                        </p>
+                      )}
+                      {profile?.profile_type && profile.profile_type !== 'unknown' && (
+                        <Badge variant="outline" className="text-xs mt-2 capitalize">
+                          {profile.profile_type}
+                        </Badge>
+                      )}
                     </a>
                   );
                 })}

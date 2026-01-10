@@ -1141,50 +1141,176 @@ function cleanUrl(url: string): string {
   return cleaned;
 }
 
+// Enhanced social media profile data structure
+interface SocialProfile {
+  url: string;
+  username?: string;
+  platform: string;
+  profile_type?: 'personal' | 'business' | 'page' | 'channel' | 'unknown';
+  followers?: string;
+  verified?: boolean;
+}
+
 // Extract social media links from content with enhanced detection
 function extractSocialLinks(content: string, html: string): Record<string, string> {
   const socialLinks: Record<string, string> = {};
   
-  // Platform URL patterns - more comprehensive matching
+  // Platform URL patterns - comprehensive matching for all major platforms
   const socialPatterns: Record<string, RegExp[]> = {
     facebook: [
-      /https?:\/\/(?:www\.)?facebook\.com\/(?!sharer|share|plugins|dialog)[^\s"'<>()]+/gi,
-      /https?:\/\/(?:www\.)?fb\.com\/[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?facebook\.com\/(?!sharer|share|plugins|dialog|login|watch\?|photo|video|events\/|groups\/[^\/]+\/permalink|permalink|posts\/\d|story\.php)[^\s"'<>()?\[\]]+/gi,
+      /https?:\/\/(?:www\.)?fb\.com\/(?!share|watch)[^\s"'<>()?\[\]]+/gi,
+      /https?:\/\/(?:www\.)?facebook\.com\/profile\.php\?id=\d+/gi,
+      /https?:\/\/(?:www\.)?fb\.me\/[^\s"'<>()?\[\]]+/gi,
     ],
     instagram: [
-      /https?:\/\/(?:www\.)?instagram\.com\/(?!p\/|embed)[^\s"'<>()]+/gi,
-      /https?:\/\/(?:www\.)?instagr\.am\/[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?instagram\.com\/(?!p\/|reel\/|stories\/|explore\/|direct\/|accounts\/)[a-zA-Z0-9_.]+\/?(?:\?[^\s"'<>]*)?/gi,
+      /https?:\/\/(?:www\.)?instagr\.am\/[a-zA-Z0-9_.]+/gi,
     ],
     twitter: [
-      /https?:\/\/(?:www\.)?twitter\.com\/(?!intent|share)[^\s"'<>()]+/gi,
-      /https?:\/\/(?:www\.)?x\.com\/(?!intent|share)[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?twitter\.com\/(?!intent|share|search|hashtag|i\/|home|explore|notifications|messages)[a-zA-Z0-9_]+\/?(?:\?[^\s"'<>]*)?/gi,
+    ],
+    x: [
+      /https?:\/\/(?:www\.)?x\.com\/(?!intent|share|search|hashtag|i\/|home|explore|notifications|messages)[a-zA-Z0-9_]+\/?(?:\?[^\s"'<>]*)?/gi,
     ],
     linkedin: [
-      /https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in|school)\/[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?linkedin\.com\/company\/[a-zA-Z0-9_-]+\/?/gi,
+      /https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+\/?/gi,
+      /https?:\/\/(?:www\.)?linkedin\.com\/school\/[a-zA-Z0-9_-]+\/?/gi,
+      /https?:\/\/(?:www\.)?linkedin\.com\/showcase\/[a-zA-Z0-9_-]+\/?/gi,
     ],
     youtube: [
-      /https?:\/\/(?:www\.)?youtube\.com\/(?:channel|c|user|@)[^\s"'<>()]+/gi,
-      /https?:\/\/(?:www\.)?youtube\.com\/[^\s"'<>()]*(?:channel|user)[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?youtube\.com\/@[a-zA-Z0-9_-]+/gi,
+      /https?:\/\/(?:www\.)?youtube\.com\/(?:channel|c|user)\/[a-zA-Z0-9_-]+/gi,
+      /https?:\/\/(?:www\.)?youtube\.com\/[a-zA-Z0-9_-]+(?:\?[^\s"'<>]*)?/gi,
     ],
     tiktok: [
-      /https?:\/\/(?:www\.)?tiktok\.com\/@[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?tiktok\.com\/@[a-zA-Z0-9_.]+/gi,
+      /https?:\/\/(?:vm\.)?tiktok\.com\/[a-zA-Z0-9]+/gi,
     ],
     pinterest: [
-      /https?:\/\/(?:www\.)?pinterest\.com\/[^\s"'<>()]+/gi,
-      /https?:\/\/(?:www\.)?pin\.it\/[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?pinterest\.com\/[a-zA-Z0-9_-]+\/?(?!\w*pin)/gi,
+      /https?:\/\/(?:www\.)?pin\.it\/[a-zA-Z0-9]+/gi,
     ],
     yelp: [
-      /https?:\/\/(?:www\.)?yelp\.com\/biz\/[^\s"'<>()]+/gi,
+      /https?:\/\/(?:www\.)?yelp\.com\/biz\/[a-zA-Z0-9_-]+/gi,
+    ],
+    snapchat: [
+      /https?:\/\/(?:www\.)?snapchat\.com\/add\/[a-zA-Z0-9_.-]+/gi,
+      /https?:\/\/(?:www\.)?snapchat\.com\/t\/[a-zA-Z0-9]+/gi,
+    ],
+    whatsapp: [
+      /https?:\/\/(?:wa\.me|api\.whatsapp\.com\/send|chat\.whatsapp\.com)\/[^\s"'<>()]+/gi,
+    ],
+    telegram: [
+      /https?:\/\/(?:t\.me|telegram\.me)\/[a-zA-Z0-9_]+/gi,
+    ],
+    threads: [
+      /https?:\/\/(?:www\.)?threads\.net\/@?[a-zA-Z0-9_.]+/gi,
+    ],
+    discord: [
+      /https?:\/\/(?:discord\.gg|discord\.com\/invite)\/[a-zA-Z0-9]+/gi,
+    ],
+    github: [
+      /https?:\/\/(?:www\.)?github\.com\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_.-]+)?/gi,
+    ],
+    twitch: [
+      /https?:\/\/(?:www\.)?twitch\.tv\/[a-zA-Z0-9_]+/gi,
+    ],
+    vimeo: [
+      /https?:\/\/(?:www\.)?vimeo\.com\/[a-zA-Z0-9_-]+/gi,
+    ],
+    spotify: [
+      /https?:\/\/open\.spotify\.com\/(?:artist|user|show)\/[a-zA-Z0-9]+/gi,
+    ],
+    soundcloud: [
+      /https?:\/\/(?:www\.)?soundcloud\.com\/[a-zA-Z0-9_-]+/gi,
+    ],
+    medium: [
+      /https?:\/\/(?:www\.)?medium\.com\/@[a-zA-Z0-9_.-]+/gi,
+      /https?:\/\/[a-zA-Z0-9_-]+\.medium\.com/gi,
+    ],
+    substack: [
+      /https?:\/\/[a-zA-Z0-9_-]+\.substack\.com/gi,
     ],
   };
 
-  // 1. First, try to extract from footer, header, and nav sections specifically
+  // 1. Extract from structured data first (most reliable)
+  const jsonLdPattern = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const jsonLdMatches = [...html.matchAll(jsonLdPattern)];
+  
+  for (const match of jsonLdMatches) {
+    try {
+      const jsonData = JSON.parse(match[1]);
+      const extractFromObject = (obj: any) => {
+        const sameAs = obj.sameAs || [];
+        const sameAsArray = Array.isArray(sameAs) ? sameAs : [sameAs];
+        
+        for (const url of sameAsArray) {
+          if (typeof url !== 'string') continue;
+          
+          const urlLower = url.toLowerCase();
+          if (urlLower.includes('facebook.com') && !socialLinks.facebook) socialLinks.facebook = url;
+          else if (urlLower.includes('instagram.com') && !socialLinks.instagram) socialLinks.instagram = url;
+          else if (urlLower.includes('twitter.com') && !socialLinks.twitter) socialLinks.twitter = url;
+          else if (urlLower.includes('x.com') && !socialLinks.x) socialLinks.x = url;
+          else if (urlLower.includes('linkedin.com') && !socialLinks.linkedin) socialLinks.linkedin = url;
+          else if (urlLower.includes('youtube.com') && !socialLinks.youtube) socialLinks.youtube = url;
+          else if (urlLower.includes('tiktok.com') && !socialLinks.tiktok) socialLinks.tiktok = url;
+          else if (urlLower.includes('pinterest.com') && !socialLinks.pinterest) socialLinks.pinterest = url;
+          else if (urlLower.includes('yelp.com') && !socialLinks.yelp) socialLinks.yelp = url;
+          else if (urlLower.includes('snapchat.com') && !socialLinks.snapchat) socialLinks.snapchat = url;
+          else if (urlLower.includes('threads.net') && !socialLinks.threads) socialLinks.threads = url;
+          else if (urlLower.includes('t.me') || urlLower.includes('telegram.me')) socialLinks.telegram = url;
+          else if (urlLower.includes('discord.gg') || urlLower.includes('discord.com/invite')) socialLinks.discord = url;
+          else if (urlLower.includes('github.com') && !socialLinks.github) socialLinks.github = url;
+          else if (urlLower.includes('twitch.tv') && !socialLinks.twitch) socialLinks.twitch = url;
+          else if (urlLower.includes('medium.com') && !socialLinks.medium) socialLinks.medium = url;
+        }
+      };
+      
+      extractFromObject(jsonData);
+      if (jsonData['@graph']) {
+        for (const item of jsonData['@graph']) {
+          extractFromObject(item);
+        }
+      }
+    } catch {
+      // Invalid JSON, skip
+    }
+  }
+
+  // 2. Extract from Open Graph and meta tags
+  const ogPatterns = [
+    /<meta[^>]*property=["'](?:og:see_also|article:author)[^"']*["'][^>]*content=["']([^"']+)["'][^>]*>/gi,
+    /<meta[^>]*content=["']([^"']+)["'][^>]*property=["'](?:og:see_also|article:author)[^"']*["'][^>]*>/gi,
+    /<link[^>]*rel=["']me["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+  ];
+  
+  for (const pattern of ogPatterns) {
+    const matches = [...html.matchAll(pattern)];
+    for (const match of matches) {
+      const url = match[1];
+      if (!url) continue;
+      
+      const urlLower = url.toLowerCase();
+      for (const [platform, _] of Object.entries(socialPatterns)) {
+        if (!socialLinks[platform] && urlLower.includes(platform.toLowerCase().replace('_', '.'))) {
+          socialLinks[platform] = url;
+        }
+      }
+    }
+  }
+
+  // 3. Try to extract from footer, header, and nav sections specifically
   const sectionPatterns = [
     /<footer[^>]*>([\s\S]*?)<\/footer>/gi,
     /<header[^>]*>([\s\S]*?)<\/header>/gi,
     /<nav[^>]*>([\s\S]*?)<\/nav>/gi,
-    /<div[^>]*class="[^"]*(?:footer|header|nav|social|contact)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+    /<div[^>]*class="[^"]*(?:footer|header|nav|social|contact|follow)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
     /<aside[^>]*>([\s\S]*?)<\/aside>/gi,
+    /<section[^>]*class="[^"]*(?:social|connect|follow)[^"]*"[^>]*>([\s\S]*?)<\/section>/gi,
+    /<ul[^>]*class="[^"]*(?:social|follow)[^"]*"[^>]*>([\s\S]*?)<\/ul>/gi,
   ];
   
   let prioritySections = '';
@@ -1195,17 +1321,16 @@ function extractSocialLinks(content: string, html: string): Record<string, strin
     }
   }
   
-  // 2. Extract from <a> tags with social-related attributes
+  // 4. Extract from <a> tags with social-related attributes
   const linkPatterns = [
-    // Links with aria-label mentioning social platforms
-    /<a[^>]*aria-label=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp|social)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
-    /<a[^>]*href=["']([^"']+)["'][^>]*aria-label=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp|social)[^"']*["'][^>]*>/gi,
-    // Links with title mentioning social platforms
-    /<a[^>]*title=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
-    /<a[^>]*href=["']([^"']+)["'][^>]*title=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp)[^"']*["'][^>]*>/gi,
-    // Links with social-related class names
-    /<a[^>]*class=["'][^"']*(?:social|facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
-    /<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*(?:social|facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest)[^"']*["'][^>]*>/gi,
+    /<a[^>]*aria-label=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp|social|snapchat|threads|telegram|discord|x\.com|tik\s*tok)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+    /<a[^>]*href=["']([^"']+)["'][^>]*aria-label=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp|social|snapchat|threads|telegram|discord|x\.com)[^"']*["'][^>]*>/gi,
+    /<a[^>]*title=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp|snapchat|threads|telegram|discord|x\.com)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+    /<a[^>]*href=["']([^"']+)["'][^>]*title=["'][^"']*(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|yelp|snapchat|threads|telegram|discord|x\.com)[^"']*["'][^>]*>/gi,
+    /<a[^>]*class=["'][^"']*(?:social|facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|snapchat|threads|telegram|discord)[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+    /<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*(?:social|facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|snapchat|threads|telegram|discord)[^"']*["'][^>]*>/gi,
+    // Icon-based links
+    /<a[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<(?:i|span|svg)[^>]*class=["'][^"']*(?:fa-facebook|fa-instagram|fa-twitter|fa-linkedin|fa-youtube|fa-tiktok|fa-pinterest|fa-snapchat|icon-facebook|icon-instagram|icon-twitter|icon-linkedin|icon-youtube|icon-tiktok)[^"']*["'][^>]*>/gi,
   ];
   
   const attributeUrls: string[] = [];
@@ -1218,8 +1343,8 @@ function extractSocialLinks(content: string, html: string): Record<string, strin
     }
   }
   
-  // 3. Look for social icons (SVG or icon fonts) near links
-  const iconLinkPattern = /<a[^>]*href=["']([^"']+(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|x\.com|fb\.com|yelp)[^"']*)["'][^>]*>[\s\S]*?(?:<svg|<i[^>]*class=["'][^"']*(?:fa-|icon-|svg-))/gi;
+  // 5. Look for social icons (SVG or icon fonts) near links
+  const iconLinkPattern = /<a[^>]*href=["']([^"']+(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|x\.com|fb\.com|yelp|snapchat|threads|t\.me|discord)[^"']*)["'][^>]*>[\s\S]*?(?:<svg|<i[^>]*class=["'][^"']*(?:fa-|icon-|svg-|bi-))/gi;
   const iconMatches = [...html.matchAll(iconLinkPattern)];
   for (const match of iconMatches) {
     if (match[1]) {
@@ -1227,10 +1352,10 @@ function extractSocialLinks(content: string, html: string): Record<string, strin
     }
   }
 
-  // 4. Combine all sources: priority sections, attribute URLs, full content
+  // 6. Combine all sources: priority sections, attribute URLs, full content
   const combinedContent = attributeUrls.join(' ') + ' ' + prioritySections + ' ' + content + ' ' + html;
 
-  // 5. Match patterns for each platform
+  // 7. Match patterns for each platform
   for (const [platform, patterns] of Object.entries(socialPatterns)) {
     if (socialLinks[platform]) continue; // Already found
     
@@ -1244,12 +1369,16 @@ function extractSocialLinks(content: string, html: string): Record<string, strin
           // Skip share/plugin URLs
           if (cleanedUrl.includes('/sharer') || cleanedUrl.includes('/share') || 
               cleanedUrl.includes('/plugins') || cleanedUrl.includes('/dialog') ||
-              cleanedUrl.includes('/intent/')) continue;
+              cleanedUrl.includes('/intent/') || cleanedUrl.includes('/login') ||
+              cleanedUrl.includes('/embed') || cleanedUrl.includes('/widget')) continue;
           
           // Skip if it's just the domain with no path
           try {
             const urlObj = new URL(cleanedUrl.startsWith('http') ? cleanedUrl : `https://${cleanedUrl}`);
             if (urlObj.pathname === '/' || urlObj.pathname === '') continue;
+            
+            // Skip generic paths
+            if (['/', '/about', '/contact', '/help', '/privacy', '/terms', '/legal'].includes(urlObj.pathname.toLowerCase())) continue;
           } catch {
             continue;
           }
@@ -1262,35 +1391,157 @@ function extractSocialLinks(content: string, html: string): Record<string, strin
     }
   }
 
-  // 6. Special handling: Check for social links in JSON-LD structured data
-  const jsonLdPattern = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  const jsonLdMatches = [...html.matchAll(jsonLdPattern)];
-  
-  for (const match of jsonLdMatches) {
-    try {
-      const jsonData = JSON.parse(match[1]);
-      const sameAs = jsonData.sameAs || (jsonData['@graph'] && jsonData['@graph'][0]?.sameAs) || [];
-      const sameAsArray = Array.isArray(sameAs) ? sameAs : [sameAs];
-      
-      for (const url of sameAsArray) {
-        if (typeof url !== 'string') continue;
-        
-        if (url.includes('facebook.com') && !socialLinks.facebook) socialLinks.facebook = url;
-        else if (url.includes('instagram.com') && !socialLinks.instagram) socialLinks.instagram = url;
-        else if ((url.includes('twitter.com') || url.includes('x.com')) && !socialLinks.twitter) socialLinks.twitter = url;
-        else if (url.includes('linkedin.com') && !socialLinks.linkedin) socialLinks.linkedin = url;
-        else if (url.includes('youtube.com') && !socialLinks.youtube) socialLinks.youtube = url;
-        else if (url.includes('tiktok.com') && !socialLinks.tiktok) socialLinks.tiktok = url;
-        else if (url.includes('pinterest.com') && !socialLinks.pinterest) socialLinks.pinterest = url;
-        else if (url.includes('yelp.com') && !socialLinks.yelp) socialLinks.yelp = url;
-      }
-    } catch {
-      // Invalid JSON, skip
-    }
+  // 8. Merge x.com and twitter.com (they're the same platform)
+  if (socialLinks.x && !socialLinks.twitter) {
+    socialLinks.twitter = socialLinks.x;
+  }
+  if (socialLinks.twitter && socialLinks.x) {
+    delete socialLinks.x; // Keep twitter, remove duplicate
   }
 
   console.log(`Social link extraction found: ${Object.keys(socialLinks).length} platforms - ${Object.keys(socialLinks).join(', ')}`);
   return socialLinks;
+}
+
+// Extract detailed social profile information
+function extractSocialProfiles(socialLinks: Record<string, string>): SocialProfile[] {
+  const profiles: SocialProfile[] = [];
+  
+  for (const [platform, url] of Object.entries(socialLinks)) {
+    const profile: SocialProfile = {
+      url,
+      platform,
+      profile_type: 'unknown',
+    };
+    
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      
+      // Extract username based on platform
+      switch (platform) {
+        case 'facebook':
+          if (pathname.includes('/profile.php')) {
+            profile.username = urlObj.searchParams.get('id') || undefined;
+            profile.profile_type = 'personal';
+          } else {
+            const fbMatch = pathname.match(/^\/([a-zA-Z0-9.]+)\/?$/);
+            if (fbMatch) {
+              profile.username = fbMatch[1];
+              profile.profile_type = 'page';
+            }
+          }
+          break;
+          
+        case 'instagram':
+          const igMatch = pathname.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
+          if (igMatch) {
+            profile.username = igMatch[1];
+            profile.profile_type = 'business';
+          }
+          break;
+          
+        case 'twitter':
+          const twMatch = pathname.match(/^\/([a-zA-Z0-9_]+)\/?$/);
+          if (twMatch) {
+            profile.username = twMatch[1];
+          }
+          break;
+          
+        case 'linkedin':
+          if (pathname.includes('/company/')) {
+            const lnMatch = pathname.match(/\/company\/([a-zA-Z0-9_-]+)/);
+            if (lnMatch) {
+              profile.username = lnMatch[1];
+              profile.profile_type = 'business';
+            }
+          } else if (pathname.includes('/in/')) {
+            const lnMatch = pathname.match(/\/in\/([a-zA-Z0-9_-]+)/);
+            if (lnMatch) {
+              profile.username = lnMatch[1];
+              profile.profile_type = 'personal';
+            }
+          }
+          break;
+          
+        case 'tiktok':
+          const ttMatch = pathname.match(/^\/@?([a-zA-Z0-9_.]+)/);
+          if (ttMatch) {
+            profile.username = ttMatch[1];
+            profile.profile_type = 'business';
+          }
+          break;
+          
+        case 'youtube':
+          if (pathname.startsWith('/@')) {
+            profile.username = pathname.substring(2).split('/')[0];
+            profile.profile_type = 'channel';
+          } else if (pathname.includes('/channel/')) {
+            const ytMatch = pathname.match(/\/channel\/([a-zA-Z0-9_-]+)/);
+            if (ytMatch) {
+              profile.username = ytMatch[1];
+              profile.profile_type = 'channel';
+            }
+          } else if (pathname.includes('/c/') || pathname.includes('/user/')) {
+            const ytMatch = pathname.match(/\/(?:c|user)\/([a-zA-Z0-9_-]+)/);
+            if (ytMatch) {
+              profile.username = ytMatch[1];
+              profile.profile_type = 'channel';
+            }
+          }
+          break;
+          
+        case 'threads':
+          const thMatch = pathname.match(/^\/@?([a-zA-Z0-9_.]+)/);
+          if (thMatch) {
+            profile.username = thMatch[1];
+          }
+          break;
+          
+        case 'snapchat':
+          const scMatch = pathname.match(/\/add\/([a-zA-Z0-9_.-]+)/);
+          if (scMatch) {
+            profile.username = scMatch[1];
+          }
+          break;
+          
+        case 'telegram':
+          const tgMatch = pathname.match(/^\/([a-zA-Z0-9_]+)/);
+          if (tgMatch) {
+            profile.username = tgMatch[1];
+          }
+          break;
+          
+        case 'github':
+          const ghMatch = pathname.match(/^\/([a-zA-Z0-9_-]+)/);
+          if (ghMatch) {
+            profile.username = ghMatch[1];
+          }
+          break;
+          
+        case 'twitch':
+          const twitchMatch = pathname.match(/^\/([a-zA-Z0-9_]+)/);
+          if (twitchMatch) {
+            profile.username = twitchMatch[1];
+            profile.profile_type = 'channel';
+          }
+          break;
+          
+        case 'pinterest':
+          const pinMatch = pathname.match(/^\/([a-zA-Z0-9_-]+)\/?$/);
+          if (pinMatch) {
+            profile.username = pinMatch[1];
+          }
+          break;
+      }
+    } catch {
+      // Invalid URL, keep basic info
+    }
+    
+    profiles.push(profile);
+  }
+  
+  return profiles;
 }
 
 // Extract addresses using regex patterns
@@ -1460,7 +1711,7 @@ async function extractCompleteBusinessData(markdownContent: string, htmlContent:
     website_url: aiResults.website_url || websites[0] || sourceUrl,
     related_websites: websites.filter(w => w !== (aiResults.website_url || websites[0])),
     
-    // Social Media - merged
+    // Social Media - merged and enhanced with profile data
     social_links: {
       facebook: socialLinks.facebook || aiResults.social_links?.facebook || '',
       instagram: socialLinks.instagram || aiResults.social_links?.instagram || '',
@@ -1470,7 +1721,20 @@ async function extractCompleteBusinessData(markdownContent: string, htmlContent:
       tiktok: socialLinks.tiktok || aiResults.social_links?.tiktok || '',
       pinterest: socialLinks.pinterest || '',
       yelp: socialLinks.yelp || '',
+      snapchat: socialLinks.snapchat || '',
+      threads: socialLinks.threads || '',
+      telegram: socialLinks.telegram || '',
+      discord: socialLinks.discord || '',
+      whatsapp: socialLinks.whatsapp || '',
+      github: socialLinks.github || '',
+      twitch: socialLinks.twitch || '',
+      medium: socialLinks.medium || '',
+      substack: socialLinks.substack || '',
+      spotify: socialLinks.spotify || '',
+      soundcloud: socialLinks.soundcloud || '',
+      vimeo: socialLinks.vimeo || '',
     },
+    social_profiles: extractSocialProfiles(socialLinks),
     
     // Google Maps
     google_maps: {
