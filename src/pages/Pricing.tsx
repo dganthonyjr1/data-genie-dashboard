@@ -270,8 +270,8 @@ const Pricing = () => {
                 )}
                 
                 <CardHeader className="text-center pb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-4">
-                    <plan.icon className="w-6 h-6 text-primary" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-400/20 flex items-center justify-center mx-auto mb-4">
+                    <plan.icon className="w-6 h-6 text-cyan-500" />
                   </div>
                   <CardTitle className="text-2xl" style={{ fontFamily: 'Orbitron, sans-serif' }}>{plan.name}</CardTitle>
                   <CardDescription className="text-muted-foreground">{plan.description}</CardDescription>
