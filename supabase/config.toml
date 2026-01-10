@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.predict-lead-score]
 verify_jwt = false
+
+[functions.bulk-predict-leads]
+verify_jwt = false
