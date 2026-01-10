@@ -30,6 +30,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { name: "Scheduled Jobs", href: "/scheduled-jobs", icon: CalendarClock },
     { name: "Results", href: "/results", icon: FileText },
     { name: "Billing", href: "/billing", icon: CreditCard },
+    { name: "Payment Settings", href: "/settings/payments", icon: CreditCard },
     { name: "API Docs", href: "/api-docs", icon: BookOpen },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
