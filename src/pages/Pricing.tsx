@@ -155,13 +155,20 @@ const Pricing = () => {
           planName: plan.name,
           amount: plan.priceInCents,
           currency: "USD",
-          redirectUrl: `${window.location.origin}/dashboard?payment=success&plan=${plan.name}`,
+          redirectUrl: `${window.location.origin}/payment/success?plan=${encodeURIComponent(plan.name)}`,
         },
       });
 
       if (error) throw error;
 
-      if (data?.checkoutUrl) {
+      if (data?.checkoutUrl && data?.paymentLinkId) {
+        // Append paymentLinkId to Square's redirect URL via the checkout URL
+        // Square will preserve query params on redirect
+        const checkoutUrlWithParams = new URL(data.checkoutUrl);
+        // The redirect happens through Square, so we need to update the redirect URL
+        // Actually, Square handles redirect - we just go to checkout
+        window.location.href = `${data.checkoutUrl}`;
+      } else if (data?.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       } else {
         throw new Error("No checkout URL received");
