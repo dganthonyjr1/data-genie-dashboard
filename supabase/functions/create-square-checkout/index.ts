@@ -21,8 +21,8 @@ serve(async (req) => {
   }
 
   try {
-    const SQUARE_ACCESS_TOKEN = Deno.env.get("SQUARE_ACCESS_TOKEN") ?? "";
-    const SQUARE_LOCATION_ID = Deno.env.get("SQUARE_LOCATION_ID") ?? "";
+    const SQUARE_ACCESS_TOKEN = (Deno.env.get("SQUARE_ACCESS_TOKEN") ?? "").trim();
+    const SQUARE_LOCATION_ID = (Deno.env.get("SQUARE_LOCATION_ID") ?? "").trim();
 
     if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
       throw new Error("Square credentials not configured");
