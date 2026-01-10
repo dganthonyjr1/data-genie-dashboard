@@ -27,8 +27,20 @@ const PaymentSuccess = () => {
 
   const sessionId = searchParams.get("session_id");
   const plan = searchParams.get("plan");
+  const preview = searchParams.get("preview");
+
+  // Preview mode - show success state without verification
+  useEffect(() => {
+    if (preview === "true") {
+      setPlanName(plan || "Pro");
+      setStatus("success");
+    }
+  }, [preview, plan]);
 
   const verifyPayment = useCallback(async () => {
+    // Skip verification in preview mode
+    if (preview === "true") return;
+
     if (!sessionId) {
       setStatus("failed");
       return;
