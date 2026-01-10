@@ -150,26 +150,19 @@ const Pricing = () => {
     setLoadingPlan(plan.name);
 
     try {
-      const { data, error } = await supabase.functions.invoke("create-square-checkout", {
+      const { data, error } = await supabase.functions.invoke("create-stripe-checkout", {
         body: {
           planName: plan.name,
-          amount: plan.priceInCents,
-          currency: "USD",
-          redirectUrl: `${window.location.origin}/payment/success?plan=${encodeURIComponent(plan.name)}`,
+          priceInCents: plan.priceInCents,
+          successUrl: `${window.location.origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&plan=${encodeURIComponent(plan.name)}`,
+          cancelUrl: `${window.location.origin}/pricing`,
         },
       });
 
       if (error) throw error;
 
-      if (data?.checkoutUrl && data?.paymentLinkId) {
-        // Append paymentLinkId to Square's redirect URL via the checkout URL
-        // Square will preserve query params on redirect
-        const checkoutUrlWithParams = new URL(data.checkoutUrl);
-        // The redirect happens through Square, so we need to update the redirect URL
-        // Actually, Square handles redirect - we just go to checkout
-        window.location.href = `${data.checkoutUrl}`;
-      } else if (data?.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      if (data?.url) {
+        window.location.href = data.url;
       } else {
         throw new Error("No checkout URL received");
       }

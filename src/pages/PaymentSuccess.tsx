@@ -25,11 +25,11 @@ const PaymentSuccess = () => {
   const [retryCount, setRetryCount] = useState(0);
   const maxRetries = 5;
 
-  const paymentLinkId = searchParams.get("paymentLinkId");
+  const sessionId = searchParams.get("session_id");
   const plan = searchParams.get("plan");
 
   const verifyPayment = useCallback(async () => {
-    if (!paymentLinkId) {
+    if (!sessionId) {
       setStatus("failed");
       return;
     }
@@ -41,13 +41,13 @@ const PaymentSuccess = () => {
       
       if (!session) {
         // User not logged in - redirect to login
-        navigate("/login?redirect=/payment/success?paymentLinkId=" + paymentLinkId);
+        navigate("/login?redirect=/payment/success?session_id=" + sessionId);
         return;
       }
 
-      // Call the verify-payment edge function
-      const { data, error } = await supabase.functions.invoke<VerificationResult>("verify-payment", {
-        body: { paymentLinkId },
+      // Call the verify-stripe-payment edge function
+      const { data, error } = await supabase.functions.invoke<VerificationResult>("verify-stripe-payment", {
+        body: { sessionId },
       });
 
       if (error) {
@@ -74,7 +74,7 @@ const PaymentSuccess = () => {
       console.error("Error verifying payment:", err);
       setStatus("pending");
     }
-  }, [paymentLinkId, plan, navigate, retryCount]);
+  }, [sessionId, plan, navigate, retryCount]);
 
   useEffect(() => {
     verifyPayment();
