@@ -129,6 +129,9 @@ const Index = () => {
               </span>
             </div>
             <div className="flex items-center gap-4">
+              <Button variant="ghost" onClick={() => navigate("/pricing")} className="hidden sm:inline-flex">
+                Pricing
+              </Button>
               {isAuthenticated ? (
                 <Button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
                   Go to Dashboard
