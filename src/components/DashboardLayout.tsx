@@ -29,7 +29,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { name: "Bulk Scrape", href: "/bulk-scrape", icon: Layers },
     { name: "Scheduled Jobs", href: "/scheduled-jobs", icon: CalendarClock },
     { name: "Results", href: "/results", icon: FileText },
-    { name: "Pricing", href: "/pricing", icon: CreditCard },
+    { name: "Billing", href: "/billing", icon: CreditCard },
     { name: "API Docs", href: "/api-docs", icon: BookOpen },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
