@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,7 +11,8 @@ import {
   Building2,
   Rocket,
   Crown,
-  HelpCircle
+  HelpCircle,
+  Loader2
 } from "lucide-react";
 import {
   Accordion,
@@ -18,15 +20,19 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Pricing = () => {
   const navigate = useNavigate();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const plans = [
     {
       name: "Starter",
       icon: Rocket,
       price: "Free",
+      priceInCents: 0,
       period: "",
       description: "Perfect for trying out ScrapeX and small projects",
       popular: false,
@@ -46,11 +52,13 @@ const Pricing = () => {
       ],
       cta: "Get Started Free",
       ctaVariant: "outline" as const,
+      isPaid: false,
     },
     {
       name: "Pro",
       icon: Zap,
       price: "$99",
+      priceInCents: 9900,
       period: "/month",
       description: "For growing teams ready to scale their outreach",
       popular: true,
@@ -72,11 +80,13 @@ const Pricing = () => {
       ],
       cta: "Start Pro Trial",
       ctaVariant: "default" as const,
+      isPaid: true,
     },
     {
       name: "Enterprise",
       icon: Crown,
       price: "Custom",
+      priceInCents: 0,
       period: "",
       description: "For organizations with advanced needs and scale",
       popular: false,
@@ -99,8 +109,52 @@ const Pricing = () => {
       notIncluded: [],
       cta: "Contact Sales",
       ctaVariant: "outline" as const,
+      isPaid: false,
     },
   ];
+
+  const handlePlanSelect = async (plan: typeof plans[0]) => {
+    // Free plan - just go to signup
+    if (!plan.isPaid) {
+      navigate(plan.name === "Enterprise" ? "/contact" : "/signup");
+      return;
+    }
+
+    // Check if user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      toast.info("Please sign in first to purchase a plan");
+      navigate("/signup");
+      return;
+    }
+
+    setLoadingPlan(plan.name);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-square-checkout", {
+        body: {
+          planName: plan.name,
+          amount: plan.priceInCents,
+          currency: "USD",
+          redirectUrl: `${window.location.origin}/dashboard?payment=success&plan=${plan.name}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error("Failed to create checkout. Please try again.");
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   const faqs = [
     {
@@ -234,10 +288,20 @@ const Pricing = () => {
                   <Button 
                     className={`w-full ${plan.popular ? "bg-gradient-to-r from-primary to-secondary hover:opacity-90" : ""}`}
                     variant={plan.ctaVariant}
-                    onClick={() => navigate(plan.name === "Enterprise" ? "/contact" : "/signup")}
+                    onClick={() => handlePlanSelect(plan)}
+                    disabled={loadingPlan === plan.name}
                   >
-                    {plan.cta}
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    {loadingPlan === plan.name ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        {plan.cta}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
                   </Button>
 
                   <div className="space-y-3">
