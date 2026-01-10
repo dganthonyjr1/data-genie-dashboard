@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.trigger-sales-call]
 verify_jwt = false
+
+[functions.verify-email]
+verify_jwt = false

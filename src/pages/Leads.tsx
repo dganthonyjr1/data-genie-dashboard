@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare, Mail, ShieldCheck } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import DashboardLayout from "@/components/DashboardLayout";
+import { EmailVerificationBadge, BulkEmailVerifier } from "@/components/EmailVerification";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -58,12 +59,32 @@ const getDefaultRevenue = (niche: string): number => {
   return found?.revenue ?? 50000;
 };
 
+interface EmailVerificationResult {
+  email: string;
+  is_valid: boolean;
+  status: 'valid' | 'invalid' | 'risky' | 'unknown';
+  reason?: string;
+  checks: {
+    syntax_valid: boolean;
+    mx_valid: boolean;
+    is_disposable: boolean;
+    is_role_based: boolean;
+    is_free_provider: boolean;
+    has_typo_suggestion: boolean;
+    typo_suggestion?: string;
+  };
+  score: number;
+  verified_at: string;
+}
+
 interface Lead {
   id: string;
   jobId: string;
   businessName: string;
   niche: string;
   phoneNumber: string;
+  email?: string;
+  emailVerification?: EmailVerificationResult;
   monthlyRevenue: number | null;
   revenueLeak: number | null;
   painScore: number | null;
@@ -151,6 +172,15 @@ const Leads = () => {
         if (!results || !Array.isArray(results)) return;
 
         results.forEach((result, index) => {
+          // Extract email from various possible fields
+          const extractEmail = (r: any): string | undefined => {
+            if (r.email) return r.email;
+            if (r.emails && Array.isArray(r.emails) && r.emails.length > 0) {
+              return typeof r.emails[0] === 'string' ? r.emails[0] : r.emails[0]?.email;
+            }
+            return undefined;
+          };
+
           if (job.scrape_type === "complete_business_data" && result.business_name) {
             extractedLeads.push({
               id: `${job.id}-${index}`,
@@ -158,6 +188,8 @@ const Leads = () => {
               businessName: result.business_name || "Unknown",
               niche: result.niche || result.category || "General",
               phoneNumber: result.phone || result.phone_number || "N/A",
+              email: extractEmail(result),
+              emailVerification: result.email_verification?.[0]?.verification,
               monthlyRevenue: result.monthlyRevenue || null,
               revenueLeak: result.audit?.estimatedLeak || result.revenueLeak || null,
               painScore: result.audit?.painScore || null,
@@ -170,6 +202,8 @@ const Leads = () => {
               businessName: result.businessName || result.name || result.title || "Unknown",
               niche: result.niche || result.category || result.type || "General",
               phoneNumber: result.phone || result.phoneNumber || result.phone_number || "N/A",
+              email: extractEmail(result),
+              emailVerification: result.email_verification?.[0]?.verification,
               monthlyRevenue: result.monthlyRevenue || null,
               revenueLeak: result.audit?.estimatedLeak || result.revenueLeak || null,
               painScore: result.audit?.painScore || result.painScore || null,
@@ -716,7 +750,7 @@ const Leads = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Lead Details Grid */}
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-lg border bg-card p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                     <Phone className="h-4 w-4" />
@@ -724,6 +758,26 @@ const Leads = () => {
                   </div>
                   <div className="font-mono text-lg font-semibold">
                     {currentLead.phoneNumber}
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {currentLead.email ? (
+                      <>
+                        <span className="font-mono text-sm truncate">{currentLead.email}</span>
+                        <EmailVerificationBadge 
+                          email={currentLead.email} 
+                          verification={currentLead.emailVerification}
+                          showDetails
+                        />
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">N/A</span>
+                    )}
                   </div>
                 </div>
                 <div className="rounded-lg border bg-card p-4">
@@ -797,7 +851,7 @@ const Leads = () => {
         ) : null}
 
         {/* Stats Summary */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
@@ -822,6 +876,20 @@ const Leads = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">With Emails</CardTitle>
+              <Mail className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {leads.filter((l) => l.email).length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {leads.filter((l) => l.emailVerification?.status === 'valid').length} verified
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Revenue Leak</CardTitle>
               <TrendingDown className="h-4 w-4 text-red-500" />
             </CardHeader>
@@ -835,6 +903,36 @@ const Leads = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Bulk Email Verification */}
+        {leads.filter(l => l.email).length > 0 && (
+          <Card className="border-dashed">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Email Verification</p>
+                    <p className="text-sm text-muted-foreground">
+                      Verify all emails to improve deliverability
+                    </p>
+                  </div>
+                </div>
+                <BulkEmailVerifier 
+                  emails={leads.filter(l => l.email).map(l => l.email!)}
+                  onComplete={(results) => {
+                    // Update leads with verification results
+                    const verificationMap = new Map(results.map(r => [r.email, r]));
+                    setLeads(prev => prev.map(lead => ({
+                      ...lead,
+                      emailVerification: lead.email ? verificationMap.get(lead.email.toLowerCase()) : undefined
+                    })));
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Collapsible All Leads Table */}
         <Collapsible open={isAllLeadsOpen} onOpenChange={setIsAllLeadsOpen}>
@@ -920,6 +1018,7 @@ const Leads = () => {
                           <TableHead className="min-w-[180px]">Business Name</TableHead>
                           <TableHead className="min-w-[140px]">Niche</TableHead>
                           <TableHead className="min-w-[120px]">Phone Number</TableHead>
+                          <TableHead className="min-w-[200px]">Email</TableHead>
                           <TableHead className="min-w-[120px]">Revenue Leak</TableHead>
                           <TableHead className="min-w-[100px] text-right md:sticky md:right-0 md:bg-background">Action</TableHead>
                         </TableRow>
@@ -952,6 +1051,21 @@ const Leads = () => {
                             </TableCell>
                             <TableCell className="font-mono text-sm">
                               {lead.phoneNumber}
+                            </TableCell>
+                            <TableCell>
+                              {lead.email ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-sm truncate max-w-[140px]" title={lead.email}>
+                                    {lead.email}
+                                  </span>
+                                  <EmailVerificationBadge 
+                                    email={lead.email} 
+                                    verification={lead.emailVerification}
+                                  />
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="font-semibold text-red-600">
                               {formatRevenueLeak(lead.revenueLeak)}
