@@ -268,6 +268,7 @@ export const DEMO_STATS = {
 interface DemoModeContextType {
   isDemoMode: boolean;
   toggleDemoMode: () => void;
+  enableDemoMode: () => void;
   demoLeads: typeof DEMO_LEADS;
   demoJobs: typeof DEMO_JOBS;
   demoCallAttempts: typeof DEMO_CALL_ATTEMPTS;
@@ -283,11 +284,16 @@ export const DemoModeProvider = ({ children }: { children: ReactNode }) => {
     setIsDemoMode((prev) => !prev);
   };
 
+  const enableDemoMode = () => {
+    setIsDemoMode(true);
+  };
+
   return (
     <DemoModeContext.Provider
       value={{
         isDemoMode,
         toggleDemoMode,
+        enableDemoMode,
         demoLeads: DEMO_LEADS,
         demoJobs: DEMO_JOBS,
         demoCallAttempts: DEMO_CALL_ATTEMPTS,
