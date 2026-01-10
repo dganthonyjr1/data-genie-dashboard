@@ -87,8 +87,9 @@ serve(async (req) => {
     if (!/^[A-Z]{3}$/.test(currency)) throw new Error("Invalid currency");
 
     const origin = req.headers.get("origin") ?? "";
-    const computedRedirectUrl = redirectUrl ?? (origin ? `${origin}/dashboard?payment=success` : null);
-    if (!computedRedirectUrl) throw new Error("Missing redirect URL");
+    // We'll build the final redirect URL after we have the paymentLinkId
+    const baseRedirectUrl = redirectUrl ?? (origin ? `${origin}/payment/success` : null);
+    if (!baseRedirectUrl) throw new Error("Missing redirect URL");
 
     const sanitizedPlanName = planName.slice(0, 100).replace(/[<>]/g, "");
 
@@ -109,6 +110,7 @@ serve(async (req) => {
       const baseUrl = env === "sandbox" ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
       console.log(`Attempting Square ${env} environment`);
 
+      // First, create the payment link to get the ID
       const squareResponse = await fetch(`${baseUrl}/v2/online-checkout/payment-links`, {
         method: "POST",
         headers: {
@@ -124,7 +126,9 @@ serve(async (req) => {
             location_id: SQUARE_LOCATION_ID,
           },
           checkout_options: {
-            redirect_url: computedRedirectUrl,
+            // Build redirect URL with paymentLinkId placeholder - Square doesn't support this
+            // So we'll pass the paymentLinkId back to client and let them navigate after checkout
+            redirect_url: baseRedirectUrl,
             ask_for_shipping_address: false,
           },
           ...(userEmail ? { pre_populated_data: { buyer_email: userEmail } } : {}),
@@ -134,11 +138,63 @@ serve(async (req) => {
       const squareData = await squareResponse.json().catch(() => null as any);
 
       if (squareResponse.ok) {
+        const paymentLinkId = squareData?.payment_link?.id;
+        const checkoutUrl = squareData?.payment_link?.url;
+
+        // Store payment record in database BEFORE redirecting
+        const serviceClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+
+        const { error: insertError } = await serviceClient.from("payments").insert({
+          user_id: userId,
+          payment_link_id: paymentLinkId,
+          plan_name: sanitizedPlanName,
+          amount,
+          currency,
+          status: "pending",
+          square_environment: env,
+          metadata: { idempotency_key: idempotencyKey },
+        });
+
+        if (insertError) {
+          console.error("Failed to store payment record:", insertError);
+        } else {
+          console.log(`Payment record created for paymentLinkId=${paymentLinkId}`);
+        }
+
+        // Build final redirect URL with paymentLinkId
+        const finalRedirectUrl = new URL(baseRedirectUrl);
+        finalRedirectUrl.searchParams.set("paymentLinkId", paymentLinkId);
+
+        // Update the payment link with the correct redirect URL
+        const updateResponse = await fetch(`${baseUrl}/v2/online-checkout/payment-links/${paymentLinkId}`, {
+          method: "PUT",
+          headers: {
+            "Square-Version": "2024-01-18",
+            Authorization: `Bearer ${SQUARE_ACCESS_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            payment_link: {
+              checkout_options: {
+                redirect_url: finalRedirectUrl.toString(),
+                ask_for_shipping_address: false,
+              },
+            },
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          console.warn("Could not update redirect URL, using original");
+        }
+
         return new Response(
           JSON.stringify({
             success: true,
-            checkoutUrl: squareData?.payment_link?.url,
-            paymentLinkId: squareData?.payment_link?.id,
+            checkoutUrl,
+            paymentLinkId,
             environment: env,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }

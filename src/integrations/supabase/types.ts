@@ -138,6 +138,48 @@ export type Database = {
           },
         ]
       }
+      payments: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          metadata: Json | null
+          payment_link_id: string
+          plan_name: string
+          square_environment: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json | null
+          payment_link_id: string
+          plan_name: string
+          square_environment?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json | null
+          payment_link_id?: string
+          plan_name?: string
+          square_environment?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       scraping_jobs: {
         Row: {
           ai_instructions: string | null
