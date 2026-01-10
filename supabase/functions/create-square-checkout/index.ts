@@ -21,17 +21,20 @@ serve(async (req) => {
   }
 
   try {
-    // Normalize secrets (users sometimes paste tokens with a "Bearer " prefix or quotes)
+    // Normalize secrets (users sometimes paste tokens with a "Bearer " prefix, quotes, or hidden newlines)
     const rawAccessToken = (Deno.env.get("SQUARE_ACCESS_TOKEN") ?? "").trim();
     const rawLocationId = (Deno.env.get("SQUARE_LOCATION_ID") ?? "").trim();
 
     const SQUARE_ACCESS_TOKEN = rawAccessToken
       .replace(/^Bearer\s+/i, "")
       .replace(/^['"]|['"]$/g, "")
+      // tokens must not contain whitespace; remove any hidden \n/\r/\t/spaces from copy-paste
+      .replace(/\s+/g, "")
       .trim();
 
     const SQUARE_LOCATION_ID = rawLocationId
       .replace(/^['"]|['"]$/g, "")
+      .replace(/\s+/g, "")
       .trim();
 
     if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
@@ -104,30 +107,24 @@ serve(async (req) => {
 
     const envOrder: SquareEnv[] = preferSandbox ? ["sandbox", "production"] : ["production", "sandbox"];
 
-    let lastDetail = "This request could not be authorized.";
+    const squareHeaders = {
+      "Square-Version": "2024-01-18",
+      Authorization: `Bearer ${SQUARE_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    };
 
-    for (const env of envOrder) {
-      const baseUrl = env === "sandbox" ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
-      console.log(`Attempting Square ${env} environment`);
-
-      // First, create the payment link to get the ID
-      const squareResponse = await fetch(`${baseUrl}/v2/online-checkout/payment-links`, {
+    const createPaymentLink = async (baseUrl: string, locationId: string) => {
+      const response = await fetch(`${baseUrl}/v2/online-checkout/payment-links`, {
         method: "POST",
-        headers: {
-          "Square-Version": "2024-01-18",
-          Authorization: `Bearer ${SQUARE_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+        headers: squareHeaders,
         body: JSON.stringify({
           idempotency_key: idempotencyKey,
           quick_pay: {
             name: `ScrapeX ${sanitizedPlanName} Plan`,
             price_money: { amount, currency },
-            location_id: SQUARE_LOCATION_ID,
+            location_id: locationId,
           },
           checkout_options: {
-            // Build redirect URL with paymentLinkId placeholder - Square doesn't support this
-            // So we'll pass the paymentLinkId back to client and let them navigate after checkout
             redirect_url: baseRedirectUrl,
             ask_for_shipping_address: false,
           },
@@ -135,70 +132,107 @@ serve(async (req) => {
         }),
       });
 
-      const squareData = await squareResponse.json().catch(() => null as any);
+      const data = await response.json().catch(() => null as any);
+      return { response, data };
+    };
+
+    const fetchFirstActiveLocationId = async (baseUrl: string): Promise<string | null> => {
+      try {
+        const res = await fetch(`${baseUrl}/v2/locations`, { headers: squareHeaders });
+        const data = await res.json().catch(() => null as any);
+
+        if (!res.ok) {
+          console.warn(`Square locations lookup failed (${res.status})`, JSON.stringify(data));
+          return null;
+        }
+
+        const locations =
+          (data?.locations as Array<{ id?: string; status?: string }> | undefined) ?? [];
+
+        const chosen =
+          locations.find((l) => l.status === "ACTIVE" && l.id) ?? locations.find((l) => l.id);
+
+        return chosen?.id ?? null;
+      } catch (e) {
+        console.warn("Square locations lookup threw:", e);
+        return null;
+      }
+    };
+
+    const respondWithPaymentLink = async (env: SquareEnv, baseUrl: string, squareData: any) => {
+      const paymentLinkId = squareData?.payment_link?.id;
+      const checkoutUrl = squareData?.payment_link?.url;
+
+      // Store payment record in database BEFORE redirecting
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      const { error: insertError } = await serviceClient.from("payments").insert({
+        user_id: userId,
+        payment_link_id: paymentLinkId,
+        plan_name: sanitizedPlanName,
+        amount,
+        currency,
+        status: "pending",
+        square_environment: env,
+        metadata: { idempotency_key: idempotencyKey },
+      });
+
+      if (insertError) {
+        console.error("Failed to store payment record:", insertError);
+      } else {
+        console.log(`Payment record created for paymentLinkId=${paymentLinkId}`);
+      }
+
+      // Build final redirect URL with paymentLinkId
+      const finalRedirectUrl = new URL(baseRedirectUrl);
+      finalRedirectUrl.searchParams.set("paymentLinkId", paymentLinkId);
+
+      // Update the payment link with the correct redirect URL
+      const updateResponse = await fetch(`${baseUrl}/v2/online-checkout/payment-links/${paymentLinkId}`, {
+        method: "PUT",
+        headers: squareHeaders,
+        body: JSON.stringify({
+          payment_link: {
+            checkout_options: {
+              redirect_url: finalRedirectUrl.toString(),
+              ask_for_shipping_address: false,
+            },
+          },
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        console.warn("Could not update redirect URL, using original");
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          checkoutUrl,
+          paymentLinkId,
+          environment: env,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    };
+
+    const resolvedLocationIdByEnv: Partial<Record<SquareEnv, string>> = {};
+
+    let lastDetail = "This request could not be authorized.";
+
+    for (const env of envOrder) {
+      const baseUrl = env === "sandbox" ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
+      console.log(`Attempting Square ${env} environment`);
+
+      const configuredLocationId = resolvedLocationIdByEnv[env] ?? SQUARE_LOCATION_ID;
+
+      let { response: squareResponse, data: squareData } = await createPaymentLink(baseUrl, configuredLocationId);
 
       if (squareResponse.ok) {
-        const paymentLinkId = squareData?.payment_link?.id;
-        const checkoutUrl = squareData?.payment_link?.url;
-
-        // Store payment record in database BEFORE redirecting
-        const serviceClient = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-        );
-
-        const { error: insertError } = await serviceClient.from("payments").insert({
-          user_id: userId,
-          payment_link_id: paymentLinkId,
-          plan_name: sanitizedPlanName,
-          amount,
-          currency,
-          status: "pending",
-          square_environment: env,
-          metadata: { idempotency_key: idempotencyKey },
-        });
-
-        if (insertError) {
-          console.error("Failed to store payment record:", insertError);
-        } else {
-          console.log(`Payment record created for paymentLinkId=${paymentLinkId}`);
-        }
-
-        // Build final redirect URL with paymentLinkId
-        const finalRedirectUrl = new URL(baseRedirectUrl);
-        finalRedirectUrl.searchParams.set("paymentLinkId", paymentLinkId);
-
-        // Update the payment link with the correct redirect URL
-        const updateResponse = await fetch(`${baseUrl}/v2/online-checkout/payment-links/${paymentLinkId}`, {
-          method: "PUT",
-          headers: {
-            "Square-Version": "2024-01-18",
-            Authorization: `Bearer ${SQUARE_ACCESS_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            payment_link: {
-              checkout_options: {
-                redirect_url: finalRedirectUrl.toString(),
-                ask_for_shipping_address: false,
-              },
-            },
-          }),
-        });
-
-        if (!updateResponse.ok) {
-          console.warn("Could not update redirect URL, using original");
-        }
-
-        return new Response(
-          JSON.stringify({
-            success: true,
-            checkoutUrl,
-            paymentLinkId,
-            environment: env,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-        );
+        return await respondWithPaymentLink(env, baseUrl, squareData);
       }
 
       const detail = squareData?.errors?.[0]?.detail || `Square API error (${squareResponse.status})`;
@@ -210,6 +244,40 @@ serve(async (req) => {
         squareResponse.status === 401 || category === "AUTHENTICATION_ERROR" || code === "UNAUTHORIZED";
 
       console.error(`Square API error (${env}):`, JSON.stringify(squareData));
+
+      // Workaround: when Location ID is from the wrong environment/account, Square can respond as "UNAUTHORIZED".
+      // If auth fails, try to fetch the first ACTIVE location for this token/environment and retry once.
+      if (isAuthError && !resolvedLocationIdByEnv[env]) {
+        const resolved = await fetchFirstActiveLocationId(baseUrl);
+
+        if (resolved && resolved !== configuredLocationId) {
+          resolvedLocationIdByEnv[env] = resolved;
+          console.warn("Retrying with Location ID resolved from Square locations list.");
+
+          ({ response: squareResponse, data: squareData } = await createPaymentLink(baseUrl, resolved));
+
+          if (squareResponse.ok) {
+            return await respondWithPaymentLink(env, baseUrl, squareData);
+          }
+
+          const retryDetail =
+            squareData?.errors?.[0]?.detail || `Square API error (${squareResponse.status})`;
+          lastDetail = retryDetail;
+
+          const retryCategory = squareData?.errors?.[0]?.category;
+          const retryCode = squareData?.errors?.[0]?.code;
+          const isAuthErrorRetry =
+            squareResponse.status === 401 ||
+            retryCategory === "AUTHENTICATION_ERROR" ||
+            retryCode === "UNAUTHORIZED";
+
+          console.error(`Square API error (${env}, retry):`, JSON.stringify(squareData));
+
+          if (!isAuthErrorRetry) {
+            throw new Error(retryDetail);
+          }
+        }
+      }
 
       if (isAuthError) continue;
 
