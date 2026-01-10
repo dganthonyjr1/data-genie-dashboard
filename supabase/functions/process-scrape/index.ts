@@ -592,12 +592,12 @@ async function sendNotifications(
 
   // Auto-trigger sales calls if enabled and job completed with results
   if (status === 'completed' && results && results.length > 0) {
-    await triggerAutoSalesCalls(supabase, job.user_id, results);
+    await triggerAutoSalesCalls(supabase, job.user_id, jobId, results);
   }
 }
 
 // Helper function to trigger auto sales calls for leads with phone numbers
-async function triggerAutoSalesCalls(supabase: any, userId: string, results: any[]) {
+async function triggerAutoSalesCalls(supabase: any, userId: string, jobId: string, results: any[]) {
   try {
     // Check if user has auto-call enabled
     const { data: prefs, error: prefsError } = await supabase
@@ -693,20 +693,23 @@ async function triggerAutoSalesCalls(supabase: any, userId: string, results: any
       const businessName = result.business_name || result.name || result.title || 'Unknown Business';
       const niche = result.niche || result.category || result.type || 'General';
 
-      try {
-        const payload = {
-          business_name: businessName,
-          phone_number: phoneNumber,
-          pain_score: result.audit?.painScore || result.painScore || 0,
-          evidence_summary: result.audit?.evidenceSummary || 'Scraped lead - auto-call',
-          niche: niche,
-          monthly_revenue: result.monthlyRevenue || 0,
-          revenue_leak: result.audit?.estimatedLeak || result.revenueLeak || 0,
-          user_id: userId,
-          triggered_at: new Date().toISOString(),
-          auto_triggered: true,
-        };
+      const payload = {
+        business_name: businessName,
+        phone_number: phoneNumber,
+        pain_score: result.audit?.painScore || result.painScore || 0,
+        evidence_summary: result.audit?.evidenceSummary || 'Scraped lead - auto-call',
+        niche: niche,
+        monthly_revenue: result.monthlyRevenue || 0,
+        revenue_leak: result.audit?.estimatedLeak || result.revenueLeak || 0,
+        user_id: userId,
+        triggered_at: new Date().toISOString(),
+        auto_triggered: true,
+      };
 
+      let callStatus = 'pending';
+      let errorMessage: string | null = null;
+
+      try {
         const response = await fetch(MAKE_WEBHOOK_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -715,13 +718,37 @@ async function triggerAutoSalesCalls(supabase: any, userId: string, results: any
 
         if (response.ok) {
           callsTriggered++;
+          callStatus = 'success';
           console.log(`Auto-call triggered for: ${businessName}`);
         } else {
           const errorText = await response.text().catch(() => '');
+          callStatus = 'failed';
+          errorMessage = `HTTP ${response.status}: ${errorText.substring(0, 200)}`;
           console.error(`Auto-call failed for ${businessName}: ${response.status} ${errorText}`);
         }
       } catch (callError) {
+        callStatus = 'failed';
+        errorMessage = callError instanceof Error ? callError.message : 'Unknown error';
         console.error(`Error triggering auto-call for ${businessName}:`, callError);
+      }
+
+      // Log the call attempt to the database
+      try {
+        await supabase
+          .from('call_attempts')
+          .insert({
+            user_id: userId,
+            job_id: jobId,
+            business_name: businessName,
+            phone_number: phoneNumber,
+            status: callStatus,
+            error_message: errorMessage,
+            auto_triggered: true,
+            payload: payload,
+          });
+        console.log(`Call attempt logged for ${businessName}: ${callStatus}`);
+      } catch (logError) {
+        console.error(`Failed to log call attempt for ${businessName}:`, logError);
       }
     }
 

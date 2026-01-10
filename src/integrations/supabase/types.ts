@@ -50,6 +50,53 @@ export type Database = {
         }
         Relationships: []
       }
+      call_attempts: {
+        Row: {
+          auto_triggered: boolean
+          business_name: string
+          created_at: string
+          error_message: string | null
+          id: string
+          job_id: string | null
+          payload: Json | null
+          phone_number: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          auto_triggered?: boolean
+          business_name: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_id?: string | null
+          payload?: Json | null
+          phone_number: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          auto_triggered?: boolean
+          business_name?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_id?: string | null
+          payload?: Json | null
+          phone_number?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_attempts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "scraping_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
