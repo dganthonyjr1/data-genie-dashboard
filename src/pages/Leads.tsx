@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import LeadScoreCard from "@/components/LeadScoreCard";
+import LeadLeaderboard from "@/components/LeadLeaderboard";
 import {
   Table,
   TableBody,
@@ -159,6 +160,27 @@ const Leads = () => {
       ...prev,
       [leadId]: prediction
     }));
+  };
+
+  // Handler for bulk scoring all leads
+  const handleBulkScoreAll = (predictions: Record<string, LeadPrediction>) => {
+    setLeadPredictions(prev => ({
+      ...prev,
+      ...predictions
+    }));
+  };
+
+  // Handler to select a lead from leaderboard
+  const handleSelectLeadFromLeaderboard = (leadId: string) => {
+    const leadsToSearch = isDemoMode ? transformedDemoLeads : leads;
+    const index = leadsToSearch.findIndex((l) => l.id === leadId);
+    if (index !== -1) {
+      setCurrentLeadIndex(index);
+      toast({
+        title: "Lead Selected",
+        description: `Now viewing ${leadsToSearch[index].businessName}`,
+      });
+    }
   };
 
   const displayLeads = isDemoMode ? transformedDemoLeads : leads;
@@ -736,6 +758,17 @@ const Leads = () => {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* AI Lead Leaderboard */}
+        {!isLoading && displayLeads.length > 0 && (
+          <LeadLeaderboard
+            leads={displayLeads}
+            onScoreAll={handleBulkScoreAll}
+            onSelectLead={handleSelectLeadFromLeaderboard}
+            predictions={leadPredictions}
+            isDemoMode={isDemoMode}
+          />
+        )}
 
         {/* Current Lead - Focused View */}
         {isLoading ? (
