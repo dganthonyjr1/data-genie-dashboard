@@ -93,13 +93,13 @@ serve(async (req) => {
 
     console.log(`Processing job ${jobId} for URL: ${job.url}, Country: ${job.target_country || 'any'}, State: ${job.target_state || 'any'}`);
 
-    // Handle Google Business Profiles scraping with SerpAPI
+    // Handle Google Business Profiles scraping with SerpAPI (Enhanced)
     if (job.scrape_type === 'google_business_profiles') {
       if (!SERPAPI_API_KEY) {
         throw new Error('SERPAPI_API_KEY not configured');
       }
 
-      console.log(`Starting Google Business Profile search for: ${job.url} with limit: ${job.search_limit || 20}`);
+      console.log(`Starting Enhanced Google Business Profile search for: ${job.url} with limit: ${job.search_limit || 20}`);
       
       // Build location string for SerpAPI
       let locationStr = '';
@@ -122,8 +122,7 @@ serve(async (req) => {
       });
       
       if (locationStr) {
-        searchParams.append('ll', '@40.7128,-74.0060,15.1z'); // Default to NYC area, will be overridden by location
-        // SerpAPI uses location parameter for text-based location
+        searchParams.append('ll', '@40.7128,-74.0060,15.1z');
       }
 
       const serpApiUrl = `https://serpapi.com/search.json?${searchParams.toString()}`;
@@ -160,9 +159,152 @@ serve(async (req) => {
       const localResults = serpData.local_results || [];
       const limit = job.search_limit || 20;
 
+      // First pass: collect all businesses for competitor analysis
+      const allBusinesses = localResults.slice(0, Math.min(localResults.length, limit)).map((result: any) => ({
+        name: result.title || '',
+        type: result.type || '',
+        rating: result.rating || null,
+        reviews_count: result.reviews || null,
+        place_id: result.place_id || '',
+      }));
+
+      // Helper function to fetch detailed place info including reviews
+      async function fetchPlaceDetails(placeId: string, businessName: string): Promise<any> {
+        try {
+          const detailsParams = new URLSearchParams({
+            engine: 'google_maps_reviews',
+            place_id: placeId,
+            api_key: SERPAPI_API_KEY!,
+            sort_by: 'newestFirst',
+          });
+
+          const detailsUrl = `https://serpapi.com/search.json?${detailsParams.toString()}`;
+          console.log(`Fetching reviews for ${businessName}...`);
+          
+          const response = await fetch(detailsUrl);
+          if (!response.ok) {
+            console.log(`Could not fetch reviews for ${businessName}`);
+            return null;
+          }
+          
+          const data = await response.json();
+          return data;
+        } catch (e) {
+          console.error(`Error fetching details for ${businessName}:`, e);
+          return null;
+        }
+      }
+
+      // Process each result with enhanced data
       for (let i = 0; i < Math.min(localResults.length, limit); i++) {
         const result = localResults[i];
         try {
+          // Find competitors (similar businesses nearby, excluding self)
+          const competitors = allBusinesses
+            .filter((b: any) => 
+              b.place_id !== result.place_id && 
+              b.type?.toLowerCase().includes(result.type?.split(',')[0]?.toLowerCase() || 'business')
+            )
+            .slice(0, 5)
+            .map((comp: any) => ({
+              name: comp.name,
+              rating: comp.rating,
+              reviews_count: comp.reviews_count,
+              competitive_advantage: comp.rating && result.rating 
+                ? (result.rating > comp.rating ? 'higher_rated' : result.rating < comp.rating ? 'lower_rated' : 'equal')
+                : null,
+            }));
+
+          // Calculate average competitor rating
+          const competitorRatings = competitors.filter((c: any) => c.rating).map((c: any) => c.rating);
+          const avgCompetitorRating = competitorRatings.length > 0 
+            ? Math.round((competitorRatings.reduce((a: number, b: number) => a + b, 0) / competitorRatings.length) * 10) / 10
+            : null;
+
+          // Extract ratings breakdown from extensions if available
+          let ratingsBreakdown = null;
+          if (result.reviews_breakdown) {
+            ratingsBreakdown = result.reviews_breakdown;
+          } else if (result.extensions) {
+            // Try to parse ratings from extensions
+            const ratingMatch = result.extensions.find((ext: string) => 
+              ext.includes('5-star') || ext.includes('4-star') || ext.includes('reviews')
+            );
+            if (ratingMatch) {
+              ratingsBreakdown = { raw: ratingMatch };
+            }
+          }
+
+          // Extract additional business attributes
+          const serviceOptions = result.service_options || {};
+          const priceLevel = result.price || null;
+          const openNow = result.open_state?.includes('Open') || null;
+
+          // Fetch detailed reviews for top results (limit to first 5 to conserve API calls)
+          let detailedReviews: any[] = [];
+          let reviewsSummary = null;
+          
+          if (i < 5 && result.place_id) {
+            const placeDetails = await fetchPlaceDetails(result.place_id, result.title);
+            if (placeDetails) {
+              // Extract reviews
+              const reviews = placeDetails.reviews || [];
+              detailedReviews = reviews.slice(0, 10).map((review: any) => ({
+                author: review.user?.name || 'Anonymous',
+                rating: review.rating || null,
+                date: review.date || null,
+                snippet: review.snippet || review.text || '',
+                helpful_count: review.likes || 0,
+                response: review.response ? {
+                  date: review.response.date,
+                  text: review.response.snippet || review.response.text,
+                } : null,
+              }));
+
+              // Calculate ratings breakdown from reviews if not available
+              if (!ratingsBreakdown && reviews.length > 0) {
+                const breakdown = { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 };
+                reviews.forEach((r: any) => {
+                  const rating = Math.round(r.rating || 0);
+                  if (rating >= 1 && rating <= 5) {
+                    breakdown[rating.toString() as keyof typeof breakdown]++;
+                  }
+                });
+                ratingsBreakdown = {
+                  five_star: breakdown['5'],
+                  four_star: breakdown['4'],
+                  three_star: breakdown['3'],
+                  two_star: breakdown['2'],
+                  one_star: breakdown['1'],
+                  total_analyzed: reviews.length,
+                };
+              }
+
+              // Generate reviews summary
+              if (reviews.length > 0) {
+                const positiveReviews = reviews.filter((r: any) => r.rating >= 4).length;
+                const negativeReviews = reviews.filter((r: any) => r.rating <= 2).length;
+                reviewsSummary = {
+                  total_fetched: reviews.length,
+                  positive_percentage: Math.round((positiveReviews / reviews.length) * 100),
+                  negative_percentage: Math.round((negativeReviews / reviews.length) * 100),
+                  has_owner_responses: reviews.some((r: any) => r.response),
+                };
+              }
+
+              // Get place topics/highlights if available
+              if (placeDetails.topics) {
+                reviewsSummary = {
+                  ...reviewsSummary,
+                  common_topics: placeDetails.topics.slice(0, 5).map((t: any) => ({
+                    keyword: t.keyword,
+                    mentions: t.reviews,
+                  })),
+                };
+              }
+            }
+          }
+
           businessResults.push({
             business_name: result.title || '',
             full_address: result.address || '',
@@ -170,20 +312,39 @@ serve(async (req) => {
             website_url: result.website || '',
             rating: result.rating || null,
             reviews_count: result.reviews || null,
+            ratings_breakdown: ratingsBreakdown,
+            reviews_summary: reviewsSummary,
+            detailed_reviews: detailedReviews.length > 0 ? detailedReviews : undefined,
             type: result.type || '',
+            category: result.type?.split(',')[0]?.trim() || '',
             place_id: result.place_id || '',
             gps_coordinates: result.gps_coordinates || null,
             hours: result.hours || result.operating_hours || null,
             thumbnail: result.thumbnail || '',
-            source: 'google_maps',
+            photos: result.photos?.slice(0, 5) || [],
+            price_level: priceLevel,
+            is_open_now: openNow,
+            service_options: Object.keys(serviceOptions).length > 0 ? serviceOptions : undefined,
+            // Competitor analysis
+            competitors: competitors.length > 0 ? {
+              nearby_count: competitors.length,
+              avg_competitor_rating: avgCompetitorRating,
+              competitive_position: avgCompetitorRating && result.rating 
+                ? (result.rating > avgCompetitorRating ? 'above_average' : result.rating < avgCompetitorRating ? 'below_average' : 'average')
+                : null,
+              nearby_businesses: competitors,
+            } : undefined,
+            // Metadata
+            source: 'google_maps_enhanced',
             source_url: result.link || '',
+            data_id: result.data_id || null,
           });
         } catch (e) {
           console.error(`Error extracting from result ${i}:`, e);
         }
       }
 
-      console.log(`Extracted ${businessResults.length} businesses from Google Maps`);
+      console.log(`Extracted ${businessResults.length} enhanced businesses from Google Maps`);
 
       // Save results
       const { error: updateError } = await supabase
