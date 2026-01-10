@@ -21,8 +21,18 @@ serve(async (req) => {
   }
 
   try {
-    const SQUARE_ACCESS_TOKEN = (Deno.env.get("SQUARE_ACCESS_TOKEN") ?? "").trim();
-    const SQUARE_LOCATION_ID = (Deno.env.get("SQUARE_LOCATION_ID") ?? "").trim();
+    // Normalize secrets (users sometimes paste tokens with a "Bearer " prefix or quotes)
+    const rawAccessToken = (Deno.env.get("SQUARE_ACCESS_TOKEN") ?? "").trim();
+    const rawLocationId = (Deno.env.get("SQUARE_LOCATION_ID") ?? "").trim();
+
+    const SQUARE_ACCESS_TOKEN = rawAccessToken
+      .replace(/^Bearer\s+/i, "")
+      .replace(/^['"]|['"]$/g, "")
+      .trim();
+
+    const SQUARE_LOCATION_ID = rawLocationId
+      .replace(/^['"]|['"]$/g, "")
+      .trim();
 
     if (!SQUARE_ACCESS_TOKEN || !SQUARE_LOCATION_ID) {
       throw new Error("Square credentials not configured");
@@ -148,6 +158,12 @@ serve(async (req) => {
       if (isAuthError) continue;
 
       throw new Error(detail);
+    }
+
+    if (lastDetail === "This request could not be authorized.") {
+      throw new Error(
+        "Square authorization failed. Double-check that SQUARE_ACCESS_TOKEN is a valid token (paste ONLY the token, not 'Bearer ...') and that it matches the same environment as SQUARE_LOCATION_ID."
+      );
     }
 
     throw new Error(lastDetail);
