@@ -166,9 +166,13 @@ const Pricing = () => {
       } else {
         throw new Error("No checkout URL received");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Checkout error:", error);
-      toast.error("Failed to create checkout. Please try again.");
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to create checkout. Please try again.";
+      toast.error(message);
     } finally {
       setLoadingPlan(null);
     }
