@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall, Play, Square } from "lucide-react";
+import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall, Play, Square, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { name: "Bulk Scrape", href: "/bulk-scrape", icon: Layers },
     { name: "Scheduled Jobs", href: "/scheduled-jobs", icon: CalendarClock },
     { name: "Results", href: "/results", icon: FileText },
+    { name: "Pricing", href: "/pricing", icon: CreditCard },
     { name: "API Docs", href: "/api-docs", icon: BookOpen },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
