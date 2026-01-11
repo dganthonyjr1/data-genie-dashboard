@@ -5,6 +5,12 @@ import { useDemoMode } from "@/contexts/DemoModeContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { 
   Zap, 
   Target, 
@@ -18,7 +24,8 @@ import {
   Sparkles,
   Building2,
   Users,
-  BarChart3
+  BarChart3,
+  HelpCircle
 } from "lucide-react";
 
 const Index = () => {
@@ -400,6 +407,134 @@ const Index = () => {
               Cancel anytime
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-card/30 border-t border-border/50">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 px-4 py-2 border-primary/50 bg-primary/10">
+              <HelpCircle className="w-4 h-4 mr-2 text-primary" />
+              Frequently Asked Questions
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4" style={{ fontFamily: 'Orbitron, sans-serif' }}>
+              Honest <span className="text-primary">Answers</span>
+            </h2>
+            <p className="text-muted-foreground">
+              No marketing fluff. Here's exactly what ScrapeX does and doesn't do.
+            </p>
+          </div>
+
+          <Accordion type="single" collapsible className="space-y-4">
+            <AccordionItem value="accuracy" className="bg-background/50 border border-border/50 rounded-lg px-6">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                How accurate is the scraped data?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                <p className="mb-2">
+                  <strong>Typical accuracy: 85-90%</strong> for contact information (phone numbers, emails).
+                </p>
+                <p className="mb-2">
+                  We extract data from websites, Google Business Profiles, and directories. Accuracy varies by source—Google Business Profiles tend to be most reliable.
+                </p>
+                <p>
+                  <strong>Our recommendation:</strong> Verify critical contact info before outreach. You can manually edit any scraped results directly in the platform.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="international" className="bg-background/50 border border-border/50 rounded-lg px-6">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                Does ScrapeX work internationally?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                <p className="mb-2">
+                  <strong>Yes, with some limitations.</strong> We support scraping in 150+ countries using geo-targeted requests.
+                </p>
+                <p className="mb-2">
+                  <strong>Phone validation:</strong> Most robust for US and UK formats. For other countries, we extract numbers but recommend manual verification.
+                </p>
+                <p>
+                  <strong>Region targeting:</strong> We offer state/province dropdowns for US, Canada, UK, Australia, Germany, France, India, Brazil, Mexico, Spain, Italy, South Africa, Japan, New Zealand, and Ireland.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="ai-calls" className="bg-background/50 border border-border/50 rounded-lg px-6">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                How do AI Sales Calls work?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                <p className="mb-2">
+                  <strong>User-initiated, not autonomous.</strong> When you scrape a business with a phone number, you can trigger an AI call with one click.
+                </p>
+                <p className="mb-2">
+                  The AI generates a personalized pitch based on the business data (name, services, identified opportunities) and handles the conversation in real-time.
+                </p>
+                <p>
+                  <strong>Note:</strong> Calls don't happen automatically in the background. You review the analysis first, then decide whether to call. All calls are recorded for your records.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="processing-time" className="bg-background/50 border border-border/50 rounded-lg px-6">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                How long does scraping take?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                <p className="mb-2">Processing time depends on job size and data source:</p>
+                <ul className="list-disc list-inside space-y-1 mb-2">
+                  <li><strong>Single business:</strong> Under 3 seconds</li>
+                  <li><strong>5-10 URLs:</strong> 30 seconds - 1 minute</li>
+                  <li><strong>50 URLs:</strong> 2-3 minutes</li>
+                  <li><strong>100+ URLs:</strong> 5-10 minutes</li>
+                </ul>
+                <p>
+                  Times may vary based on website response times and server load.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="crm" className="bg-background/50 border border-border/50 rounded-lg px-6">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                Can I integrate with my CRM?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                <p className="mb-2">
+                  <strong>Yes, via REST API.</strong> We provide complete API documentation, code examples (JavaScript, Python, cURL), and webhook support for real-time updates.
+                </p>
+                <p className="mb-2">
+                  <strong>Manual export:</strong> CSV, JSON, and Google Sheets export for direct CRM import.
+                </p>
+                <p>
+                  <strong>Limitation:</strong> We don't have pre-built Salesforce or HubSpot integrations yet. Our API makes custom integration straightforward—contact support if you need help.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="comparison" className="bg-background/50 border border-border/50 rounded-lg px-6">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                How does ScrapeX compare to Apollo/Hunter/ZoomInfo?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                <p className="mb-2">
+                  <strong>ScrapeX combines three functions in one platform:</strong>
+                </p>
+                <ul className="list-disc list-inside space-y-1 mb-2">
+                  <li>Web scraping (like Apollo, Hunter)</li>
+                  <li>AI analysis (like Clearbit)</li>
+                  <li>AI calling (like Outreach, SalesLoft)</li>
+                </ul>
+                <p className="mb-2">
+                  <strong>Trade-offs:</strong> ScrapeX is simpler and cheaper ($99/mo vs $300+ for separate tools). Competitors offer deeper features in their specific areas.
+                </p>
+                <p>
+                  <strong>Best for:</strong> Teams wanting simplicity and cost savings. Consider competitors if you need advanced features in one specific area (e.g., deep email verification).
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </section>
 
