@@ -34,7 +34,7 @@ const Pricing = () => {
       price: "Free",
       priceInCents: 0,
       period: "",
-      description: "Perfect for trying out ScrapeX and small projects",
+      description: "Perfect for testing ScrapeX and small one-time projects",
       popular: false,
       features: [
         "50 scrapes per month",
@@ -181,27 +181,27 @@ const Pricing = () => {
   const faqs = [
     {
       question: "How does the free trial work?",
-      answer: "Start with our Starter plan completely free. No credit card required. When you're ready to scale, upgrade to Pro for a 14-day free trial with full access to all Pro features.",
+      answer: "Start with our Starter plan completely free—50 scrapes/month, no credit card required. When you're ready to scale, upgrade to Pro. Pro includes a 14-day trial period.",
     },
     {
       question: "What counts as a 'scrape'?",
-      answer: "A scrape is a single data extraction request. This could be scraping one business from Google Maps, analyzing a website, or extracting data from a single URL. Bulk operations count as multiple scrapes based on the number of results returned.",
+      answer: "A scrape is one data extraction request. Scraping one business from Google Maps = 1 scrape. Bulk operations count as multiple scrapes based on results returned (e.g., 50 URLs = 50 scrapes).",
     },
     {
       question: "How do AI Sales Calls work?",
-      answer: "When you scrape a business with a phone number, ScrapeX can automatically initiate an AI-powered sales call. The AI uses the scraped data—including pain points and revenue opportunities—to deliver a personalized pitch.",
+      answer: "When you scrape a business with a phone number, you can trigger an AI-powered sales call with one click. The AI uses scraped data to generate a personalized pitch and handles the conversation. Note: Calls are initiated by user action, not automatically in the background.",
     },
     {
-      question: "Can I change plans anytime?",
-      answer: "Yes! Upgrade or downgrade at any time. When upgrading, you'll get immediate access to new features. When downgrading, changes take effect at the next billing cycle.",
+      question: "How accurate is the scraped data?",
+      answer: "Typical accuracy is 85-90% for contact information. We extract from websites, Google Business Profiles, and directories. We recommend verifying critical data before outreach—you can manually edit results in the platform.",
     },
     {
-      question: "What integrations are supported?",
-      answer: "Pro plans include webhook integrations for real-time data sync. We support popular CRMs like Salesforce, HubSpot, and Pipedrive. Enterprise plans can request custom integrations.",
+      question: "Can I integrate with my CRM?",
+      answer: "Yes, via REST API. We provide documentation, code examples, and webhook support for real-time updates. Export to CSV/JSON for manual CRM import. Note: We don't have pre-built Salesforce/HubSpot integrations yet, but our API makes custom integration straightforward.",
     },
     {
       question: "Is my data secure?",
-      answer: "Absolutely. We use bank-grade encryption, row-level security, and SOC 2-compliant infrastructure. Your data is never shared or sold to third parties.",
+      answer: "Yes. We use Supabase backend with API key authentication, HTTPS encryption, and row-level security. We don't sell your data, share with third parties, or store credit card info (Stripe handles payments).",
     },
   ];
 
@@ -266,7 +266,7 @@ const Pricing = () => {
           </h1>
           
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            From startups to enterprises, choose the plan that fits your growth. 
+            Why pay $300+/month for three separate tools when you can do it all for $99?
             No hidden fees, no surprises.
           </p>
         </div>
