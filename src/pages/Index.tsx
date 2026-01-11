@@ -477,7 +477,7 @@ const Index = () => {
                   The AI generates a personalized pitch based on the business data (name, niche, services, pain score, revenue metrics) and handles the conversation in real-time.
                 </p>
                 <p className="mb-2">
-                  <strong>Pricing:</strong> AI calls are pay-as-you-go at $0.15/minute. Pro plan includes 100 call minutes/month, Enterprise includes unlimited. Usage beyond included minutes is billed monthly.
+                  <strong>Pricing:</strong> AI calls are pay-as-you-go at $0.15/minute (Pro) or $0.12/minute (Enterprise). Pro includes 100 call minutes/month, Enterprise includes 500 minutes/month. Overage is billed monthly.
                 </p>
                 <p>
                   <strong>Control:</strong> You can disable auto-calling anytime in Settings if you prefer to review leads first. All calls are logged in the Call Attempts dashboard.
