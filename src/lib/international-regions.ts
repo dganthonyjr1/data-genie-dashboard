@@ -10,6 +10,17 @@ export interface Country {
   name: string;
 }
 
+export interface Language {
+  code: string;
+  name: string;
+  nativeName?: string;
+}
+
+export interface Country {
+  code: string;
+  name: string;
+}
+
 export const COUNTRIES: Country[] = [
   { code: '', name: 'Any Location' },
   { code: 'US', name: 'United States' },
@@ -386,4 +397,73 @@ export const getRegionLabel = (countryCode: string): string => {
     case 'IE': return 'County';
     default: return 'Region';
   }
+};
+
+// Languages for content localization
+export const LANGUAGES: Language[] = [
+  { code: '', name: 'Auto-detect', nativeName: '' },
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español' },
+  { code: 'fr', name: 'French', nativeName: 'Français' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch' },
+  { code: 'it', name: 'Italian', nativeName: 'Italiano' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português' },
+  { code: 'nl', name: 'Dutch', nativeName: 'Nederlands' },
+  { code: 'pl', name: 'Polish', nativeName: 'Polski' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+  { code: 'zh', name: 'Chinese (Simplified)', nativeName: '中文' },
+  { code: 'zh-TW', name: 'Chinese (Traditional)', nativeName: '繁體中文' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو' },
+  { code: 'tr', name: 'Turkish', nativeName: 'Türkçe' },
+  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt' },
+  { code: 'th', name: 'Thai', nativeName: 'ไทย' },
+  { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia' },
+  { code: 'ms', name: 'Malay', nativeName: 'Bahasa Melayu' },
+  { code: 'tl', name: 'Tagalog', nativeName: 'Tagalog' },
+  { code: 'sv', name: 'Swedish', nativeName: 'Svenska' },
+  { code: 'da', name: 'Danish', nativeName: 'Dansk' },
+  { code: 'no', name: 'Norwegian', nativeName: 'Norsk' },
+  { code: 'fi', name: 'Finnish', nativeName: 'Suomi' },
+  { code: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
+  { code: 'he', name: 'Hebrew', nativeName: 'עברית' },
+  { code: 'cs', name: 'Czech', nativeName: 'Čeština' },
+  { code: 'hu', name: 'Hungarian', nativeName: 'Magyar' },
+  { code: 'ro', name: 'Romanian', nativeName: 'Română' },
+  { code: 'uk', name: 'Ukrainian', nativeName: 'Українська' },
+  { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili' },
+  { code: 'af', name: 'Afrikaans', nativeName: 'Afrikaans' },
+  { code: 'zu', name: 'Zulu', nativeName: 'isiZulu' },
+];
+
+// Get suggested languages for a country
+export const getSuggestedLanguagesForCountry = (countryCode: string): string[] => {
+  const countryLanguages: Record<string, string[]> = {
+    'US': ['en', 'es'],
+    'CA': ['en', 'fr'],
+    'GB': ['en'],
+    'AU': ['en'],
+    'DE': ['de', 'en'],
+    'FR': ['fr', 'en'],
+    'ES': ['es', 'en'],
+    'IT': ['it', 'en'],
+    'NL': ['nl', 'en'],
+    'BR': ['pt', 'en'],
+    'MX': ['es', 'en'],
+    'IN': ['en', 'hi', 'bn'],
+    'JP': ['ja', 'en'],
+    'ZA': ['en', 'af', 'zu'],
+    'NG': ['en'],
+    'KE': ['en', 'sw'],
+    'NZ': ['en'],
+    'IE': ['en'],
+    'SG': ['en', 'zh', 'ms'],
+    'AE': ['ar', 'en'],
+    'PH': ['en', 'tl'],
+  };
+  return countryLanguages[countryCode] || ['en'];
 };

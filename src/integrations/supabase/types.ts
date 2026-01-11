@@ -203,6 +203,7 @@ export type Database = {
           search_limit: number | null
           status: string
           target_country: string | null
+          target_language: string | null
           target_state: string | null
           template_id: string | null
           updated_at: string
@@ -232,6 +233,7 @@ export type Database = {
           search_limit?: number | null
           status?: string
           target_country?: string | null
+          target_language?: string | null
           target_state?: string | null
           template_id?: string | null
           updated_at?: string
@@ -261,6 +263,7 @@ export type Database = {
           search_limit?: number | null
           status?: string
           target_country?: string | null
+          target_language?: string | null
           target_state?: string | null
           template_id?: string | null
           updated_at?: string
