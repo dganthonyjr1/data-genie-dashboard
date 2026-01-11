@@ -27,6 +27,7 @@ import CallAttempts from "./pages/CallAttempts";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Billing from "./pages/Billing";
 import PaymentSettings from "./pages/PaymentSettings";
+import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/billing" element={<Billing />} />
             <Route path="/settings/payments" element={<PaymentSettings />} />
+            <Route path="/contact" element={<Contact />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

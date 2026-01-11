@@ -20,6 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import AICallingTechnicalExplainer from "@/components/AICallingTechnicalExplainer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -436,6 +437,8 @@ const Pricing = () => {
           </div>
         </div>
       </section>
+
+      <AICallingTechnicalExplainer />
 
       {/* ROI Calculator Teaser */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
