@@ -21,6 +21,122 @@ interface Lead {
   pain_score?: number;
 }
 
+interface LeadResult {
+  name: string;
+  status: 'success' | 'failed';
+  error?: string;
+  attempts: number;
+}
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 500;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function syncLeadWithRetry(
+  lead: Lead,
+  webhookUrl: string
+): Promise<LeadResult> {
+  const leadName = lead.name || lead.business_name || 'Unknown';
+  
+  // Normalize phone number to E.164 format
+  let phone = lead.phone || lead.phone_number || '';
+  if (phone) {
+    phone = phone.replace(/\D/g, '');
+    if (phone.length === 10) {
+      phone = '+1' + phone;
+    } else if (phone.length === 11 && phone.startsWith('1')) {
+      phone = '+' + phone;
+    } else if (!phone.startsWith('+')) {
+      phone = '+' + phone;
+    }
+  }
+
+  const ghlPayload = {
+    first_name: leadName,
+    last_name: '',
+    name: leadName,
+    full_name: leadName,
+    company_name: leadName,
+    phone: phone,
+    email: lead.email || '',
+    address1: lead.address || '',
+    website: lead.website || '',
+    source: 'Lovable Lead Scraper',
+    tags: lead.category || lead.niche || '',
+    customField: {
+      category: lead.category || lead.niche || '',
+      rating: lead.rating?.toString() || '',
+      reviews: lead.reviews?.toString() || '',
+      revenue: lead.revenue?.toString() || '',
+      pain_score: lead.pain_score?.toString() || '',
+      website: lead.website || ''
+    }
+  };
+
+  let lastError = '';
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Attempt ${attempt}/${MAX_RETRIES} for: ${leadName}`);
+      
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(ghlPayload),
+      });
+
+      if (response.ok) {
+        console.log(`Successfully synced: ${leadName}`);
+        return {
+          name: leadName,
+          status: 'success',
+          attempts: attempt
+        };
+      }
+
+      // Check for non-retryable errors (4xx except 429)
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        const errorText = await response.text();
+        console.error(`Non-retryable error for ${leadName}: ${response.status} - ${errorText}`);
+        return {
+          name: leadName,
+          status: 'failed',
+          error: `HTTP ${response.status}: ${errorText.substring(0, 100)}`,
+          attempts: attempt
+        };
+      }
+
+      // Retryable error
+      lastError = `HTTP ${response.status}: ${await response.text()}`;
+      console.warn(`Retryable error for ${leadName}: ${lastError}`);
+      
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : 'Network error';
+      console.error(`Network error for ${leadName}: ${lastError}`);
+    }
+
+    // Exponential backoff before retry
+    if (attempt < MAX_RETRIES) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      console.log(`Waiting ${delay}ms before retry...`);
+      await sleep(delay);
+    }
+  }
+
+  // All retries exhausted
+  return {
+    name: leadName,
+    status: 'failed',
+    error: lastError.substring(0, 200),
+    attempts: MAX_RETRIES
+  };
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -72,87 +188,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Syncing ${leads.length} leads to GHL`);
+    console.log(`Syncing ${leads.length} leads to GHL with retry support`);
 
-    const results: { success: number; failed: number; errors: string[] } = {
-      success: 0,
-      failed: 0,
-      errors: []
-    };
+    // Process leads concurrently with retry logic
+    const results = await Promise.all(
+      leads.map(lead => syncLeadWithRetry(lead, webhookUrl))
+    );
 
-    // Send each lead to GHL webhook
-    for (const lead of leads) {
-      try {
-        // Normalize phone number to E.164 format
-        let phone = lead.phone || lead.phone_number || '';
-        if (phone) {
-          phone = phone.replace(/\D/g, '');
-          if (phone.length === 10) {
-            phone = '+1' + phone;
-          } else if (phone.length === 11 && phone.startsWith('1')) {
-            phone = '+' + phone;
-          } else if (!phone.startsWith('+')) {
-            phone = '+' + phone;
-          }
-        }
+    const successCount = results.filter(r => r.status === 'success').length;
+    const failedCount = results.filter(r => r.status === 'failed').length;
 
-        const ghlPayload = {
-          // Standard GHL form fields
-          first_name: lead.name || lead.business_name || '',
-          last_name: '',
-          name: lead.name || lead.business_name || '',
-          full_name: lead.name || lead.business_name || '',
-          company_name: lead.name || lead.business_name || '',
-          phone: phone,
-          email: lead.email || '',
-          address1: lead.address || '',
-          website: lead.website || '',
-          // Custom fields
-          source: 'Lovable Lead Scraper',
-          tags: lead.category || lead.niche || '',
-          customField: {
-            category: lead.category || lead.niche || '',
-            rating: lead.rating?.toString() || '',
-            reviews: lead.reviews?.toString() || '',
-            revenue: lead.revenue?.toString() || '',
-            pain_score: lead.pain_score?.toString() || '',
-            website: lead.website || ''
-          }
-        };
-
-        console.log(`Sending lead to GHL: ${lead.name || lead.business_name}`);
-
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(ghlPayload),
-        });
-
-        if (response.ok) {
-          results.success++;
-          console.log(`Successfully synced: ${lead.name || lead.business_name}`);
-        } else {
-          results.failed++;
-          const errorText = await response.text();
-          results.errors.push(`${lead.name || lead.business_name}: ${errorText}`);
-          console.error(`Failed to sync ${lead.name || lead.business_name}: ${errorText}`);
-        }
-      } catch (error) {
-        results.failed++;
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.errors.push(`${lead.name || lead.business_name}: ${errorMessage}`);
-        console.error(`Error syncing ${lead.name || lead.business_name}:`, error);
-      }
-    }
-
-    console.log(`Sync complete: ${results.success} success, ${results.failed} failed`);
+    console.log(`Sync complete: ${successCount} success, ${failedCount} failed`);
 
     return new Response(
       JSON.stringify({
-        message: `Synced ${results.success} of ${leads.length} leads to GoHighLevel`,
-        ...results
+        message: `Synced ${successCount} of ${leads.length} leads to GoHighLevel`,
+        success: successCount,
+        failed: failedCount,
+        results: results
       }),
       { 
         status: 200, 
