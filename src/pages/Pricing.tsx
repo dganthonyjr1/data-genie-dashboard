@@ -188,8 +188,8 @@ const Pricing = () => {
       answer: "A scrape is one data extraction request. Scraping one business from Google Maps = 1 scrape. Bulk operations count as multiple scrapes based on results returned (e.g., 50 URLs = 50 scrapes).",
     },
     {
-      question: "How do AI Sales Calls work?",
-      answer: "AI calls can trigger autonomously in two ways: 1) Auto-Call on Scrape Complete—enable this in Settings and calls trigger automatically for all scraped leads with phone numbers when a job finishes. 2) Instant Call on Lead Add—when you manually add a lead, an AI call initiates immediately. The AI generates personalized pitches based on business data (name, niche, pain score, revenue metrics). You can disable auto-calling anytime in Settings. All calls are logged in the Call Attempts dashboard.",
+      question: "How do AI Sales Calls work and how are they billed?",
+      answer: "AI calls trigger autonomously: 1) Auto-Call on Scrape Complete—enable in Settings for automatic calls when jobs finish. 2) Instant Call on Lead Add—calls initiate immediately when you add leads. Pricing is pay-as-you-go at $0.15/minute. Pro includes 100 call minutes/month, Enterprise includes unlimited. Additional usage is billed monthly. You can disable auto-calling anytime and monitor usage in the Call Attempts dashboard.",
     },
     {
       question: "How accurate is the scraped data?",
