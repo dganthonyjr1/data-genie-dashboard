@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall, Play, Square, CreditCard, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useBackgroundDiagnostics } from "@/hooks/use-background-diagnostics";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -21,6 +22,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { toast } = useToast();
   const { isDemoMode, toggleDemoMode } = useDemoMode();
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Initialize background diagnostics (runs every 15 minutes)
+  useBackgroundDiagnostics();
   
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
