@@ -29,6 +29,7 @@ import Billing from "./pages/Billing";
 import PaymentSettings from "./pages/PaymentSettings";
 import Contact from "./pages/Contact";
 import SystemDiagnostics from "./pages/SystemDiagnostics";
+import Status from "./pages/Status";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="/settings/payments" element={<PaymentSettings />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/diagnostics" element={<SystemDiagnostics />} />
+            <Route path="/status" element={<Status />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
