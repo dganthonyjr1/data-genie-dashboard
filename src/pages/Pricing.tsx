@@ -189,7 +189,7 @@ const Pricing = () => {
     },
     {
       question: "How do AI Sales Calls work?",
-      answer: "When you scrape a business with a phone number, you can trigger an AI-powered sales call with one click. The AI uses scraped data to generate a personalized pitch and handles the conversation. Note: Calls are initiated by user action, not automatically in the background.",
+      answer: "AI calls can trigger autonomously in two ways: 1) Auto-Call on Scrape Complete—enable this in Settings and calls trigger automatically for all scraped leads with phone numbers when a job finishes. 2) Instant Call on Lead Add—when you manually add a lead, an AI call initiates immediately. The AI generates personalized pitches based on business data (name, niche, pain score, revenue metrics). You can disable auto-calling anytime in Settings. All calls are logged in the Call Attempts dashboard.",
     },
     {
       question: "How accurate is the scraped data?",
