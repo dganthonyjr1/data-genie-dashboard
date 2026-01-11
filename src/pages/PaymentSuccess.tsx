@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CheckCircle, Loader2, XCircle, Zap, ArrowRight, Sparkles, Crown, Star, Download, FileText, Calendar, CreditCard, Hash } from "lucide-react";
+import { CheckCircle, Loader2, XCircle, Zap, ArrowRight, Sparkles, Crown, Star, Download, FileText, Calendar, CreditCard, Hash, Printer } from "lucide-react";
 import confetti from "canvas-confetti";
-import html2pdf from "html2pdf.js";
+import { useReactToPrint } from "react-to-print";
 
 type PaymentStatus = "verifying" | "success" | "pending" | "failed";
 
@@ -168,27 +168,22 @@ const PaymentSuccess = () => {
     verifyPayment();
   }, [verifyPayment]);
 
-  // Download receipt as PDF
-  const handleDownloadReceipt = async () => {
-    if (!receiptRef.current || !invoiceDetails) return;
-    
-    setIsDownloading(true);
-    
-    try {
-      const opt = {
-        margin: 0.5,
-        filename: `ScrapeX-Receipt-${invoiceDetails.transactionId}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt).from(receiptRef.current).save();
-    } catch (err) {
-      console.error("Error generating PDF:", err);
-    } finally {
+  // Print/Download receipt using browser's print functionality
+  const handlePrint = useReactToPrint({
+    contentRef: receiptRef,
+    documentTitle: invoiceDetails ? `ScrapeX-Receipt-${invoiceDetails.transactionId}` : 'ScrapeX-Receipt',
+    onBeforePrint: async () => {
+      setIsDownloading(true);
+      return Promise.resolve();
+    },
+    onAfterPrint: () => {
       setIsDownloading(false);
-    }
+    },
+  });
+
+  const handleDownloadReceipt = () => {
+    if (!receiptRef.current || !invoiceDetails) return;
+    handlePrint();
   };
 
   const planFeatures = {
@@ -344,9 +339,9 @@ const PaymentSuccess = () => {
                         {isDownloading ? (
                           <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                         ) : (
-                          <Download className="w-3 h-3 mr-1" />
+                          <Printer className="w-3 h-3 mr-1" />
                         )}
-                        Download PDF
+                        Print Receipt
                       </Button>
                     </div>
                     
