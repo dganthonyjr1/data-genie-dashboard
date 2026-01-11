@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useDiagnosticsStatus } from "./use-diagnostics-status";
+import { useDiagnosticsStatus, DiagnosticsStatus } from "./use-diagnostics-status";
+import { toast } from "sonner";
 
 const DIAGNOSTICS_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -10,14 +11,18 @@ interface TestResult {
 }
 
 export function useBackgroundDiagnostics() {
-  const { setStatus, setResults, lastRunAt } = useDiagnosticsStatus();
+  const { status: currentStatus, setStatus, setResults, lastRunAt } = useDiagnosticsStatus();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isRunningRef = useRef(false);
+  const previousStatusRef = useRef<DiagnosticsStatus>(currentStatus);
 
   const runQuickDiagnostics = useCallback(async () => {
     // Prevent concurrent runs
     if (isRunningRef.current) return;
     isRunningRef.current = true;
+    
+    // Store previous status before running
+    const previousStatus = previousStatusRef.current;
     
     setStatus("running");
     
@@ -87,6 +92,40 @@ export function useBackgroundDiagnostics() {
       console.error("Background diagnostics error:", error);
       failedCount = totalTests - passedCount;
     } finally {
+      // Determine new status
+      const newStatus: DiagnosticsStatus = 
+        failedCount === 0 ? "passed" : 
+        passedCount === 0 ? "failed" : "partial";
+      
+      // Check for status degradation and show toast
+      const wasHealthy = previousStatus === "passed";
+      const isNowUnhealthy = newStatus === "failed" || newStatus === "partial";
+      
+      if (wasHealthy && isNowUnhealthy) {
+        toast.error("System Health Alert", {
+          description: `${failedCount} diagnostic check${failedCount > 1 ? 's' : ''} failed. Click to view details.`,
+          action: {
+            label: "View",
+            onClick: () => window.location.href = "/diagnostics",
+          },
+          duration: 10000,
+        });
+      }
+      
+      // Check for recovery and show success toast
+      const wasUnhealthy = previousStatus === "failed" || previousStatus === "partial";
+      const isNowHealthy = newStatus === "passed";
+      
+      if (wasUnhealthy && isNowHealthy) {
+        toast.success("System Recovered", {
+          description: "All diagnostic checks are now passing.",
+          duration: 5000,
+        });
+      }
+      
+      // Update the previous status ref
+      previousStatusRef.current = newStatus;
+      
       setResults(passedCount, failedCount, totalTests);
       isRunningRef.current = false;
     }
