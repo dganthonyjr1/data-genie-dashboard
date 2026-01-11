@@ -225,13 +225,21 @@ serve(async (req) => {
           let ratingsBreakdown = null;
           if (result.reviews_breakdown) {
             ratingsBreakdown = result.reviews_breakdown;
-          } else if (result.extensions) {
-            // Try to parse ratings from extensions
-            const ratingMatch = result.extensions.find((ext: string) => 
-              ext.includes('5-star') || ext.includes('4-star') || ext.includes('reviews')
-            );
+          } else if (result.extensions && Array.isArray(result.extensions)) {
+            // Try to parse ratings from extensions - handle both string and object formats
+            const ratingMatch = result.extensions.find((ext: any) => {
+              if (typeof ext === 'string') {
+                return ext.includes('5-star') || ext.includes('4-star') || ext.includes('reviews');
+              }
+              // If ext is an object, check its string representation or known properties
+              if (typeof ext === 'object' && ext !== null) {
+                const extStr = JSON.stringify(ext);
+                return extStr.includes('star') || extStr.includes('review');
+              }
+              return false;
+            });
             if (ratingMatch) {
-              ratingsBreakdown = { raw: ratingMatch };
+              ratingsBreakdown = { raw: typeof ratingMatch === 'string' ? ratingMatch : JSON.stringify(ratingMatch) };
             }
           }
 
