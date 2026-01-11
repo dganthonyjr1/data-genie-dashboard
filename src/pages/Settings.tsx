@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Save, Key, Webhook, ChevronRight, Phone } from "lucide-react";
+import { Bell, Save, Key, Webhook, ChevronRight, Phone, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -182,6 +182,21 @@ const Settings = () => {
                   <div>
                     <p className="font-medium">Webhooks</p>
                     <p className="text-sm text-muted-foreground">Send results to your applications automatically</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </Link>
+            
+            <Link to="/diagnostics">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <Activity className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium">System Diagnostics</p>
+                    <p className="text-sm text-muted-foreground">Run health checks on auth, database, and backend functions</p>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
