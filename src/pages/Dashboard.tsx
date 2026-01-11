@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import UsageTracking from "@/components/UsageTracking";
 import BusinessAnalyzer from "@/components/BusinessAnalyzer";
+import WelcomeOnboarding from "@/components/WelcomeOnboarding";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -263,6 +264,8 @@ const Dashboard = () => {
     );
   }
 
+  // Check if this is a new user with no jobs
+  const isNewUser = !isDemoMode && jobs.length === 0;
 
   return (
     <DashboardLayout>
@@ -274,16 +277,18 @@ const Dashboard = () => {
               Dashboard
             </h1>
             <p className="text-muted-foreground mt-2">
-              Analyze businesses and trigger AI sales calls
+              {isNewUser ? "Get started with your first scraping job" : "Analyze businesses and trigger AI sales calls"}
             </p>
           </div>
-          <Button
-            onClick={() => navigate("/new-job")}
-            className="bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 transition-opacity"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New Job
-          </Button>
+          {!isNewUser && (
+            <Button
+              onClick={() => navigate("/new-job")}
+              className="bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 transition-opacity"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Job
+            </Button>
+          )}
         </div>
 
         {/* Demo Mode Banner */}
@@ -297,8 +302,13 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Business Analyzer - Main Feature */}
-        <BusinessAnalyzer />
+        {/* Show Welcome Onboarding for new users */}
+        {isNewUser ? (
+          <WelcomeOnboarding />
+        ) : (
+          <>
+            {/* Business Analyzer - Main Feature */}
+            <BusinessAnalyzer />
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -630,6 +640,8 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
