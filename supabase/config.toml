@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.send-payment-receipt]
 verify_jwt = false
+
+[functions.sync-to-ghl]
+verify_jwt = false
