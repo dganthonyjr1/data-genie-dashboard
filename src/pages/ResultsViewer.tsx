@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ import ManualDataEntryModal from "@/components/ManualDataEntryModal";
 import ClipboardImportModal from "@/components/ClipboardImportModal";
 import GoogleSheetsExportModal from "@/components/GoogleSheetsExportModal";
 import LeadAuditPanel from "@/components/LeadAuditPanel";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 interface Job {
   id: string;
@@ -238,19 +238,62 @@ export default function ResultsViewer() {
     return job.results.map(row => flattenObject(row));
   };
 
-  const handleDownloadExcel = () => {
+  const handleDownloadExcel = async () => {
     if (!job?.results || job.results.length === 0) return;
 
-    const flattenedResults = job.results.map(row => flattenObject(row));
-    const worksheet = XLSX.utils.json_to_sheet(flattenedResults);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
-    XLSX.writeFile(workbook, `scrape-results-${job.id}.xlsx`);
+    try {
+      const flattenedResults = job.results.map(row => flattenObject(row));
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Results");
+      
+      // Add headers
+      if (flattenedResults.length > 0) {
+        const headers = Object.keys(flattenedResults[0]);
+        worksheet.addRow(headers);
+        
+        // Style header row
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+        
+        // Add data rows
+        flattenedResults.forEach(row => {
+          worksheet.addRow(headers.map(header => row[header] ?? ''));
+        });
+        
+        // Auto-fit columns
+        worksheet.columns.forEach(column => {
+          column.width = 20;
+        });
+      }
+      
+      // Generate buffer and download
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `scrape-results-${job.id}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-    toast({
-      title: "Downloaded!",
-      description: "Excel file has been downloaded",
-    });
+      toast({
+        title: "Downloaded!",
+        description: "Excel file has been downloaded",
+      });
+    } catch (error) {
+      console.error("Error generating Excel file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate Excel file",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddManualData = async (newData: Record<string, string>[]) => {

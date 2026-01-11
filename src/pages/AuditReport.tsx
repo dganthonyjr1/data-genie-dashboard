@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useRef, useState } from "react";
 import { useReactToPrint } from "react-to-print";
 
