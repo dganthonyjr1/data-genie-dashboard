@@ -64,7 +64,7 @@ const Index = () => {
     { value: "150+", label: "Countries Supported" },
     { value: "85-90%", label: "Contact Accuracy" },
     { value: "<3s", label: "Average Scrape Time" },
-    { value: "1-Click", label: "AI Sales Calls" },
+    { value: "Auto", label: "AI Sales Calls" },
   ];
 
   const features = [
@@ -80,8 +80,8 @@ const Index = () => {
     },
     {
       icon: Phone,
-      title: "One-Click AI Sales Calls",
-      description: "Trigger AI-powered sales calls with personalized pitches based on scraped business data. Review the analysis, then call with one click.",
+      title: "Autonomous AI Sales Calls",
+      description: "AI calls trigger automatically when scraping completes (if enabled) or when you add leads. Personalized pitches based on scraped business data.",
     },
     {
       icon: TrendingUp,
@@ -104,7 +104,7 @@ const Index = () => {
     { step: "1", title: "Scrape", description: "Enter a URL or search query to extract business data" },
     { step: "2", title: "Analyze", description: "AI identifies service gaps & growth opportunities" },
     { step: "3", title: "Score", description: "Leads ranked by conversion potential" },
-    { step: "4", title: "Call", description: "One-click AI calls with personalized pitch" },
+    { step: "4", title: "Call", description: "Auto-triggered AI calls with personalized pitch" },
   ];
 
   const testimonials = [
@@ -467,13 +467,17 @@ const Index = () => {
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground">
                 <p className="mb-2">
-                  <strong>User-initiated, not autonomous.</strong> When you scrape a business with a phone number, you can trigger an AI call with one click.
+                  <strong>Autonomous calling with two trigger modes:</strong>
                 </p>
+                <ul className="list-disc list-inside space-y-1 mb-2">
+                  <li><strong>Auto-Call on Scrape Complete:</strong> Enable this in Settings, and calls trigger automatically for all scraped leads with phone numbers when a job finishes.</li>
+                  <li><strong>Instant Call on Lead Add:</strong> When you manually add a lead, an AI call initiates immediately.</li>
+                </ul>
                 <p className="mb-2">
-                  The AI generates a personalized pitch based on the business data (name, services, identified opportunities) and handles the conversation in real-time.
+                  The AI generates a personalized pitch based on the business data (name, niche, services, pain score, revenue metrics) and handles the conversation in real-time.
                 </p>
                 <p>
-                  <strong>Note:</strong> Calls don't happen automatically in the background. You review the analysis first, then decide whether to call. All calls are recorded for your records.
+                  <strong>Control:</strong> You can disable auto-calling anytime in Settings if you prefer to review leads first. All calls are logged in the Call Attempts dashboard.
                 </p>
               </AccordionContent>
             </AccordionItem>
