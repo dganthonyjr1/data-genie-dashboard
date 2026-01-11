@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare, Mail, ShieldCheck, Play, Brain } from "lucide-react";
+import { Phone, Building2, TrendingDown, Loader2, Plus, Search, Pencil, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertTriangle, DollarSign, Trash2, Square, CheckSquare, Mail, ShieldCheck, Play, Brain, Upload } from "lucide-react";
+import { CRMExportModal } from "@/components/CRMExportModal";
 import { Checkbox } from "@/components/ui/checkbox";
 import DashboardLayout from "@/components/DashboardLayout";
 import { EmailVerificationBadge, BulkEmailVerifier } from "@/components/EmailVerification";
@@ -127,6 +128,7 @@ const Leads = () => {
   const [currentLeadIndex, setCurrentLeadIndex] = useState(0);
   const [isAllLeadsOpen, setIsAllLeadsOpen] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [isCRMExportOpen, setIsCRMExportOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -639,13 +641,22 @@ const Leads = () => {
               Manage and contact your scraped business leads
             </p>
           </div>
-          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-lg">
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Lead
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCRMExportOpen(true)}
+              disabled={leads.length === 0}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Send to CRM
+            </Button>
+            <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-lg">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add New Lead
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Add New Lead</DialogTitle>
@@ -757,7 +768,27 @@ const Leads = () => {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
+
+        {/* CRM Export Modal */}
+        <CRMExportModal
+          open={isCRMExportOpen}
+          onOpenChange={setIsCRMExportOpen}
+          leads={displayLeads.map(lead => ({
+            name: lead.businessName,
+            business_name: lead.businessName,
+            phone: lead.phoneNumber,
+            phone_number: lead.phoneNumber,
+            email: lead.email,
+            category: lead.niche,
+            niche: lead.niche,
+            revenue: lead.monthlyRevenue ?? undefined,
+            pain_score: lead.painScore ?? undefined,
+            rating: lead.reviewRating,
+            reviews: lead.reviewCount
+          }))}
+        />
 
         {/* AI Lead Leaderboard */}
         {!isLoading && displayLeads.length > 0 && (
