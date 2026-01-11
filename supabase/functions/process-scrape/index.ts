@@ -91,7 +91,7 @@ serve(async (req) => {
       .update({ status: 'processing' })
       .eq('id', jobId);
 
-    console.log(`Processing job ${jobId} for URL: ${job.url}, Country: ${job.target_country || 'any'}, State: ${job.target_state || 'any'}`);
+    console.log(`Processing job ${jobId} for URL: ${job.url}, Country: ${job.target_country || 'any'}, State: ${job.target_state || 'any'}, Language: ${job.target_language || 'auto'}`);
 
     // Handle Google Business Profiles scraping with SerpAPI (Enhanced)
     if (job.scrape_type === 'google_business_profiles') {
@@ -404,7 +404,7 @@ serve(async (req) => {
         body: JSON.stringify({
           query: job.url, // In bulk search, url field contains the search query
           limit: job.search_limit || 20,
-          lang: job.target_country ? getLanguagesForCountry(job.target_country)[0] : 'en',
+          lang: job.target_language || (job.target_country ? getLanguagesForCountry(job.target_country)[0] : 'en'),
           country: job.target_country || 'US',
           scrapeOptions: {
             formats: ['markdown', 'html'],
@@ -552,19 +552,23 @@ serve(async (req) => {
       );
     }
 
-    // Build Firecrawl request with optional geo-targeting (for non-bulk scrapes)
+    // Build Firecrawl request with optional geo-targeting and language (for non-bulk scrapes)
     const firecrawlBody: any = {
       url: job.url,
       formats: ['markdown', 'html'],
     };
     
     // Add location for geo-targeted scraping if specified
-    if (job.target_country) {
+    if (job.target_country || job.target_language) {
+      const languages = job.target_language 
+        ? [job.target_language] 
+        : (job.target_country ? getLanguagesForCountry(job.target_country) : ['en']);
+      
       firecrawlBody.location = {
-        country: job.target_country,
-        languages: getLanguagesForCountry(job.target_country),
+        country: job.target_country || 'US',
+        languages: languages,
       };
-      console.log(`Using geo-targeting for country: ${job.target_country}`);
+      console.log(`Using geo-targeting: country=${job.target_country || 'US'}, languages=${languages.join(', ')}`);
     }
 
     // Scrape the website using Firecrawl

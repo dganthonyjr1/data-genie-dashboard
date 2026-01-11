@@ -19,7 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrapingTemplates } from "@/components/ScrapingTemplates";
 import { Globe, Search, Info, AlertTriangle, Lightbulb, MapPin, ChevronDown, Sparkles, Settings2, Webhook } from "lucide-react";
-import { COUNTRIES, getRegionsForCountry, getRegionLabel } from "@/lib/international-regions";
+import { COUNTRIES, LANGUAGES, getRegionsForCountry, getRegionLabel, getSuggestedLanguagesForCountry } from "@/lib/international-regions";
 
 const formSchema = z.object({
   url: z.string()
@@ -34,6 +34,7 @@ const formSchema = z.object({
   aiInstructions: z.string().optional(),
   targetCountry: z.string().optional(),
   targetState: z.string().optional(),
+  targetLanguage: z.string().optional(),
   searchLimit: z.number().optional(),
   autoPaginate: z.boolean().optional(),
   maxPages: z.number().optional(),
@@ -121,6 +122,7 @@ const NewJob = () => {
       aiInstructions: "",
       targetCountry: "",
       targetState: "",
+      targetLanguage: "",
       searchLimit: 20,
       autoPaginate: false,
       maxPages: 10,
@@ -196,6 +198,7 @@ const NewJob = () => {
         next_run_at: nextRunAt,
         target_country: data.targetCountry && data.targetCountry !== 'none' ? data.targetCountry : null,
         target_state: data.targetState && data.targetState !== 'none' ? data.targetState : null,
+        target_language: data.targetLanguage && data.targetLanguage !== 'none' ? data.targetLanguage : null,
         search_limit: data.searchLimit || 20,
         auto_paginate: data.autoPaginate || false,
         max_pages: data.maxPages || 10,
@@ -470,20 +473,32 @@ const NewJob = () => {
                     />
                   )}
 
-                  {/* Location Targeting */}
+                  {/* Location & Language Targeting */}
                   <div className="space-y-4 p-4 rounded-lg border border-border/50 bg-background/30">
-                    <h3 className="text-sm font-medium text-muted-foreground">Target Location (Optional)</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">Location & Language Targeting (Optional)</h3>
                     <p className="text-xs text-muted-foreground">
-                      Specify a location for geo-targeted scraping and location-aware phone validation
+                      Specify location for geo-targeted scraping and language for content localization
                     </p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
                         name="targetCountry"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Country</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select 
+                              onValueChange={(val) => {
+                                field.onChange(val);
+                                // Clear region when country changes
+                                form.setValue('targetState', '');
+                                // Suggest a language based on country
+                                const suggested = getSuggestedLanguagesForCountry(val);
+                                if (suggested[0] && !form.getValues('targetLanguage')) {
+                                  form.setValue('targetLanguage', suggested[0]);
+                                }
+                              }} 
+                              value={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger className="bg-background/50">
                                   <SelectValue placeholder="Select country" />
@@ -533,6 +548,34 @@ const NewJob = () => {
                           />
                         );
                       })()}
+
+                      <FormField
+                        control={form.control}
+                        name="targetLanguage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Language</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="bg-background/50">
+                                  <SelectValue placeholder="Select language" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="bg-popover z-50 max-h-[300px]">
+                                {LANGUAGES.map((lang) => (
+                                  <SelectItem key={lang.code || 'auto'} value={lang.code || 'none'}>
+                                    {lang.name}{lang.nativeName && lang.code ? ` (${lang.nativeName})` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Get content in a specific language
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </div>
 
