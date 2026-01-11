@@ -103,12 +103,13 @@ const Pricing = () => {
       description: "For organizations with advanced needs and scale",
       popular: false,
       features: [
-        "Unlimited scrapes",
+        "10,000 scrapes/month",
         "Complete business intelligence",
         "AI Revenue Leak Analysis",
-        "Unlimited AI Sales Calls",
+        "500 AI call minutes/month",
+        "Pay-as-you-go overage ($0.12/min)",
         "Advanced lead scoring",
-        "Unlimited API access",
+        "100K API requests/month",
         "Custom webhook integrations",
         "Unlimited team members",
         "90-day data retention",
@@ -116,7 +117,7 @@ const Pricing = () => {
         "Custom integrations",
         "SSO & SAML",
         "SLA guarantee",
-        "On-premise deployment option",
+        "Priority support",
       ],
       notIncluded: [],
       cta: "Contact Sales",
@@ -189,7 +190,7 @@ const Pricing = () => {
     },
     {
       question: "How do AI Sales Calls work and how are they billed?",
-      answer: "AI calls trigger autonomously: 1) Auto-Call on Scrape Complete—enable in Settings for automatic calls when jobs finish. 2) Instant Call on Lead Add—calls initiate immediately when you add leads. Pricing is pay-as-you-go at $0.15/minute. Pro includes 100 call minutes/month, Enterprise includes unlimited. Additional usage is billed monthly. You can disable auto-calling anytime and monitor usage in the Call Attempts dashboard.",
+      answer: "AI calls trigger autonomously via webhook to your calling provider (e.g., Make.com + Vapi/Bland.ai). Two modes: 1) Auto-Call on Scrape Complete—enable in Settings for automatic calls when jobs finish. 2) Instant Call on Lead Add—calls initiate when you add leads. Pricing: $0.15/min (Pro) or $0.12/min (Enterprise). Pro includes 100 min/month, Enterprise includes 500 min/month. Overage billed monthly. Monitor usage in Call Attempts dashboard.",
     },
     {
       question: "How accurate is the scraped data?",
@@ -206,11 +207,12 @@ const Pricing = () => {
   ];
 
   const comparisonFeatures = [
-    { feature: "Monthly Scrapes", starter: "50", pro: "2,500", enterprise: "Unlimited" },
+    { feature: "Monthly Scrapes", starter: "50", pro: "2,500", enterprise: "10,000" },
     { feature: "AI Revenue Analysis", starter: false, pro: true, enterprise: true },
-    { feature: "AI Sales Calls", starter: false, pro: "100/mo", enterprise: "Unlimited" },
+    { feature: "AI Sales Calls", starter: false, pro: "100 min", enterprise: "500 min" },
+    { feature: "Overage Rate", starter: "—", pro: "$0.15/min", enterprise: "$0.12/min" },
     { feature: "Lead Scoring", starter: false, pro: true, enterprise: true },
-    { feature: "API Access", starter: false, pro: "10K/mo", enterprise: "Unlimited" },
+    { feature: "API Access", starter: false, pro: "10K/mo", enterprise: "100K/mo" },
     { feature: "Webhooks", starter: false, pro: true, enterprise: true },
     { feature: "Team Members", starter: "1", pro: "5", enterprise: "Unlimited" },
     { feature: "Data Retention", starter: "7 days", pro: "30 days", enterprise: "90 days" },
