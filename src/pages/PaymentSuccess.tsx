@@ -187,8 +187,8 @@ const PaymentSuccess = () => {
   };
 
   const planFeatures = {
-    Pro: ["2,500 scrapes/month", "AI Revenue Analysis", "100 AI Sales Calls", "API Access"],
-    Enterprise: ["Unlimited scrapes", "Unlimited AI Calls", "Dedicated Support", "Custom Integrations"],
+    Pro: ["2,500 scrapes/month", "AI Revenue Analysis", "100 AI call minutes", "API Access (10K/mo)"],
+    Enterprise: ["10,000 scrapes/month", "AI Revenue Analysis", "500 AI call minutes", "API Access (100K/mo)"],
     Starter: ["50 scrapes/month", "Basic extraction", "Email support"],
   };
 
