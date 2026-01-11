@@ -19,49 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrapingTemplates } from "@/components/ScrapingTemplates";
 import { Globe, Search, Info, AlertTriangle, Lightbulb, MapPin, ChevronDown, Sparkles, Settings2, Webhook } from "lucide-react";
-
-// Country codes for geo-targeting
-const COUNTRIES = [
-  { code: '', name: 'Any Location' },
-  { code: 'US', name: 'United States' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'BR', name: 'Brazil' },
-  { code: 'MX', name: 'Mexico' },
-  { code: 'IN', name: 'India' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'ZA', name: 'South Africa' },
-  { code: 'NG', name: 'Nigeria' },
-  { code: 'KE', name: 'Kenya' },
-];
-
-// US States for more specific targeting
-const US_STATES = [
-  { code: '', name: 'Any State' },
-  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
-  { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
-  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'FL', name: 'Florida' },
-  { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' }, { code: 'ID', name: 'Idaho' },
-  { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' }, { code: 'IA', name: 'Iowa' },
-  { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' }, { code: 'LA', name: 'Louisiana' },
-  { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' }, { code: 'MA', name: 'Massachusetts' },
-  { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' }, { code: 'MS', name: 'Mississippi' },
-  { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' }, { code: 'NE', name: 'Nebraska' },
-  { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' }, { code: 'NJ', name: 'New Jersey' },
-  { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' }, { code: 'NC', name: 'North Carolina' },
-  { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' }, { code: 'OK', name: 'Oklahoma' },
-  { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' }, { code: 'RI', name: 'Rhode Island' },
-  { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' },
-  { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' },
-  { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
-  { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }, { code: 'DC', name: 'Washington D.C.' },
-];
+import { COUNTRIES, getRegionsForCountry, getRegionLabel } from "@/lib/international-regions";
 
 const formSchema = z.object({
   url: z.string()
@@ -544,32 +502,37 @@ const NewJob = () => {
                         )}
                       />
 
-                      {form.watch("targetCountry") === "US" && (
-                        <FormField
-                          control={form.control}
-                          name="targetState"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>State</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger className="bg-background/50">
-                                    <SelectValue placeholder="Select state" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className="bg-popover z-50 max-h-[300px]">
-                                  {US_STATES.map((state) => (
-                                    <SelectItem key={state.code || 'any'} value={state.code || 'none'}>
-                                      {state.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                      {(() => {
+                        const targetCountry = form.watch("targetCountry");
+                        const regions = targetCountry ? getRegionsForCountry(targetCountry) : null;
+                        if (!regions) return null;
+                        return (
+                          <FormField
+                            control={form.control}
+                            name="targetState"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{getRegionLabel(targetCountry)}</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="bg-background/50">
+                                      <SelectValue placeholder={`Select ${getRegionLabel(targetCountry).toLowerCase()}`} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="bg-popover z-50 max-h-[300px]">
+                                    {regions.map((region) => (
+                                      <SelectItem key={region.code || 'any'} value={region.code || 'none'}>
+                                        {region.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        );
+                      })()}
                     </div>
                   </div>
 
