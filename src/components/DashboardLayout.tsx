@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { NotificationBell } from "./NotificationBell";
+import { DiagnosticsStatusIndicator } from "./DiagnosticsStatusIndicator";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { Switch } from "./ui/switch";
 
@@ -202,7 +203,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main Content */}
       <main className="pl-64 h-screen overflow-y-auto">
         <div className="container mx-auto p-8">
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end items-center gap-3 mb-4">
+            <DiagnosticsStatusIndicator />
             <NotificationBell />
           </div>
           {children}

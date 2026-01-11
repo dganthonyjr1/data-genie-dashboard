@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Shield, Database, Zap, Server } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useDiagnosticsStatus } from "@/hooks/use-diagnostics-status";
 
 type TestStatus = "pending" | "running" | "passed" | "failed" | "warning";
 
@@ -60,6 +61,7 @@ export default function SystemDiagnostics() {
   const [tests, setTests] = useState<DiagnosticTest[]>(initialTests);
   const [isRunning, setIsRunning] = useState(false);
   const [overallStatus, setOverallStatus] = useState<"idle" | "running" | "passed" | "failed" | "partial">("idle");
+  const { setStatus: setGlobalStatus, setResults: setGlobalResults } = useDiagnosticsStatus();
 
   const updateTest = (id: string, updates: Partial<DiagnosticTest>) => {
     setTests(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
@@ -94,10 +96,12 @@ export default function SystemDiagnostics() {
   const runAllTests = async () => {
     setIsRunning(true);
     setOverallStatus("running");
+    setGlobalStatus("running");
     setTests(initialTests);
     
     let passedCount = 0;
     let failedCount = 0;
+    const totalCount = initialTests.length;
 
     // Auth tests
     const authPassed = await runTest("auth-session", async () => {
@@ -236,7 +240,7 @@ export default function SystemDiagnostics() {
       return { passed: true, message: `Backend connectivity ${status}`, details: `Latency: ${latency}ms` };
     }).then(p => p ? passedCount++ : failedCount++);
 
-    // Set overall status
+    // Set overall status and sync with global state
     if (failedCount === 0) {
       setOverallStatus("passed");
     } else if (passedCount === 0) {
@@ -244,6 +248,9 @@ export default function SystemDiagnostics() {
     } else {
       setOverallStatus("partial");
     }
+    
+    // Update global diagnostics status for the indicator
+    setGlobalResults(passedCount, failedCount, totalCount);
 
     setIsRunning(false);
   };
