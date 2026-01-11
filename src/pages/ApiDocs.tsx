@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code, Key, Webhook, Zap } from "lucide-react";
+import { Link } from "react-router";
 
 const ApiDocs = () => {
   const baseUrl = "https://xqxggeceacpkpgvbsspw.supabase.co/functions/v1/api";
@@ -184,9 +185,9 @@ curl -X GET '${baseUrl}/jobs/JOB_ID' \\
             </pre>
             <p className="text-sm text-muted-foreground">
               Create and manage your API keys in{" "}
-              <a href="/settings/api" className="text-primary hover:underline">
+              <Link to="/settings/api" className="text-primary hover:underline">
                 Settings → API Keys
-              </a>
+              </Link>
             </p>
           </CardContent>
         </Card>
@@ -303,9 +304,9 @@ curl -X GET '${baseUrl}/jobs/JOB_ID' \\
             <p className="text-sm text-muted-foreground">
               Configure webhooks to receive POST requests when job events occur.
               Set up webhooks in{" "}
-              <a href="/settings/webhooks" className="text-primary hover:underline">
+              <Link to="/settings/webhooks" className="text-primary hover:underline">
                 Settings → Webhooks
-              </a>
+              </Link>
             </p>
             <div>
               <p className="text-xs text-muted-foreground mb-2">Webhook Payload:</p>
