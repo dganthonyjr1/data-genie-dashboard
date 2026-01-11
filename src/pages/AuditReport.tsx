@@ -1,31 +1,29 @@
 import { Button } from "@/components/ui/button";
-import { Download, ArrowLeft, Loader2 } from "lucide-react";
+import { Printer, ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRef, useState } from "react";
-import html2pdf from "html2pdf.js";
+import { useReactToPrint } from "react-to-print";
 
 const AuditReport = () => {
   const navigate = useNavigate();
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
-    
-    setIsGenerating(true);
-    try {
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: 'scrapex-audit-report.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-      
-      await html2pdf().set(opt).from(reportRef.current).save();
-    } finally {
+  const handlePrint = useReactToPrint({
+    contentRef: reportRef,
+    documentTitle: 'scrapex-audit-report',
+    onBeforePrint: async () => {
+      setIsGenerating(true);
+      return Promise.resolve();
+    },
+    onAfterPrint: () => {
       setIsGenerating(false);
-    }
+    },
+  });
+
+  const handleDownloadPDF = () => {
+    if (!reportRef.current) return;
+    handlePrint();
   };
 
   return (
@@ -41,9 +39,9 @@ const AuditReport = () => {
             {isGenerating ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <Printer className="w-4 h-4 mr-2" />
             )}
-            {isGenerating ? "Generating..." : "Download PDF"}
+            {isGenerating ? "Preparing..." : "Print / Save PDF"}
           </Button>
         </div>
       </div>
