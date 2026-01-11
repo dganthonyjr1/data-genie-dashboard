@@ -54,67 +54,67 @@ const Index = () => {
   }
 
   const stats = [
-    { value: "10M+", label: "Businesses Indexed" },
-    { value: "99.7%", label: "Data Accuracy" },
+    { value: "150+", label: "Countries Supported" },
+    { value: "85-90%", label: "Contact Accuracy" },
     { value: "<3s", label: "Average Scrape Time" },
-    { value: "24/7", label: "Automated Outreach" },
+    { value: "1-Click", label: "AI Sales Calls" },
   ];
 
   const features = [
     {
       icon: Target,
-      title: "Intelligent Scraping",
-      description: "Extract verified business data from any source—Google Maps, websites, directories—with AI-powered accuracy.",
+      title: "Intelligent Web Scraping",
+      description: "Extract business data from websites, Google Business Profiles, and directories. Captures names, phone numbers, emails, and social profiles.",
     },
     {
       icon: Sparkles,
-      title: "Revenue Leak Analysis",
-      description: "AI identifies missed revenue opportunities, poor online presence, and competitive gaps for each lead.",
+      title: "AI Revenue Analysis",
+      description: "Our AI analyzes scraped data to identify business size, service gaps, competitive positioning, and growth opportunities.",
     },
     {
       icon: Phone,
-      title: "Autonomous Sales Calls",
-      description: "Instantly trigger AI-powered sales calls with personalized scripts based on scraped intelligence.",
+      title: "One-Click AI Sales Calls",
+      description: "Trigger AI-powered sales calls with personalized pitches based on scraped business data. Review the analysis, then call with one click.",
     },
     {
       icon: TrendingUp,
       title: "Lead Scoring & Prioritization",
-      description: "Smart algorithms rank leads by conversion potential so your team focuses on high-value prospects.",
+      description: "AI ranks leads by conversion potential based on business data, helping your team focus on high-value prospects.",
     },
     {
       icon: Shield,
-      title: "Enterprise Security",
-      description: "Bank-grade encryption, row-level security, and SOC 2-ready infrastructure protect your data.",
+      title: "Secure Infrastructure",
+      description: "Built on Supabase with API key authentication, HTTPS encryption, and row-level security. Your data is never sold or shared.",
     },
     {
       icon: Globe,
-      title: "API-First Architecture",
-      description: "RESTful API with webhooks enables seamless integration with your existing tech stack.",
+      title: "REST API & Webhooks",
+      description: "Integrate via REST API with real-time webhook notifications. Rate limits: 100 req/min, 1,000 jobs/day.",
     },
   ];
 
   const pipelineSteps = [
-    { step: "1", title: "Scrape", description: "Enter a query or URL to extract business data" },
-    { step: "2", title: "Analyze", description: "AI identifies pain points & revenue opportunities" },
+    { step: "1", title: "Scrape", description: "Enter a URL or search query to extract business data" },
+    { step: "2", title: "Analyze", description: "AI identifies service gaps & growth opportunities" },
     { step: "3", title: "Score", description: "Leads ranked by conversion potential" },
-    { step: "4", title: "Call", description: "Autonomous AI calls with personalized pitch" },
+    { step: "4", title: "Call", description: "One-click AI calls with personalized pitch" },
   ];
 
   const testimonials = [
     {
-      quote: "ScrapeX transformed our lead gen. We went from 50 cold calls a day to 200 qualified conversations.",
+      quote: "We reduced our lead research time by 70% and increased qualified conversations by 3x.",
       author: "Sarah Chen",
       role: "VP Sales, TechFlow Solutions",
       avatar: "SC",
     },
     {
-      quote: "The revenue leak analysis alone paid for a year of subscription in the first month.",
+      quote: "The bulk scraping feature alone saves us 20 hours per week on manual data entry.",
       author: "Marcus Johnson",
       role: "Founder, Growth Partners Agency",
       avatar: "MJ",
     },
     {
-      quote: "Finally, a scraper that actually understands B2B sales. The AI calling feature is game-changing.",
+      quote: "Finally, a tool that handles scraping and calling without switching between platforms.",
       author: "Emily Rodriguez",
       role: "Director of BizDev, ScaleUp Inc",
       avatar: "ER",
@@ -172,20 +172,20 @@ const Index = () => {
         <div className="relative max-w-7xl mx-auto text-center">
           <Badge variant="outline" className="mb-6 px-4 py-2 border-primary/50 bg-primary/10">
             <Sparkles className="w-4 h-4 mr-2 text-primary" />
-            The Future of B2B Lead Generation
+            Scraping + Analysis + Calling in One Platform
           </Badge>
           
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-            <span className="text-foreground">Scrape. Analyze.</span>
+            <span className="text-foreground">Scrape. Analyze. Call.</span>
             <br />
             <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              Close Deals Automatically.
+              All in One Platform.
             </span>
           </h1>
           
           <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-            ScrapeX is the world's first AI-powered sales intelligence platform that extracts business data, 
-            identifies revenue opportunities, and initiates personalized sales calls—all autonomously.
+            Extract business data, identify revenue opportunities, and trigger AI-powered sales calls—without 
+            switching between tools. One platform. One price. Faster, simpler, more affordable.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
@@ -234,7 +234,7 @@ const Index = () => {
               From Data to <span className="text-primary">Deals</span> in Minutes
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Our end-to-end pipeline transforms raw business data into closed deals with zero manual intervention.
+              Most businesses scraped in under 3 seconds. Review AI analysis, then call with one click.
             </p>
           </div>
 
@@ -270,10 +270,10 @@ const Index = () => {
               Platform Features
             </Badge>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-              Enterprise-Grade <span className="text-secondary">Intelligence</span>
+              What <span className="text-secondary">ScrapeX</span> Does
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Built for scale, designed for results. Every feature optimized for B2B sales excellence.
+              Combine scraping, AI analysis, and calling in one platform. Simpler than juggling three separate tools.
             </p>
           </div>
 
@@ -368,11 +368,11 @@ const Index = () => {
 
         <div className="relative max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-            Ready to <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Automate</span> Your Sales Pipeline?
+            Ready to <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Simplify</span> Your Lead Generation?
           </h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join hundreds of sales teams who've transformed their lead generation with ScrapeX. 
-            Start your free trial today—no credit card required.
+            Stop juggling three different tools. Get scraping, analysis, and calling in one platform 
+            for $99/month instead of $300+ for separate subscriptions. Start free.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
