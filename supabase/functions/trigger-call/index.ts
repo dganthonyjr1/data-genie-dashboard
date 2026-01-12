@@ -130,7 +130,42 @@ serve(async (req) => {
       dynamicPrompt += contextParts.join('');
     }
 
-    // Step 1: Create or get Retell agent
+    // Step 1: Create a Retell LLM first
+    console.log('Creating Retell LLM...');
+    const llmResponse = await fetch('https://api.retellai.com/create-retell-llm', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RETELL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        general_prompt: dynamicPrompt,
+        begin_message: `Hello, this is Alex from ScrapeX Healthcare Solutions. Am I speaking with someone from ${facility_name}?`,
+        general_tools: [
+          {
+            type: 'end_call',
+            name: 'end_call',
+            description: 'End the call politely when the conversation is complete or the customer requests to end the call',
+          }
+        ],
+      }),
+    });
+
+    if (!llmResponse.ok) {
+      const errorText = await llmResponse.text();
+      console.error('Failed to create Retell LLM:', llmResponse.status, errorText);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create Retell LLM', details: errorText }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const llmData = await llmResponse.json();
+    const llmId = llmData.llm_id;
+    console.log(`Created Retell LLM: ${llmId}`);
+
+    // Step 2: Create Retell agent using the LLM
     console.log('Creating Retell agent...');
     const agentResponse = await fetch('https://api.retellai.com/create-agent', {
       method: 'POST',
@@ -139,42 +174,35 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        agent_name: `ScrapeX Sales Agent - ${facility_name}`,
-        voice_id: 'eleven_turbo_v2', // Use ElevenLabs turbo voice
+        agent_name: `ScrapeX Sales Agent - ${facility_name.substring(0, 30)}`,
+        voice_id: '11labs-Adrian',
         response_engine: {
           type: 'retell-llm',
-          llm_id: null, // Will use default LLM
+          llm_id: llmId,
         },
-        llm_websocket_url: null,
-        voice_model: 'eleven_turbo_v2',
-        voice_temperature: 0.7,
-        voice_speed: 1.0,
-        enable_backchannel: true,
-        ambient_sound: 'office',
         language: 'en-US',
-        webhook_url: null,
+        enable_backchannel: true,
+        backchannel_frequency: 0.8,
         boosted_keywords: ['healthcare', 'patient', 'scheduling', 'efficiency', 'revenue'],
-        enable_transcription_formatting: true,
-        general_prompt: dynamicPrompt,
-        begin_message: `Hello, this is Alex from ScrapeX Healthcare Solutions. Am I speaking with someone from ${facility_name}?`,
-        general_tools: [
-          {
-            type: 'transfer_call',
-            name: 'transfer_to_human',
-            description: 'Transfer the call to a human sales representative when the prospect shows strong interest',
-          },
-          {
-            type: 'end_call',
-            name: 'end_call',
-            description: 'End the call politely when the conversation is complete',
-          }
-        ],
+        enable_voicemail_detection: true,
+        voicemail_message: `Hi, this is Alex from ScrapeX Healthcare Solutions calling for ${facility_name}. We have some insights that could help improve your patient engagement and operational efficiency. Please give us a call back at your earliest convenience. Thank you!`,
       }),
     });
 
     if (!agentResponse.ok) {
       const errorText = await agentResponse.text();
       console.error('Failed to create Retell agent:', agentResponse.status, errorText);
+      
+      // Clean up the LLM we created
+      try {
+        await fetch(`https://api.retellai.com/delete-retell-llm/${llmId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${RETELL_API_KEY}` },
+        });
+      } catch (cleanupError) {
+        console.error('Failed to cleanup LLM:', cleanupError);
+      }
+
       return new Response(
         JSON.stringify({ error: 'Failed to create Retell agent', details: errorText }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -185,7 +213,7 @@ serve(async (req) => {
     const agentId = agentData.agent_id;
     console.log(`Created Retell agent: ${agentId}`);
 
-    // Step 2: Initiate the phone call
+    // Step 3: Initiate the phone call
     console.log(`Initiating Retell call to ${formattedPhone}...`);
     const callResponse = await fetch('https://api.retellai.com/v2/create-phone-call', {
       method: 'POST',
@@ -202,13 +230,13 @@ serve(async (req) => {
           user_id: userId,
           lead_score: analysis_data?.lead_score || null,
           source: 'scrapex_dashboard',
+          llm_id: llmId,
         },
         retell_llm_dynamic_variables: {
           facility_name,
           recommended_pitch: analysis_data?.recommended_pitch || 'general healthcare solutions',
         },
         drop_if_machine_detected: false, // Leave voicemail if needed
-        enable_recording: true, // Enable call recording for QA
       }),
     });
 
@@ -216,14 +244,18 @@ serve(async (req) => {
       const errorText = await callResponse.text();
       console.error('Failed to initiate Retell call:', callResponse.status, errorText);
       
-      // Clean up the agent we created
+      // Clean up the agent and LLM we created
       try {
         await fetch(`https://api.retellai.com/delete-agent/${agentId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${RETELL_API_KEY}` },
         });
+        await fetch(`https://api.retellai.com/delete-retell-llm/${llmId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${RETELL_API_KEY}` },
+        });
       } catch (cleanupError) {
-        console.error('Failed to cleanup agent:', cleanupError);
+        console.error('Failed to cleanup agent/LLM:', cleanupError);
       }
 
       return new Response(
@@ -252,6 +284,7 @@ serve(async (req) => {
         lead_score: analysis_data?.lead_score || null,
         notes: JSON.stringify({
           agent_id: agentId,
+          llm_id: llmId,
           recording_url: callData.recording_url || null,
           retell_metadata: callData,
           analysis_context: analysis_data || null,
@@ -270,6 +303,7 @@ serve(async (req) => {
         const webhookPayload = {
           call_id: callId,
           retell_agent_id: agentId,
+          retell_llm_id: llmId,
           facility_name,
           phone_number: formattedPhone,
           analysis_data,
@@ -299,6 +333,7 @@ serve(async (req) => {
         success: true, 
         call_id: callId,
         agent_id: agentId,
+        llm_id: llmId,
         call_status: callStatus,
         recording_url: callData.recording_url || null,
         call_record: callRecord,
