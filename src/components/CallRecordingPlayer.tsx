@@ -34,7 +34,6 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isProxying, setIsProxying] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
   const [proxiedUrl, setProxiedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,7 +72,6 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
   useEffect(() => {
     if (!isOpen || !recordingUrl) {
       setProxiedUrl(null);
-      setDownloadProgress(0);
       return;
     }
 
@@ -116,7 +114,6 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
         blobUrlToCleanup = blobUrl;
 
         setProxiedUrl(blobUrl);
-        setDownloadProgress(100);
         console.log('[CallRecordingPlayer] Ready for playback, size:', normalizedBlob.size, 'type:', normalizedBlob.type);
       } catch (err) {
         console.error('[CallRecordingPlayer] Error:', err);
