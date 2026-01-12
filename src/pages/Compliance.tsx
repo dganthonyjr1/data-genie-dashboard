@@ -7,9 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,24 +18,30 @@ import {
   CheckCircle, 
   XCircle, 
   Clock, 
-  FileText, 
-  AlertTriangle,
   Download,
   Plus,
   Trash2,
   RefreshCw,
   Search,
-  MapPin,
-  Users,
   PhoneOff,
-  Mic,
-  MicOff,
   Calendar,
   ScrollText,
-  Scale
+  Scale,
+  Lock,
+  Bell,
+  Database,
+  FileText
 } from "lucide-react";
 import { format, subMonths, subDays } from "date-fns";
-import { formatPhoneDisplay, STATE_NAMES, isTwoPartyConsentState } from "@/lib/compliance-utils";
+import { formatPhoneDisplay } from "@/lib/compliance-utils";
+import {
+  ComplianceMetricsGrid,
+  ComplianceStatsCards,
+  PrivacyRightsSection,
+  DataRetentionSection,
+  ComplianceChecklist,
+  ComplianceAlerts
+} from "@/components/compliance";
 
 interface DNCEntry {
   id: string;
@@ -54,6 +58,14 @@ interface AuditLogEntry {
   details: any;
   result: string | null;
   created_at: string;
+}
+
+interface DataRequest {
+  id: string;
+  request_type: string;
+  status: string;
+  created_at: string;
+  processed_at: string | null;
 }
 
 interface ComplianceMetrics {
@@ -80,6 +92,7 @@ const Compliance = () => {
   const [callRecords, setCallRecords] = useState<any[]>([]);
   const [dncList, setDncList] = useState<DNCEntry[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [dataRequests, setDataRequests] = useState<DataRequest[]>([]);
   const [tcpaAccepted, setTcpaAccepted] = useState(false);
   
   // Form states
@@ -88,6 +101,15 @@ const Compliance = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddDncDialog, setShowAddDncDialog] = useState(false);
   const [showTcpaDialog, setShowTcpaDialog] = useState(false);
+  
+  // Alert config state
+  const [alertConfig, setAlertConfig] = useState({
+    outsideHoursThreshold: 10,
+    consentDeniedThreshold: 5,
+    duplicateCallLimit: 3,
+    optOutThreshold: 15,
+    emailAlerts: true
+  });
 
   useEffect(() => {
     fetchData();
@@ -111,43 +133,46 @@ const Compliance = () => {
         case "year": startDate = subMonths(new Date(), 12); break;
       }
 
-      // Fetch call records
-      const { data: records } = await supabase
-        .from("call_records")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("created_at", startDate.toISOString())
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
-      setCallRecords(records || []);
+      // Fetch all data in parallel
+      const [recordsRes, dncRes, logsRes, agreementRes, requestsRes] = await Promise.all([
+        supabase
+          .from("call_records")
+          .select("*")
+          .eq("user_id", user.id)
+          .gte("created_at", startDate.toISOString())
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("dnc_list")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("compliance_audit_log")
+          .select("*")
+          .eq("user_id", user.id)
+          .gte("created_at", startDate.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabase
+          .from("legal_agreements")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("agreement_type", "tcpa_certification")
+          .eq("accepted", true)
+          .maybeSingle(),
+        supabase
+          .from("data_subject_requests")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+      ]);
 
-      // Fetch DNC list
-      const { data: dnc } = await supabase
-        .from("dnc_list")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      setDncList(dnc || []);
-
-      // Fetch audit logs
-      const { data: logs } = await supabase
-        .from("compliance_audit_log")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("created_at", startDate.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(100);
-      setAuditLogs(logs || []);
-
-      // Check TCPA acceptance
-      const { data: agreement } = await supabase
-        .from("legal_agreements")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("agreement_type", "tcpa_certification")
-        .eq("accepted", true)
-        .maybeSingle();
-      setTcpaAccepted(!!agreement);
+      setCallRecords(recordsRes.data || []);
+      setDncList(dncRes.data || []);
+      setAuditLogs(logsRes.data || []);
+      setTcpaAccepted(!!agreementRes.data);
+      setDataRequests(requestsRes.data || []);
 
     } catch (error) {
       console.error("Error fetching compliance data:", error);
@@ -177,9 +202,103 @@ const Compliance = () => {
       twoPartyStateCalls,
       onePartyStateCalls,
       consentRate: totalCalls > 0 ? (callsWithConsent / totalCalls) * 100 : 0,
-      businessHoursRate: totalCalls > 0 ? ((totalCalls - callsOutsideHours) / totalCalls) * 100 : 0,
+      businessHoursRate: totalCalls > 0 ? ((totalCalls - callsOutsideHours) / totalCalls) * 100 : 100,
     };
   }, [callRecords, dncList]);
+
+  // Generate active alerts based on metrics
+  const activeAlerts = useMemo(() => {
+    const alerts: { id: string; type: 'warning' | 'critical' | 'info'; title: string; message: string; timestamp: Date }[] = [];
+    
+    const outsideHoursRate = metrics.totalCalls > 0 ? (metrics.callsOutsideHours / metrics.totalCalls) * 100 : 0;
+    const consentDeniedRate = metrics.totalCalls > 0 ? (metrics.callsWithoutConsent / metrics.totalCalls) * 100 : 0;
+    const optOutRate = metrics.totalCalls > 0 ? (metrics.optedOutNumbers / metrics.totalCalls) * 100 : 0;
+    
+    if (outsideHoursRate > alertConfig.outsideHoursThreshold) {
+      alerts.push({
+        id: 'outside_hours',
+        type: 'warning',
+        title: 'High Outside Hours Rate',
+        message: `${outsideHoursRate.toFixed(1)}% of calls are outside business hours (threshold: ${alertConfig.outsideHoursThreshold}%)`,
+        timestamp: new Date()
+      });
+    }
+    
+    if (consentDeniedRate > alertConfig.consentDeniedThreshold) {
+      alerts.push({
+        id: 'consent_denied',
+        type: 'critical',
+        title: 'High Consent Denial Rate',
+        message: `${consentDeniedRate.toFixed(1)}% of calls have consent denied (threshold: ${alertConfig.consentDeniedThreshold}%)`,
+        timestamp: new Date()
+      });
+    }
+    
+    if (optOutRate > alertConfig.optOutThreshold) {
+      alerts.push({
+        id: 'opt_out',
+        type: 'critical',
+        title: 'High Opt-Out Rate',
+        message: `${optOutRate.toFixed(1)}% opt-out rate detected (threshold: ${alertConfig.optOutThreshold}%)`,
+        timestamp: new Date()
+      });
+    }
+    
+    if (!tcpaAccepted) {
+      alerts.push({
+        id: 'tcpa',
+        type: 'critical',
+        title: 'TCPA Certification Missing',
+        message: 'You must accept the TCPA certification before making calls',
+        timestamp: new Date()
+      });
+    }
+    
+    return alerts;
+  }, [metrics, alertConfig, tcpaAccepted]);
+
+  // Checklist items
+  const checklistItems = useMemo(() => [
+    { 
+      id: 'dnc',
+      label: "DNC list checked before all calls", 
+      checked: true,
+      description: "All calls are automatically checked against your DNC list"
+    },
+    { 
+      id: 'hours',
+      label: "Calls only made 8 AM - 9 PM recipient time", 
+      checked: metrics.businessHoursRate >= 95,
+      description: `${metrics.businessHoursRate.toFixed(1)}% of calls within business hours`
+    },
+    { 
+      id: 'consent',
+      label: "Recording consent obtained (where required)", 
+      checked: metrics.consentRate >= 80,
+      description: `${metrics.consentRate.toFixed(1)}% consent rate`
+    },
+    { 
+      id: 'optout',
+      label: "Opt-out requests processed", 
+      checked: true,
+      description: "All opt-out requests are automatically added to DNC list"
+    },
+    { 
+      id: 'retention',
+      label: "Call logs maintained for 18 months", 
+      checked: true,
+      description: "Automatic retention policy in place"
+    },
+    { 
+      id: 'tcpa',
+      label: "TCPA Certification signed", 
+      checked: tcpaAccepted,
+      critical: true,
+      description: tcpaAccepted ? "Certification accepted" : "Required before making calls",
+      actionLabel: tcpaAccepted ? undefined : "Accept",
+      onAction: tcpaAccepted ? undefined : () => setShowTcpaDialog(true)
+    },
+  ], [metrics, tcpaAccepted]);
 
   const addToDncList = async () => {
     if (!newDncPhone.trim()) {
@@ -282,11 +401,18 @@ const Compliance = () => {
     return <Clock className="h-4 w-4 text-muted-foreground" />;
   };
 
+  const oldestRecordDate = callRecords.length > 0 
+    ? new Date(callRecords[callRecords.length - 1]?.created_at) 
+    : null;
+
   if (loading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[400px]">
-          <p className="text-muted-foreground">Loading compliance data...</p>
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+            <p className="text-muted-foreground">Loading compliance data...</p>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -296,14 +422,14 @@ const Compliance = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold font-orbitron bg-gradient-primary bg-clip-text text-transparent flex items-center gap-3">
               <Shield className="h-8 w-8 text-primary" />
               Compliance Center
             </h1>
             <p className="text-muted-foreground mt-2">
-              TCPA compliance, DNC management, and audit logging
+              TCPA compliance, privacy rights, and audit logging
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -323,181 +449,68 @@ const Compliance = () => {
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
+            <Button onClick={exportCallLogs} variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
           </div>
         </div>
 
-        {/* TCPA Certification Banner */}
-        {!tcpaAccepted && (
-          <Card className="bg-yellow-500/10 border-yellow-500/50">
-            <CardContent className="py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-6 w-6 text-yellow-500" />
-                  <div>
-                    <p className="font-medium text-yellow-400">TCPA Certification Required</p>
-                    <p className="text-sm text-muted-foreground">
-                      You must accept the TCPA certification before making calls
-                    </p>
-                  </div>
-                </div>
-                <Button onClick={() => setShowTcpaDialog(true)} className="bg-yellow-500 hover:bg-yellow-600">
-                  <Scale className="mr-2 h-4 w-4" />
-                  Accept Certification
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Quick Metrics */}
+        <ComplianceMetricsGrid metrics={metrics} />
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="overview" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 h-auto">
+            <TabsTrigger value="overview" className="flex items-center gap-2 py-2.5">
               <Shield className="h-4 w-4" />
-              Overview
+              <span className="hidden sm:inline">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="dnc" className="flex items-center gap-2">
+            <TabsTrigger value="dnc" className="flex items-center gap-2 py-2.5">
               <PhoneOff className="h-4 w-4" />
-              DNC List ({dncList.length})
+              <span className="hidden sm:inline">DNC</span>
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">{dncList.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="audit" className="flex items-center gap-2">
+            <TabsTrigger value="audit" className="flex items-center gap-2 py-2.5">
               <ScrollText className="h-4 w-4" />
-              Audit Log
+              <span className="hidden sm:inline">Audit</span>
             </TabsTrigger>
-            <TabsTrigger value="checklist" className="flex items-center gap-2">
+            <TabsTrigger value="checklist" className="flex items-center gap-2 py-2.5">
               <CheckCircle className="h-4 w-4" />
-              Checklist
+              <span className="hidden sm:inline">Checklist</span>
+            </TabsTrigger>
+            <TabsTrigger value="privacy" className="flex items-center gap-2 py-2.5">
+              <Lock className="h-4 w-4" />
+              <span className="hidden sm:inline">Privacy</span>
+            </TabsTrigger>
+            <TabsTrigger value="retention" className="flex items-center gap-2 py-2.5">
+              <Database className="h-4 w-4" />
+              <span className="hidden sm:inline">Retention</span>
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="flex items-center gap-2 py-2.5">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Alerts</span>
+              {activeAlerts.length > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 px-1.5">{activeAlerts.length}</Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* Metrics Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Calls</p>
-                      <p className="text-2xl font-bold">{metrics.totalCalls}</p>
-                    </div>
-                    <Phone className="h-6 w-6 text-primary opacity-50" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Consent Rate</p>
-                      <p className="text-2xl font-bold text-green-500">
-                        {metrics.consentRate.toFixed(1)}%
-                      </p>
-                    </div>
-                    <Mic className="h-6 w-6 text-green-500 opacity-50" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Business Hours</p>
-                      <p className="text-2xl font-bold text-cyan-500">
-                        {metrics.businessHoursRate.toFixed(1)}%
-                      </p>
-                    </div>
-                    <Clock className="h-6 w-6 text-cyan-500 opacity-50" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">DNC List Size</p>
-                      <p className="text-2xl font-bold text-red-500">{metrics.dncListSize}</p>
-                    </div>
-                    <PhoneOff className="h-6 w-6 text-red-500 opacity-50" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Detailed Stats */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card className="bg-card/50 border-border/50">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Mic className="h-5 w-5 text-primary" />
-                    Recording Consent
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Consent Given</span>
-                      <span className="text-green-500">{metrics.callsWithConsent}</span>
-                    </div>
-                    <Progress value={metrics.consentRate} className="h-2" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <p className="text-2xl font-bold text-green-500">{metrics.callsWithConsent}</p>
-                      <p className="text-xs text-muted-foreground">Consented</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                      <p className="text-2xl font-bold text-red-500">{metrics.callsWithoutConsent}</p>
-                      <p className="text-xs text-muted-foreground">Declined</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card/50 border-border/50">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-primary" />
-                    State Consent Rules
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                      <p className="text-2xl font-bold text-purple-500">{metrics.twoPartyStateCalls}</p>
-                      <p className="text-xs text-muted-foreground">Two-Party States</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                      <p className="text-2xl font-bold text-blue-500">{metrics.onePartyStateCalls}</p>
-                      <p className="text-xs text-muted-foreground">One-Party States</p>
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Two-party consent states: CA, CT, FL, IL, MD, MA, MI, MT, NV, NH, PA, WA
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Export Button */}
-            <div className="flex justify-end">
-              <Button onClick={exportCallLogs} variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Export Call Logs (CSV)
-              </Button>
-            </div>
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            <ComplianceStatsCards metrics={metrics} />
           </TabsContent>
 
           {/* DNC List Tab */}
-          <TabsContent value="dnc" className="space-y-4">
-            <Card>
+          <TabsContent value="dnc" className="space-y-4 mt-6">
+            <Card className="bg-card/50 border-border/50">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Do Not Call List</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <PhoneOff className="h-5 w-5 text-red-500" />
+                      Do Not Call List
+                    </CardTitle>
                     <CardDescription>
                       Manage numbers that should not be called
                     </CardDescription>
@@ -609,10 +622,13 @@ const Compliance = () => {
           </TabsContent>
 
           {/* Audit Log Tab */}
-          <TabsContent value="audit" className="space-y-4">
-            <Card>
+          <TabsContent value="audit" className="space-y-4 mt-6">
+            <Card className="bg-card/50 border-border/50">
               <CardHeader>
-                <CardTitle>Compliance Audit Log</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <ScrollText className="h-5 w-5 text-primary" />
+                  Compliance Audit Log
+                </CardTitle>
                 <CardDescription>
                   Track all compliance-related actions and decisions
                 </CardDescription>
@@ -680,63 +696,42 @@ const Compliance = () => {
           </TabsContent>
 
           {/* Checklist Tab */}
-          <TabsContent value="checklist" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>TCPA Compliance Checklist</CardTitle>
-                <CardDescription>
-                  Ensure you're meeting all TCPA requirements
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  { 
-                    label: "DNC list checked before all calls", 
-                    checked: true,
-                    description: "All calls are automatically checked against your DNC list"
-                  },
-                  { 
-                    label: "Calls only made 8 AM - 9 PM recipient time", 
-                    checked: metrics.businessHoursRate >= 95,
-                    description: `${metrics.businessHoursRate.toFixed(1)}% of calls within business hours`
-                  },
-                  { 
-                    label: "Recording consent obtained (where required)", 
-                    checked: metrics.consentRate >= 80,
-                    description: `${metrics.consentRate.toFixed(1)}% consent rate`
-                  },
-                  { 
-                    label: "Opt-out requests processed", 
-                    checked: true,
-                    description: "All opt-out requests are automatically added to DNC list"
-                  },
-                  { 
-                    label: "Call logs maintained for 18 months", 
-                    checked: true,
-                    description: "Automatic retention policy in place"
-                  },
-                  { 
-                    label: "TCPA Certification signed", 
-                    checked: tcpaAccepted,
-                    description: tcpaAccepted ? "Certification accepted" : "Required before making calls"
-                  },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-card border">
-                    <div className={`mt-0.5 rounded-full p-1 ${item.checked ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                      {item.checked ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-500" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{item.label}</p>
-                      <p className="text-sm text-muted-foreground">{item.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+          <TabsContent value="checklist" className="mt-6">
+            <ComplianceChecklist 
+              items={checklistItems}
+              tcpaAccepted={tcpaAccepted}
+              onAcceptTcpa={() => setShowTcpaDialog(true)}
+            />
+          </TabsContent>
+
+          {/* Privacy Rights Tab */}
+          <TabsContent value="privacy" className="mt-6">
+            <PrivacyRightsSection 
+              requests={dataRequests}
+              onRequestSubmit={fetchData}
+            />
+          </TabsContent>
+
+          {/* Data Retention Tab */}
+          <TabsContent value="retention" className="mt-6">
+            <DataRetentionSection 
+              totalRecords={callRecords.length}
+              oldestRecordDate={oldestRecordDate}
+            />
+          </TabsContent>
+
+          {/* Alerts Tab */}
+          <TabsContent value="alerts" className="mt-6">
+            <ComplianceAlerts 
+              alerts={activeAlerts}
+              config={alertConfig}
+              onConfigChange={setAlertConfig}
+              metrics={{
+                outsideHoursRate: metrics.totalCalls > 0 ? (metrics.callsOutsideHours / metrics.totalCalls) * 100 : 0,
+                consentDeniedRate: metrics.totalCalls > 0 ? (metrics.callsWithoutConsent / metrics.totalCalls) * 100 : 0,
+                optOutRate: metrics.totalCalls > 0 ? (metrics.optedOutNumbers / metrics.totalCalls) * 100 : 0
+              }}
+            />
           </TabsContent>
         </Tabs>
 
@@ -745,7 +740,7 @@ const Compliance = () => {
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Scale className="h-5 w-5" />
+                <Scale className="h-5 w-5 text-primary" />
                 TCPA Compliance Certification
               </DialogTitle>
             </DialogHeader>
