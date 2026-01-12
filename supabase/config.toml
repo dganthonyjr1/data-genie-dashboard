@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.proxy-recording]
 verify_jwt = false
+
+[functions.detect-industry]
+verify_jwt = false
