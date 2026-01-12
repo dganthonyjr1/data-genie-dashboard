@@ -53,7 +53,23 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
   const callSummary = parsedNotes?.call_summary || callAnalysis?.call_summary;
   const userSentiment = parsedNotes?.user_sentiment || callAnalysis?.user_sentiment;
 
-  // Build proxied URL for streaming - no buffering needed
+  const inferAudioMimeType = (url: string) => {
+    const pathname = (() => {
+      try {
+        return new URL(url).pathname.toLowerCase();
+      } catch {
+        return url.toLowerCase();
+      }
+    })();
+
+    if (pathname.endsWith('.wav')) return 'audio/wav';
+    if (pathname.endsWith('.mp3')) return 'audio/mpeg';
+    if (pathname.endsWith('.m4a')) return 'audio/mp4';
+    if (pathname.endsWith('.ogg')) return 'audio/ogg';
+    return undefined;
+  };
+
+  // Fetch via proxy to avoid CORS issues
   useEffect(() => {
     if (!isOpen || !recordingUrl) {
       setProxiedUrl(null);
@@ -61,19 +77,19 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
       return;
     }
 
+    let blobUrlToCleanup: string | null = null;
+
     const buildProxyUrl = async () => {
       setIsProxying(true);
       setError(null);
-      
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        
-        // Create a URL that streams directly - much faster than buffering
+
         const proxyUrl = `${supabaseUrl}/functions/v1/proxy-recording`;
-        
-        // Make the request and stream directly to audio element
+
         const response = await fetch(proxyUrl, {
           method: 'POST',
           headers: {
@@ -88,12 +104,20 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
           throw new Error(`Failed to load recording: ${response.status}`);
         }
 
-        // Create blob URL from streamed response for audio element
         const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
+        const inferredType = inferAudioMimeType(recordingUrl);
+
+        // If the server returns application/octet-stream, browsers may refuse to decode audio.
+        const normalizedBlob = (!blob.type || blob.type.includes('application/octet-stream')) && inferredType
+          ? new Blob([blob], { type: inferredType })
+          : blob;
+
+        const blobUrl = URL.createObjectURL(normalizedBlob);
+        blobUrlToCleanup = blobUrl;
+
         setProxiedUrl(blobUrl);
         setDownloadProgress(100);
-        console.log('[CallRecordingPlayer] Ready for playback, size:', blob.size);
+        console.log('[CallRecordingPlayer] Ready for playback, size:', normalizedBlob.size, 'type:', normalizedBlob.type);
       } catch (err) {
         console.error('[CallRecordingPlayer] Error:', err);
         setError(err instanceof Error ? err.message : 'Failed to load recording');
@@ -105,26 +129,40 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
     buildProxyUrl();
 
     return () => {
-      if (proxiedUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(proxiedUrl);
+      if (blobUrlToCleanup) {
+        URL.revokeObjectURL(blobUrlToCleanup);
       }
     };
   }, [isOpen, recordingUrl]);
 
   useEffect(() => {
     if (isOpen && audioRef.current && proxiedUrl) {
+      const audio = audioRef.current;
+      audio.pause();
+      audio.currentTime = 0;
+      setIsPlaying(false);
+      setCurrentTime(0);
+
       console.log('[CallRecordingPlayer] Loading proxied URL');
-      audioRef.current.load();
+      audio.load();
       setIsLoading(true);
     }
   }, [isOpen, proxiedUrl]);
 
+  // Attach audio event listeners when the audio element exists
   useEffect(() => {
+    if (!isOpen || !proxiedUrl) return;
+
     const audio = audioRef.current;
     if (!audio) return;
 
     const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
+      setDuration(audio.duration || 0);
+      setIsLoading(false);
+    };
+
+    const handleLoadedData = () => {
+      // Fallback in case some browsers don't fire loadedmetadata as expected
       setIsLoading(false);
     };
 
@@ -137,35 +175,46 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
       setCurrentTime(0);
     };
 
-    const handleError = (e: Event) => {
-      const audioElement = e.target as HTMLAudioElement;
-      console.error('[CallRecordingPlayer] Audio error:', audioElement.error?.code, audioElement.error?.message);
-      setError(`Failed to load recording: ${audioElement.error?.message || 'Unknown error'}`);
+    const handleError = () => {
+      console.error('[CallRecordingPlayer] Audio error:', audio.error?.code, audio.error?.message);
+      setError(`Failed to load recording: ${audio.error?.message || 'Unknown error'}`);
       setIsLoading(false);
+      setIsPlaying(false);
     };
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('loadeddata', handleLoadedData);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
 
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('loadeddata', handleLoadedData);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
     };
-  }, []);
+  }, [isOpen, proxiedUrl]);
 
-  const togglePlayPause = () => {
-    if (!audioRef.current) return;
-    
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
+  const togglePlayPause = async () => {
+    const audio = audioRef.current;
+    if (!audio || isLoading || isProxying) return;
+
+    try {
+      if (isPlaying) {
+        audio.pause();
+        setIsPlaying(false);
+        return;
+      }
+
+      await audio.play();
+      setIsPlaying(true);
+    } catch (e) {
+      console.error('[CallRecordingPlayer] play() failed:', e);
+      setError('Playback failed. Try clicking Play again (browser blocked audio).');
+      setIsPlaying(false);
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeek = (value: number[]) => {
