@@ -15,23 +15,13 @@ import {
   Loader2, 
   Phone, 
   Mail, 
-  MapPin, 
   Globe, 
   Clock, 
   Building2,
   AlertTriangle,
   DollarSign,
-  Quote,
-  Facebook,
-  Instagram,
-  Linkedin,
-  Youtube,
-  Twitter,
   ExternalLink,
-  Users,
-  User,
   Target,
-  TrendingUp,
   AlertCircle,
   Lightbulb,
   CheckCircle2,
@@ -100,6 +90,12 @@ export default function BusinessAnalyzer() {
   const [selectedIndustry, setSelectedIndustry] = useState<string>("auto");
   const [detectedIndustry, setDetectedIndustry] = useState<{ industry: string; confidence: 'high' | 'medium' | 'low'; matchedKeywords: string[] } | null>(null);
 
+  // Get the effective industry (selected or detected)
+  const getEffectiveIndustry = (): string => {
+    if (selectedIndustry !== "auto") return selectedIndustry;
+    return detectedIndustry?.industry || "healthcare";
+  };
+
   // Poll for job completion from backend API
   const pollJobStatus = async (jobId: string, maxAttempts = 30): Promise<any> => {
     let attempts = 0;
@@ -166,47 +162,60 @@ export default function BusinessAnalyzer() {
     };
 
     setScrapedData(transformedScrapedData);
-    setCurrentStep("analyzing");
-
-    // Step 2: Start analysis via backend API
-    const analysisRes = await fetch(`${BACKEND_API_URL}/api/v1/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ facility_data: scrapeResult })
-    });
-
-    if (!analysisRes.ok) {
-      const errorData = await analysisRes.json();
-      throw new Error(errorData.detail || 'Backend analysis failed');
+    
+    // Step 2: Detect industry from scraped content
+    setCurrentStep("detecting");
+    let industryToUse = selectedIndustry;
+    
+    if (selectedIndustry === "auto") {
+      const contentToAnalyze = `${scrapeResult.facility_name || ''} ${scrapeResult.description || ''} ${scrapeResult.content_text || ''} ${(scrapeResult.services || []).join(' ')}`;
+      const detection = detectIndustryFromContent(contentToAnalyze);
+      setDetectedIndustry(detection);
+      industryToUse = detection.industry;
+      
+      toast({
+        title: `Industry Detected: ${getIndustryConfig(detection.industry).name}`,
+        description: `Confidence: ${detection.confidence} (${detection.matchedKeywords.slice(0, 3).join(', ')})`,
+      });
+    } else {
+      industryToUse = selectedIndustry;
     }
 
-    const { job_id: analysisJobId } = await analysisRes.json();
-    
-    // Poll for analysis results
-    const analysisResult = await pollJobStatus(analysisJobId);
+    setCurrentStep("analyzing");
 
-    // Transform backend analysis to match our interface
-    const transformedAnalysis: FacilityAnalysis = {
-      lead_score: analysisResult.lead_score || 50,
-      urgency: analysisResult.urgency || "medium",
-      revenue_opportunities: (analysisResult.revenue_opportunities || []).map((opp: any) => ({
-        opportunity: typeof opp === 'string' ? opp : opp.opportunity || opp.title || 'Opportunity',
-        estimated_value: opp.estimated_value || opp.value || '$5,000 - $15,000/year',
-        confidence: opp.confidence || 'medium',
-      })),
-      operational_gaps: (analysisResult.operational_gaps || []).map((gap: any) => ({
-        gap: typeof gap === 'string' ? gap : gap.gap || gap.title || 'Gap',
-        impact: gap.impact || 'medium',
-        solution: gap.solution || gap.recommendation || 'Consult with specialist',
-      })),
-      recommended_pitch: analysisResult.recommended_pitch || analysisResult.pitch || 
-        "We can help optimize your operations and increase revenue through our proven solutions.",
-      key_decision_factors: analysisResult.key_decision_factors || [],
-      competitive_position: analysisResult.competitive_position,
-      follow_up_timing: analysisResult.follow_up_timing || "Within 48 hours",
-    };
+    // Step 3: Start analysis via Edge Function with industry
+    const analyzeResponse = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-facility`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          scraped_data: transformedScrapedData,
+          facility_name: transformedScrapedData.facility_name,
+          url: url.trim(),
+          industry: industryToUse,
+        }),
+      }
+    );
 
-    setAnalysisData(transformedAnalysis);
+    if (!analyzeResponse.ok) {
+      const errorData = await analyzeResponse.json();
+      throw new Error(errorData.error || "Failed to analyze facility");
+    }
+
+    const analyzeResult = await analyzeResponse.json();
+    if (!analyzeResult.success) {
+      throw new Error(analyzeResult.error || "Analysis failed");
+    }
+
+    setAnalysisData({
+      ...analyzeResult.analysis,
+      industry: industryToUse,
+      industry_name: getIndustryConfig(industryToUse).name,
+    });
     setCurrentStep("complete");
   };
 
@@ -244,9 +253,21 @@ export default function BusinessAnalyzer() {
     }
 
     setScrapedData(scrapeResult.data);
+    
+    // Step 2: Detect industry
+    setCurrentStep("detecting");
+    let industryToUse = selectedIndustry;
+    
+    if (selectedIndustry === "auto") {
+      const contentToAnalyze = `${scrapeResult.data.facility_name || ''} ${scrapeResult.data.content?.description || ''} ${scrapeResult.data.content?.markdown || ''} ${(scrapeResult.data.extracted?.services || []).join(' ')}`;
+      const detection = detectIndustryFromContent(contentToAnalyze);
+      setDetectedIndustry(detection);
+      industryToUse = detection.industry;
+    }
+
     setCurrentStep("analyzing");
 
-    // Step 2: Call analyze-facility Edge Function
+    // Step 3: Call analyze-facility Edge Function with industry
     const analyzeResponse = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-facility`,
       {
@@ -259,6 +280,7 @@ export default function BusinessAnalyzer() {
           scraped_data: scrapeResult.data,
           facility_name: scrapeResult.data.facility_name,
           url: url.trim(),
+          industry: industryToUse,
         }),
       }
     );
@@ -273,7 +295,11 @@ export default function BusinessAnalyzer() {
       throw new Error(analyzeResult.error || "Analysis failed");
     }
 
-    setAnalysisData(analyzeResult.analysis);
+    setAnalysisData({
+      ...analyzeResult.analysis,
+      industry: industryToUse,
+      industry_name: getIndustryConfig(industryToUse).name,
+    });
     setCurrentStep("complete");
   };
 
@@ -291,6 +317,7 @@ export default function BusinessAnalyzer() {
     setScrapedData(null);
     setAnalysisData(null);
     setError(null);
+    setDetectedIndustry(null);
     setCurrentStep("scraping");
 
     try {
@@ -312,7 +339,6 @@ export default function BusinessAnalyzer() {
           await handleAnalyzeWithBackend();
         } catch (backendError) {
           console.warn("Backend API failed, falling back to Edge Functions:", backendError);
-          // Fallback to Edge Functions
           await handleAnalyzeWithEdgeFunctions();
         }
       } else {
@@ -356,6 +382,7 @@ export default function BusinessAnalyzer() {
       facilityName: scrapedData.facility_name,
       phoneNumber: phoneNumber,
       analysisData: analysisData,
+      industry: getEffectiveIndustry(),
     });
   };
 
@@ -398,6 +425,26 @@ export default function BusinessAnalyzer() {
     }
   };
 
+  const getStepProgress = () => {
+    switch (currentStep) {
+      case "scraping": return 25;
+      case "detecting": return 50;
+      case "analyzing": return 75;
+      case "complete": return 100;
+      default: return 0;
+    }
+  };
+
+  const getStepLabel = () => {
+    switch (currentStep) {
+      case "scraping": return "Scraping website...";
+      case "detecting": return "Detecting industry...";
+      case "analyzing": return "Running AI analysis...";
+      case "complete": return "Complete!";
+      default: return "";
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* URL Input Section */}
@@ -412,7 +459,7 @@ export default function BusinessAnalyzer() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-5">
             <Input
               type="url"
               placeholder="https://example-business.com"
@@ -426,8 +473,31 @@ export default function BusinessAnalyzer() {
               placeholder="Business name (optional)"
               value={facilityName}
               onChange={(e) => setFacilityName(e.target.value)}
-              className="md:col-span-1"
             />
+            <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
+              <SelectTrigger>
+                <SelectValue placeholder="Auto-detect industry" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">
+                  <span className="flex items-center gap-2">
+                    <Factory className="h-4 w-4" />
+                    Auto-detect
+                  </span>
+                </SelectItem>
+                {INDUSTRY_OPTIONS.map((industryId) => {
+                  const config = INDUSTRY_CONFIGS[industryId];
+                  return (
+                    <SelectItem key={industryId} value={industryId}>
+                      <span className="flex items-center gap-2">
+                        <span>{config.icon}</span>
+                        {config.name}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
             <Button 
               onClick={handleAnalyze} 
               disabled={isAnalyzing}
@@ -436,7 +506,7 @@ export default function BusinessAnalyzer() {
               {isAnalyzing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {currentStep === "scraping" ? "Scraping..." : "Analyzing..."}
+                  {currentStep === "scraping" ? "Scraping..." : currentStep === "detecting" ? "Detecting..." : "Analyzing..."}
                 </>
               ) : (
                 <>
@@ -456,17 +526,15 @@ export default function BusinessAnalyzer() {
             <div className="flex flex-col items-center justify-center space-y-4">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
               <div className="text-center">
-                <p className="text-lg font-medium">
-                  {currentStep === "scraping" ? "Scraping website..." : "Running AI analysis..."}
-                </p>
+                <p className="text-lg font-medium">{getStepLabel()}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {currentStep === "scraping" 
-                    ? "Extracting contact info, services, and business data" 
-                    : "Generating lead score, revenue opportunities, and sales insights"}
+                  {currentStep === "scraping" && "Extracting contact info, services, and business data"}
+                  {currentStep === "detecting" && "Analyzing content to determine business industry"}
+                  {currentStep === "analyzing" && "Generating lead score, revenue opportunities, and sales insights"}
                 </p>
               </div>
               <div className="w-full max-w-md">
-                <Progress value={currentStep === "scraping" ? 40 : 80} className="h-2" />
+                <Progress value={getStepProgress()} className="h-2" />
               </div>
             </div>
           </CardContent>
@@ -496,13 +564,28 @@ export default function BusinessAnalyzer() {
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <h2 className="text-2xl font-bold">
                       {scrapedData.facility_name || "Unknown Business"}
                     </h2>
                     <Badge className={getUrgencyColor(analysisData.urgency)}>
                       {analysisData.urgency?.toUpperCase()} Priority
                     </Badge>
+                    {/* Industry Badge */}
+                    {(analysisData.industry || detectedIndustry) && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <span>{getIndustryConfig(getEffectiveIndustry()).icon}</span>
+                        {analysisData.industry_name || getIndustryConfig(getEffectiveIndustry()).name}
+                        {detectedIndustry && selectedIndustry === "auto" && (
+                          <span className={`ml-1 text-xs ${
+                            detectedIndustry.confidence === 'high' ? 'text-green-500' : 
+                            detectedIndustry.confidence === 'medium' ? 'text-yellow-500' : 'text-gray-500'
+                          }`}>
+                            ({detectedIndustry.confidence})
+                          </span>
+                        )}
+                      </Badge>
+                    )}
                   </div>
                   {scrapedData.content?.description && (
                     <p className="text-muted-foreground mt-2 max-w-2xl">
@@ -561,6 +644,11 @@ export default function BusinessAnalyzer() {
               <CardTitle className="text-lg flex items-center gap-2">
                 <Lightbulb className="h-5 w-5 text-yellow-500" />
                 Recommended Sales Pitch
+                {analysisData.industry_name && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    {analysisData.industry_name}
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -693,7 +781,7 @@ export default function BusinessAnalyzer() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {analysisData.key_decision_factors?.length > 0 ? (
+                {analysisData.key_decision_factors && analysisData.key_decision_factors.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {analysisData.key_decision_factors.map((factor, index) => (
                       <Badge key={index} variant="outline" className="py-1">

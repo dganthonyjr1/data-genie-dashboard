@@ -8,6 +8,7 @@ interface TriggerCallParams {
   phoneNumber: string;
   analysisData?: any;
   overrideBusinessHours?: boolean;
+  industry?: string; // New: pass industry for dynamic scripts
 }
 
 interface TriggerCallResult {
@@ -17,6 +18,8 @@ interface TriggerCallResult {
   requiresAgreement?: boolean;
   complianceBlocked?: boolean;
   reason?: string;
+  industry?: string;
+  industryPersona?: string;
 }
 
 export function useTriggerCall() {
@@ -25,7 +28,7 @@ export function useTriggerCall() {
   const navigate = useNavigate();
 
   const triggerCall = async (params: TriggerCallParams): Promise<TriggerCallResult> => {
-    const { facilityName, phoneNumber, analysisData, overrideBusinessHours } = params;
+    const { facilityName, phoneNumber, analysisData, overrideBusinessHours, industry = 'healthcare' } = params;
 
     if (!phoneNumber || phoneNumber === "N/A") {
       toast({
@@ -50,7 +53,7 @@ export function useTriggerCall() {
         return { success: false, reason: "Not authenticated" };
       }
 
-      // Use the unified trigger-call function with full compliance
+      // Use the unified trigger-call function with full compliance + industry
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trigger-call`,
         {
@@ -64,6 +67,7 @@ export function useTriggerCall() {
             phone_number: phoneNumber,
             analysis_data: analysisData,
             override_business_hours: overrideBusinessHours,
+            industry, // Pass industry for dynamic scripts
           }),
         }
       );
@@ -123,6 +127,8 @@ export function useTriggerCall() {
         success: true,
         callId: result.call_id,
         status: result.call_record?.status || "initiated",
+        industry: result.industry,
+        industryPersona: result.industry_persona,
       };
 
     } catch (error) {
