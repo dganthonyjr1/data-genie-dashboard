@@ -76,6 +76,9 @@ interface ScrapedData {
   };
 }
 
+// Backend API URL - permanent Render.com deployment
+const BACKEND_API_URL = "https://scrapex-backend.onrender.com";
+
 export default function BusinessAnalyzer() {
   const { toast } = useToast();
   const { triggerCall, isTriggering } = useTriggerCall();
@@ -86,6 +89,184 @@ export default function BusinessAnalyzer() {
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [analysisData, setAnalysisData] = useState<FacilityAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [useBackendApi, setUseBackendApi] = useState(true);
+
+  // Poll for job completion from backend API
+  const pollJobStatus = async (jobId: string, maxAttempts = 30): Promise<any> => {
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+      await new Promise(r => setTimeout(r, 1000));
+      const jobRes = await fetch(`${BACKEND_API_URL}/api/v1/jobs/${jobId}`);
+      const job = await jobRes.json();
+      
+      if (job.status === 'completed') {
+        return job.result;
+      }
+      if (job.status === 'failed') {
+        throw new Error(job.error || 'Job failed');
+      }
+      attempts++;
+    }
+    throw new Error('Job timed out');
+  };
+
+  // Use the new permanent backend API for scraping and analysis
+  const handleAnalyzeWithBackend = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error("Please log in to analyze businesses");
+    }
+
+    // Step 1: Start scraping via backend API
+    const scrapeRes = await fetch(`${BACKEND_API_URL}/api/v1/scrape`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        url: url.trim(),
+        facility_name: facilityName.trim() || undefined 
+      })
+    });
+
+    if (!scrapeRes.ok) {
+      const errorData = await scrapeRes.json();
+      throw new Error(errorData.detail || 'Backend scraping failed');
+    }
+
+    const { job_id: scrapeJobId } = await scrapeRes.json();
+    
+    // Poll for scrape results
+    const scrapeResult = await pollJobStatus(scrapeJobId);
+    
+    // Transform backend response to match our interface
+    const transformedScrapedData: ScrapedData = {
+      url: url.trim(),
+      facility_name: scrapeResult.facility_name || facilityName.trim() || "Unknown Business",
+      scraped_at: new Date().toISOString(),
+      content: {
+        markdown: scrapeResult.content_text,
+        title: scrapeResult.facility_name,
+        description: scrapeResult.description,
+        sourceURL: url.trim(),
+      },
+      extracted: {
+        phones: scrapeResult.phone || [],
+        emails: scrapeResult.email ? [scrapeResult.email] : [],
+        services: scrapeResult.services || [],
+        has_contact_info: Boolean(scrapeResult.phone?.length || scrapeResult.email),
+      },
+    };
+
+    setScrapedData(transformedScrapedData);
+    setCurrentStep("analyzing");
+
+    // Step 2: Start analysis via backend API
+    const analysisRes = await fetch(`${BACKEND_API_URL}/api/v1/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ facility_data: scrapeResult })
+    });
+
+    if (!analysisRes.ok) {
+      const errorData = await analysisRes.json();
+      throw new Error(errorData.detail || 'Backend analysis failed');
+    }
+
+    const { job_id: analysisJobId } = await analysisRes.json();
+    
+    // Poll for analysis results
+    const analysisResult = await pollJobStatus(analysisJobId);
+
+    // Transform backend analysis to match our interface
+    const transformedAnalysis: FacilityAnalysis = {
+      lead_score: analysisResult.lead_score || 50,
+      urgency: analysisResult.urgency || "medium",
+      revenue_opportunities: (analysisResult.revenue_opportunities || []).map((opp: any) => ({
+        opportunity: typeof opp === 'string' ? opp : opp.opportunity || opp.title || 'Opportunity',
+        estimated_value: opp.estimated_value || opp.value || '$5,000 - $15,000/year',
+        confidence: opp.confidence || 'medium',
+      })),
+      operational_gaps: (analysisResult.operational_gaps || []).map((gap: any) => ({
+        gap: typeof gap === 'string' ? gap : gap.gap || gap.title || 'Gap',
+        impact: gap.impact || 'medium',
+        solution: gap.solution || gap.recommendation || 'Consult with specialist',
+      })),
+      recommended_pitch: analysisResult.recommended_pitch || analysisResult.pitch || 
+        "We can help optimize your operations and increase revenue through our proven solutions.",
+      key_decision_factors: analysisResult.key_decision_factors || [],
+      competitive_position: analysisResult.competitive_position,
+      follow_up_timing: analysisResult.follow_up_timing || "Within 48 hours",
+    };
+
+    setAnalysisData(transformedAnalysis);
+    setCurrentStep("complete");
+  };
+
+  // Fallback to Edge Functions if backend is unavailable
+  const handleAnalyzeWithEdgeFunctions = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error("Please log in to analyze businesses");
+    }
+
+    // Step 1: Call scrape-facility Edge Function
+    const scrapeResponse = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scrape-facility`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          url: url.trim(),
+          facility_name: facilityName.trim() || undefined,
+        }),
+      }
+    );
+
+    if (!scrapeResponse.ok) {
+      const errorData = await scrapeResponse.json();
+      throw new Error(errorData.error || "Failed to scrape facility");
+    }
+
+    const scrapeResult = await scrapeResponse.json();
+    if (!scrapeResult.success) {
+      throw new Error(scrapeResult.error || "Scraping failed");
+    }
+
+    setScrapedData(scrapeResult.data);
+    setCurrentStep("analyzing");
+
+    // Step 2: Call analyze-facility Edge Function
+    const analyzeResponse = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-facility`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          scraped_data: scrapeResult.data,
+          facility_name: scrapeResult.data.facility_name,
+          url: url.trim(),
+        }),
+      }
+    );
+
+    if (!analyzeResponse.ok) {
+      const errorData = await analyzeResponse.json();
+      throw new Error(errorData.error || "Failed to analyze facility");
+    }
+
+    const analyzeResult = await analyzeResponse.json();
+    if (!analyzeResult.success) {
+      throw new Error(analyzeResult.error || "Analysis failed");
+    }
+
+    setAnalysisData(analyzeResult.analysis);
+    setCurrentStep("complete");
+  };
 
   const handleAnalyze = async () => {
     if (!url.trim()) {
@@ -116,66 +297,18 @@ export default function BusinessAnalyzer() {
         return;
       }
 
-      // Step 1: Call scrape-facility Edge Function
-      console.log("Starting scrape-facility...");
-      const scrapeResponse = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scrape-facility`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            url: url.trim(),
-            facility_name: facilityName.trim() || undefined,
-          }),
+      // Try the permanent backend API first, fallback to Edge Functions
+      if (useBackendApi) {
+        try {
+          await handleAnalyzeWithBackend();
+        } catch (backendError) {
+          console.warn("Backend API failed, falling back to Edge Functions:", backendError);
+          // Fallback to Edge Functions
+          await handleAnalyzeWithEdgeFunctions();
         }
-      );
-
-      if (!scrapeResponse.ok) {
-        const errorData = await scrapeResponse.json();
-        throw new Error(errorData.error || "Failed to scrape facility");
+      } else {
+        await handleAnalyzeWithEdgeFunctions();
       }
-
-      const scrapeResult = await scrapeResponse.json();
-      if (!scrapeResult.success) {
-        throw new Error(scrapeResult.error || "Scraping failed");
-      }
-
-      setScrapedData(scrapeResult.data);
-      setCurrentStep("analyzing");
-
-      // Step 2: Call analyze-facility Edge Function
-      console.log("Starting analyze-facility...");
-      const analyzeResponse = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-facility`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            scraped_data: scrapeResult.data,
-            facility_name: scrapeResult.data.facility_name,
-            url: url.trim(),
-          }),
-        }
-      );
-
-      if (!analyzeResponse.ok) {
-        const errorData = await analyzeResponse.json();
-        throw new Error(errorData.error || "Failed to analyze facility");
-      }
-
-      const analyzeResult = await analyzeResponse.json();
-      if (!analyzeResult.success) {
-        throw new Error(analyzeResult.error || "Analysis failed");
-      }
-
-      setAnalysisData(analyzeResult.analysis);
-      setCurrentStep("complete");
 
       toast({
         title: "Analysis Complete",
