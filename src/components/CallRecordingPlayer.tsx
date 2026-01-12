@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Volume2, VolumeX, Download, ExternalLink, X, Loader2, Phone, MapPin, Hash, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -54,80 +53,60 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
   const callSummary = parsedNotes?.call_summary || callAnalysis?.call_summary;
   const userSentiment = parsedNotes?.user_sentiment || callAnalysis?.user_sentiment;
 
-  // Proxy the recording URL to avoid CORS issues
+  // Build proxied URL for streaming - no buffering needed
   useEffect(() => {
     if (!isOpen || !recordingUrl) {
       setProxiedUrl(null);
+      setDownloadProgress(0);
       return;
     }
 
-    let blobUrlToCleanup: string | null = null;
-
-    const proxyRecording = async () => {
+    const buildProxyUrl = async () => {
       setIsProxying(true);
-      setDownloadProgress(0);
       setError(null);
       
       try {
-        console.log('[CallRecordingPlayer] Proxying recording URL:', recordingUrl);
-        
         const { data: { session } } = await supabase.auth.getSession();
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         
-        // Use XMLHttpRequest for progress tracking
-        const blob = await new Promise<Blob>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', `${supabaseUrl}/functions/v1/proxy-recording`, true);
-          xhr.responseType = 'blob';
-          
-          xhr.setRequestHeader('Content-Type', 'application/json');
-          xhr.setRequestHeader('apikey', supabaseKey);
-          xhr.setRequestHeader('Authorization', `Bearer ${session?.access_token || supabaseKey}`);
-          
-          xhr.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const progress = Math.round((event.loaded / event.total) * 100);
-              setDownloadProgress(progress);
-            } else if (event.loaded) {
-              // If total is unknown, show indeterminate progress based on loaded bytes
-              // Estimate ~2.5MB average recording size
-              const estimatedTotal = 2500000;
-              const progress = Math.min(95, Math.round((event.loaded / estimatedTotal) * 100));
-              setDownloadProgress(progress);
-            }
-          };
-          
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              setDownloadProgress(100);
-              resolve(xhr.response);
-            } else {
-              reject(new Error(`Failed to proxy recording: ${xhr.status}`));
-            }
-          };
-          
-          xhr.onerror = () => reject(new Error('Network error while fetching recording'));
-          xhr.send(JSON.stringify({ url: recordingUrl }));
+        // Create a URL that streams directly - much faster than buffering
+        const proxyUrl = `${supabaseUrl}/functions/v1/proxy-recording`;
+        
+        // Make the request and stream directly to audio element
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${session?.access_token || supabaseKey}`,
+          },
+          body: JSON.stringify({ url: recordingUrl }),
         });
 
+        if (!response.ok) {
+          throw new Error(`Failed to load recording: ${response.status}`);
+        }
+
+        // Create blob URL from streamed response for audio element
+        const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
-        blobUrlToCleanup = blobUrl;
         setProxiedUrl(blobUrl);
-        console.log('[CallRecordingPlayer] Created blob URL for playback, size:', blob.size);
+        setDownloadProgress(100);
+        console.log('[CallRecordingPlayer] Ready for playback, size:', blob.size);
       } catch (err) {
-        console.error('[CallRecordingPlayer] Proxy error:', err);
+        console.error('[CallRecordingPlayer] Error:', err);
         setError(err instanceof Error ? err.message : 'Failed to load recording');
       } finally {
         setIsProxying(false);
       }
     };
 
-    proxyRecording();
+    buildProxyUrl();
 
     return () => {
-      if (blobUrlToCleanup) {
-        URL.revokeObjectURL(blobUrlToCleanup);
+      if (proxiedUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(proxiedUrl);
       }
     };
   }, [isOpen, recordingUrl]);
@@ -330,15 +309,9 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
               {proxiedUrl && <audio ref={audioRef} src={proxiedUrl} preload="metadata" />}
               
               {isProxying ? (
-                <div className="space-y-3 py-4">
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Downloading recording...
-                    </span>
-                    <span className="font-medium">{downloadProgress}%</span>
-                  </div>
-                  <Progress value={downloadProgress} className="h-2" />
+                <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading recording...</span>
                 </div>
               ) : isLoading && proxiedUrl ? (
                 <div className="text-center py-4 text-muted-foreground">Preparing playback...</div>
