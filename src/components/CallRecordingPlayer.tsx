@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, Download, ExternalLink, X, Loader2 } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Download, ExternalLink, X, Loader2, Phone, MapPin, Hash, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,6 +18,10 @@ interface CallRecordingPlayerProps {
     outcome?: string;
     notes?: any;
     created_at: string;
+    lead_score?: number | null;
+    status?: string;
+    state?: string;
+    call_id?: string;
   };
 }
 
@@ -220,19 +224,72 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Call Info */}
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-sm text-muted-foreground">{callData.phone_number}</span>
-            <span className="text-muted-foreground">•</span>
-            {callData.duration && (
-              <>
-                <span className="text-sm text-muted-foreground">{formatTime(callData.duration)}</span>
-                <span className="text-muted-foreground">•</span>
-              </>
+          {/* Call Details Grid */}
+          <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">Phone</p>
+                <p className="text-sm font-medium">{callData.phone_number}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Hash className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground">Lead Score</p>
+                <p className="text-sm font-medium">
+                  {callData.lead_score !== null && callData.lead_score !== undefined ? (
+                    <span className={callData.lead_score >= 70 ? 'text-green-400' : callData.lead_score >= 40 ? 'text-yellow-400' : 'text-red-400'}>
+                      {callData.lead_score}/100
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">N/A</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            
+            {callData.state && (
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">State</p>
+                  <p className="text-sm font-medium">{callData.state}</p>
+                </div>
+              </div>
             )}
+            
+            {callData.duration !== undefined && (
+              <div className="flex items-center gap-2">
+                <Volume2 className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Duration</p>
+                  <p className="text-sm font-medium">{formatTime(callData.duration)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Status Badges */}
+          <div className="flex flex-wrap gap-2 items-center">
             {getOutcomeBadge(callData.outcome)}
             {userSentiment && getSentimentBadge(userSentiment)}
+            {callData.status && callData.status !== 'completed' && (
+              <Badge variant="outline" className="capitalize">{callData.status}</Badge>
+            )}
           </div>
+
+          {/* Error Display */}
+          {callData.status === 'error' && (
+            <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+              <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-400">Call Failed</p>
+                <p className="text-xs text-muted-foreground">There was an error processing this call</p>
+              </div>
+            </div>
+          )}
 
           {/* Audio Player */}
           {recordingUrl ? (
