@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Phone, CheckCircle, XCircle, Clock, Search, Calendar, RefreshCw, Trash2, Play, Headphones, MessageSquare } from "lucide-react";
+import { Phone, CheckCircle, XCircle, Clock, Search, Calendar, RefreshCw, Trash2, Play, Headphones, MessageSquare, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import CallRecordingPlayer from "@/components/CallRecordingPlayer";
+import CallAnalyticsDashboard from "@/components/CallAnalyticsDashboard";
 
 interface CallAttempt {
   id: string;
@@ -51,7 +52,7 @@ const CallAttempts = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<string>("records");
+  const [activeTab, setActiveTab] = useState<string>("analytics");
   const [selectedRecording, setSelectedRecording] = useState<{
     isOpen: boolean;
     recordingUrl: string | null;
@@ -413,6 +414,10 @@ const CallAttempts = () => {
         {/* Tabs for Records vs Attempts */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
             <TabsTrigger value="records" className="flex items-center gap-2">
               <Headphones className="h-4 w-4" />
               Retell Calls ({callRecords.length})
@@ -422,6 +427,21 @@ const CallAttempts = () => {
               Call Attempts ({displayAttempts.length})
             </TabsTrigger>
           </TabsList>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics">
+            <CallAnalyticsDashboard 
+              callRecords={callRecords} 
+              callAttempts={displayAttempts.map(a => ({
+                id: a.id,
+                business_name: a.business_name,
+                phone_number: a.phone_number,
+                status: a.status,
+                auto_triggered: a.auto_triggered,
+                created_at: a.created_at,
+              }))} 
+            />
+          </TabsContent>
 
           {/* Retell Call Records Tab */}
           <TabsContent value="records">
