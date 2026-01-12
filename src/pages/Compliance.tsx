@@ -364,7 +364,10 @@ const Compliance = () => {
 
       setTcpaAccepted(true);
       setShowTcpaDialog(false);
-      toast({ title: "TCPA Certification accepted" });
+      toast({ title: "TCPA Certification accepted", description: "You can now make calls." });
+      
+      // Refresh data immediately to update all UI indicators
+      await fetchData();
     } catch (error) {
       console.error("Error accepting TCPA:", error);
       toast({ title: "Failed to save acceptance", variant: "destructive" });

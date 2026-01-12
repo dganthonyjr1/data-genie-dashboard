@@ -174,6 +174,7 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const RETELL_API_KEY = Deno.env.get('RETELL_API_KEY');
+    const RETELL_FROM_NUMBER = Deno.env.get('RETELL_FROM_NUMBER');
     const MAKE_WEBHOOK_URL = Deno.env.get('MAKE_WEBHOOK_URL');
 
     if (!RETELL_API_KEY) {
@@ -400,8 +401,46 @@ serve(async (req) => {
     const agentData = await agentResponse.json();
     const agentId = agentData.agent_id;
 
+    // Get outbound phone number - first try secret, then fetch from Retell
+    let fromNumber = RETELL_FROM_NUMBER;
+    
+    if (!fromNumber) {
+      console.log('RETELL_FROM_NUMBER not set, fetching from Retell API...');
+      try {
+        const numbersResponse = await fetch('https://api.retellai.com/list-phone-numbers', {
+          headers: { 'Authorization': `Bearer ${RETELL_API_KEY}` },
+        });
+        if (numbersResponse.ok) {
+          const numbers = await numbersResponse.json();
+          if (Array.isArray(numbers) && numbers.length > 0) {
+            fromNumber = numbers[0].phone_number;
+            console.log(`Using Retell phone number: ${fromNumber}`);
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching Retell phone numbers:', e);
+      }
+    }
+
+    if (!fromNumber) {
+      // Cleanup created resources
+      await fetch(`https://api.retellai.com/delete-agent/${agentId}`, {
+        method: 'DELETE', headers: { 'Authorization': `Bearer ${RETELL_API_KEY}` },
+      });
+      await fetch(`https://api.retellai.com/delete-retell-llm/${llmId}`, {
+        method: 'DELETE', headers: { 'Authorization': `Bearer ${RETELL_API_KEY}` },
+      });
+      return new Response(
+        JSON.stringify({ 
+          error: 'No outbound phone number configured',
+          details: 'Please set the RETELL_FROM_NUMBER secret or provision a phone number in your Retell dashboard'
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Initiate the call
-    console.log(`Initiating call to ${formattedPhone}...`);
+    console.log(`Initiating call from ${fromNumber} to ${formattedPhone}...`);
     const callResponse = await fetch('https://api.retellai.com/v2/create-phone-call', {
       method: 'POST',
       headers: {
@@ -409,7 +448,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from_number: null,
+        from_number: fromNumber,
         to_number: formattedPhone,
         agent_id: agentId,
         metadata: {
