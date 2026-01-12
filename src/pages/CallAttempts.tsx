@@ -530,9 +530,9 @@ const CallAttempts = () => {
                   {filteredRecords.length} of {callRecords.length} Retell AI calls with recordings
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {filteredRecords.length === 0 ? (
-                  <div className="text-center py-12">
+                  <div className="text-center py-12 px-6">
                     <Headphones className="mx-auto h-12 w-12 text-muted-foreground/50" />
                     <h3 className="mt-4 text-lg font-semibold">No call recordings found</h3>
                     <p className="text-muted-foreground mt-2">
@@ -542,70 +542,53 @@ const CallAttempts = () => {
                     </p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[140px]">Timestamp</TableHead>
-                        <TableHead className="min-w-[150px]">Facility</TableHead>
-                        <TableHead className="w-[120px] hidden md:table-cell">Phone</TableHead>
-                        <TableHead className="w-[100px]">Status</TableHead>
-                        <TableHead className="w-[80px] hidden sm:table-cell">Duration</TableHead>
-                        <TableHead className="w-[70px] hidden lg:table-cell">Score</TableHead>
-                        <TableHead className="w-[100px] text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                  <div className="overflow-hidden">
+                    <Table className="table-fixed w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[100px]">Time</TableHead>
+                          <TableHead className="w-auto">Facility</TableHead>
+                          <TableHead className="w-[90px]">Status</TableHead>
+                          <TableHead className="w-[60px] hidden sm:table-cell">Dur.</TableHead>
+                          <TableHead className="w-[70px] text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
                       <TableBody>
                         {filteredRecords.map((record) => (
                           <TableRow key={record.id}>
-                            <TableCell className="whitespace-nowrap text-xs">
+                            <TableCell className="text-xs py-2">
                               {format(new Date(record.created_at), "MMM d, HH:mm")}
                             </TableCell>
-                            <TableCell className="font-medium">
-                              <span className="block truncate max-w-[180px]" title={record.facility_name}>
+                            <TableCell className="py-2">
+                              <span className="block truncate font-medium" title={record.facility_name}>
                                 {record.facility_name}
                               </span>
                             </TableCell>
-                            <TableCell className="font-mono text-xs hidden md:table-cell">
-                              {record.phone_number}
-                            </TableCell>
-                            <TableCell>
+                            <TableCell className="py-2">
                               {getStatusBadge(record.status, record.outcome)}
                             </TableCell>
-                            <TableCell className="hidden sm:table-cell">
+                            <TableCell className="hidden sm:table-cell py-2 text-xs">
                               {formatDuration(record.duration)}
                             </TableCell>
-                            <TableCell className="hidden lg:table-cell">
-                              {record.lead_score ? (
-                                <Badge variant="outline" className={`text-xs ${
-                                  record.lead_score >= 80 ? 'border-green-500 text-green-400' :
-                                  record.lead_score >= 60 ? 'border-yellow-500 text-yellow-400' :
-                                  'border-gray-500 text-gray-400'
-                                }`}>
-                                  {record.lead_score}
-                                </Badge>
-                              ) : '-'}
-                            </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right py-2">
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => openRecordingPlayer(record)}
-                                className="gap-1 px-2"
+                                className="h-8 w-8"
                               >
                                 {getRecordingUrl(record) ? (
                                   <Play className="h-4 w-4" />
                                 ) : (
                                   <MessageSquare className="h-4 w-4" />
                                 )}
-                                <span className="hidden sm:inline">
-                                  {getRecordingUrl(record) ? 'Play' : 'Info'}
-                                </span>
                               </Button>
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -620,9 +603,9 @@ const CallAttempts = () => {
                   {filteredAttempts.length} of {displayAttempts.length} call attempts
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {filteredAttempts.length === 0 ? (
-                  <div className="text-center py-12">
+                  <div className="text-center py-12 px-6">
                     <Phone className="mx-auto h-12 w-12 text-muted-foreground/50" />
                     <h3 className="mt-4 text-lg font-semibold">No call attempts found</h3>
                     <p className="text-muted-foreground mt-2">
@@ -632,65 +615,53 @@ const CallAttempts = () => {
                     </p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[140px]">Timestamp</TableHead>
-                        <TableHead className="min-w-[150px]">Business</TableHead>
-                        <TableHead className="w-[120px] hidden md:table-cell">Phone</TableHead>
-                        <TableHead className="w-[100px]">Status</TableHead>
-                        <TableHead className="w-[70px] hidden sm:table-cell">Type</TableHead>
-                        <TableHead className="hidden lg:table-cell">Error</TableHead>
-                        <TableHead className="w-[60px] text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAttempts.map((attempt) => (
-                        <TableRow key={attempt.id}>
-                          <TableCell className="whitespace-nowrap text-xs">
-                            {format(new Date(attempt.created_at), "MMM d, HH:mm")}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <span className="block truncate max-w-[180px]" title={attempt.business_name}>
-                              {attempt.business_name}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs hidden md:table-cell">
-                            {attempt.phone_number}
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(attempt.status)}
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            <Badge variant="outline" className="text-xs">
-                              {attempt.auto_triggered ? "Auto" : "Manual"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="max-w-[150px] hidden lg:table-cell">
-                            {attempt.error_message ? (
-                              <span className="text-xs text-red-400 truncate block" title={attempt.error_message}>
-                                {attempt.error_message.substring(0, 30)}...
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {!isDemoMode && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteAttempt(attempt.id)}
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </TableCell>
+                  <div className="overflow-hidden">
+                    <Table className="table-fixed w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[100px]">Time</TableHead>
+                          <TableHead className="w-auto">Business</TableHead>
+                          <TableHead className="w-[90px]">Status</TableHead>
+                          <TableHead className="w-[60px] hidden sm:table-cell">Type</TableHead>
+                          <TableHead className="w-[50px] text-right">Del</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredAttempts.map((attempt) => (
+                          <TableRow key={attempt.id}>
+                            <TableCell className="text-xs py-2">
+                              {format(new Date(attempt.created_at), "MMM d, HH:mm")}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <span className="block truncate font-medium" title={attempt.business_name}>
+                                {attempt.business_name}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2">
+                              {getStatusBadge(attempt.status)}
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell py-2">
+                              <Badge variant="outline" className="text-xs">
+                                {attempt.auto_triggered ? "Auto" : "Manual"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right py-2">
+                              {!isDemoMode && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteAttempt(attempt.id)}
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
