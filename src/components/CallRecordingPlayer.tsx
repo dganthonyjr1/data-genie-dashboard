@@ -47,6 +47,7 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
 
   useEffect(() => {
     if (isOpen && audioRef.current && recordingUrl) {
+      console.log('[CallRecordingPlayer] Loading recording URL:', recordingUrl);
       audioRef.current.load();
       setIsLoading(true);
       setError(null);
@@ -71,8 +72,10 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
       setCurrentTime(0);
     };
 
-    const handleError = () => {
-      setError('Failed to load recording');
+    const handleError = (e: Event) => {
+      const audioElement = e.target as HTMLAudioElement;
+      console.error('[CallRecordingPlayer] Audio error:', audioElement.error?.code, audioElement.error?.message);
+      setError(`Failed to load recording: ${audioElement.error?.message || 'Unknown error'}`);
       setIsLoading(false);
     };
 
@@ -185,7 +188,7 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
           {/* Audio Player */}
           {recordingUrl ? (
             <div className="bg-muted/30 rounded-lg p-4 space-y-4">
-              <audio ref={audioRef} src={recordingUrl} preload="metadata" />
+              <audio ref={audioRef} src={recordingUrl} preload="metadata" crossOrigin="anonymous" />
               
               {isLoading ? (
                 <div className="text-center py-4 text-muted-foreground">Loading recording...</div>
