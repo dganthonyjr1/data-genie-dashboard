@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall, Play, Square, CreditCard, Activity } from "lucide-react";
+import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall, Play, Square, CreditCard, Activity, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useBackgroundDiagnostics } from "@/hooks/use-background-diagnostics";
@@ -37,6 +37,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { name: "Billing", href: "/billing", icon: CreditCard },
     { name: "Payment Settings", href: "/settings/payments", icon: CreditCard },
     { name: "API Docs", href: "/api-docs", icon: BookOpen },
+    { name: "Compliance", href: "/settings/compliance", icon: Shield },
     { name: "Settings", href: "/settings", icon: Settings },
     { name: "Diagnostics", href: "/diagnostics", icon: Activity },
   ];
