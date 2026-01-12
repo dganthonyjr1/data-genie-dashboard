@@ -88,6 +88,145 @@ const STATE_TO_TIMEZONE: Record<string, string> = {
   'AK': 'America/Anchorage', 'HI': 'Pacific/Honolulu',
 };
 
+// Industry-specific call configurations
+const INDUSTRY_CALL_CONFIGS: Record<string, {
+  persona: string;
+  voicemailIntro: string;
+  painPoints: string[];
+  valueProps: string[];
+}> = {
+  healthcare: {
+    persona: 'ScrapeX Healthcare Solutions',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Healthcare Solutions',
+    painPoints: [
+      'Missed appointments costing you revenue',
+      'Staff drowning in phone calls',
+      'Patients not returning for follow-ups'
+    ],
+    valueProps: [
+      'Most practices lose $150-200 per no-show. If you have 10 a week, that\'s $8,000 a month walking out the door. We cut no-shows by 40% with automated reminders. That\'s $3,200 back in your pocket monthly.',
+      'Your front desk probably handles 80+ calls a day. If half could be handled automatically - scheduling, refills, basic questions - that\'s 4 hours saved daily. That\'s one FTE worth of productivity back.',
+      'Practices lose 20% of patients annually just from lack of follow-up. For a 2,000 patient practice, that\'s 400 patients. At $500 lifetime value each, you\'re leaving $200K on the table.'
+    ]
+  },
+  restaurant: {
+    persona: 'ScrapeX Restaurant Growth',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Restaurant Growth',
+    painPoints: [
+      'Reservation no-shows eating into your revenue',
+      'Online ordering gaps losing customers to competitors',
+      'Negative reviews hurting your reputation'
+    ],
+    valueProps: [
+      'Restaurants lose $150-300 per no-show reservation. With 5 weekly no-shows, that\'s $3,000-6,000 monthly. Our automated confirmation system cuts no-shows by 35%.',
+      'Restaurants without proper online ordering lose 30% of potential orders to competitors. We help you capture those orders and increase average ticket size by 15%.',
+      'One negative review costs you an average of 30 customers. Our review management system helps you respond quickly and turn unhappy diners into loyal customers.'
+    ]
+  },
+  legal: {
+    persona: 'ScrapeX Legal Solutions',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Legal Practice Solutions',
+    painPoints: [
+      'Slow response time losing leads to competitors',
+      'Client intake bottlenecks wasting attorney time',
+      'Follow-up gaps letting cases go cold'
+    ],
+    valueProps: [
+      'Studies show 78% of clients hire the first attorney who responds. If you\'re losing 5 leads monthly due to slow response, at $3,000 average case value, that\'s $15,000 walking away.',
+      'Partners spend 2-3 hours daily on intake calls. At $300/hour, that\'s $150,000 annually in lost billable time. Our automated intake captures and qualifies leads 24/7.',
+      'Law firms lose 40% of potential cases due to poor follow-up. For every 10 consultations, 4 go cold. Our nurture system converts 25% more consultations to retained clients.'
+    ]
+  },
+  real_estate: {
+    persona: 'ScrapeX Real Estate Growth',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Real Estate Solutions',
+    painPoints: [
+      'Lead response time costing you listings',
+      'Showing scheduling chaos eating your time',
+      'Leads going cold from lack of follow-up'
+    ],
+    valueProps: [
+      'Agents who respond within 5 minutes are 100x more likely to connect with leads. If you\'re missing just 3 leads monthly at $9,000 average commission, that\'s $27,000 lost annually.',
+      'The average agent spends 15 hours weekly coordinating showings. Our automated scheduling system cuts that in half, giving you 7+ hours back for selling.',
+      'Only 12% of real estate leads convert on first contact. Our 90-day nurture sequence increases conversion by 40%, turning cold leads into closed deals.'
+    ]
+  },
+  automotive: {
+    persona: 'ScrapeX Auto Shop Solutions',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Automotive Solutions',
+    painPoints: [
+      'Missed appointment reminders losing customers',
+      'Service follow-up gaps hurting retention',
+      'Phone tag making scheduling a nightmare'
+    ],
+    valueProps: [
+      'Auto shops lose $200 per missed appointment. With 5 weekly no-shows, that\'s $4,000 monthly. Our reminder system cuts no-shows by 50%, putting $2,000 back in your pocket.',
+      'Shops that follow up on declined services see 35% of customers return within 90 days. That\'s thousands in recaptured revenue from work you already quoted.',
+      'The average shop misses 20% of calls. At $400 average repair order, missing 5 calls weekly costs you $8,000 monthly. Our 24/7 booking captures those jobs.'
+    ]
+  },
+  home_services: {
+    persona: 'ScrapeX Home Services',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Home Services Solutions',
+    painPoints: [
+      'Missed calls sending customers to competitors',
+      'Quote follow-up falling through the cracks',
+      'Seasonal demand swings crushing cash flow'
+    ],
+    valueProps: [
+      'Home service companies miss 30% of calls. At $500 average job, missing 10 calls weekly costs you $20,000 monthly. Our 24/7 answering captures those jobs.',
+      'Only 20% of contractors follow up on quotes. Of those who do, 40% close the deal. That\'s leaving money on the table with every unanswered quote.',
+      'Smart contractors smooth seasonal peaks by booking maintenance in slow months. Our automated scheduling fills your calendar year-round.'
+    ]
+  },
+  professional_services: {
+    persona: 'ScrapeX Business Solutions',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Business Solutions',
+    painPoints: [
+      'Proposal delays losing deals to competitors',
+      'Client communication gaps hurting retention',
+      'Project scope creep eating into margins'
+    ],
+    valueProps: [
+      'Firms that send proposals within 24 hours win 60% more deals. Our automated proposal system cuts turnaround from days to hours.',
+      'Client retention is 5x cheaper than acquisition. Our automated check-ins and updates increase retention by 25%.',
+      'Scope creep costs the average firm 15% of project profit. Our project tracking and alerts keep projects on budget and clients informed.'
+    ]
+  },
+  spa_wellness: {
+    persona: 'ScrapeX Spa & Wellness Solutions',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Wellness Solutions',
+    painPoints: [
+      'Booking gaps leaving chairs and rooms empty',
+      'Membership cancellations hurting revenue',
+      'Gift card revenue sitting unused'
+    ],
+    valueProps: [
+      'Empty slots cost you $50-150 each. With 10 weekly gaps, that\'s $2,000-6,000 monthly. Our smart scheduling fills cancellations automatically.',
+      'The average spa loses 20% of members annually. At $100/month, 50 lost members costs $60,000 yearly. Our retention system cuts churn by 30%.',
+      '20% of gift cards go unredeemed. For every $10,000 in gift card sales, $2,000 sits unused. Our reminder system brings those customers back.'
+    ]
+  },
+  general: {
+    persona: 'ScrapeX Business Solutions',
+    voicemailIntro: 'Hi, this is Alex from ScrapeX Business Solutions',
+    painPoints: [
+      'Missed opportunities from slow response times',
+      'Customer retention challenges',
+      'Operational inefficiencies hurting margins'
+    ],
+    valueProps: [
+      'Businesses that respond within an hour are 7x more likely to qualify leads. Our automation ensures instant response every time.',
+      'Acquiring a new customer costs 5-25x more than keeping one. Our retention tools help you maximize customer lifetime value.',
+      'Most businesses lose 20-30% of revenue to inefficiency. Our optimization tools help you recapture that lost revenue.'
+    ]
+  }
+};
+
+function getIndustryConfig(industry: string) {
+  return INDUSTRY_CALL_CONFIGS[industry] || INDUSTRY_CALL_CONFIGS.general;
+}
+
 function getStateFromPhone(phone: string): string | null {
   const digits = phone.replace(/\D/g, '');
   let areaCode: string;
@@ -127,11 +266,12 @@ function formatPhoneNumber(phone: string): string {
   return phone;
 }
 
-// Generate solution-based consent prompt - no tech, no fluff, just problems and ROI
-function getConsentPrompt(state: string | null, facilityName: string): string {
+// Generate industry-specific consent prompt
+function getIndustryPrompt(state: string | null, facilityName: string, industry: string): string {
   const isTwoParty = state ? isTwoPartyConsentState(state) : false;
+  const config = getIndustryConfig(industry);
   
-  const basePrompt = `You are Alex, a healthcare solutions specialist. Your ONLY goal is to identify ONE immediate problem and show the ROI of solving it.
+  const basePrompt = `You are Alex, a ${config.persona.replace('ScrapeX ', '')} specialist. Your ONLY goal is to identify ONE immediate problem and show the ROI of solving it.
 
 COMPLIANCE (NON-NEGOTIABLE):
 - Identify yourself and company immediately
@@ -142,28 +282,28 @@ COMPLIANCE (NON-NEGOTIABLE):
 CALL FLOW:
 
 1. OPENER (10 seconds max):
-"Hi, this is Alex with ScrapeX calling for ${facilityName}. Quick note - this call may be recorded. ${isTwoParty ? 'Is that okay with you?' : 'Alright?'}"
+"Hi, this is Alex with ${config.persona} calling for ${facilityName}. Quick note - this call may be recorded. ${isTwoParty ? 'Is that okay with you?' : 'Alright?'}"
 
 2. ${isTwoParty ? 'NO CONSENT = "No problem, have a great day." END CALL.' : ''}
 
 3. PROBLEM DISCOVERY (30 seconds):
-"I'll be brief - we help practices like yours solve one of three problems:
-- Missed appointments costing you revenue
-- Staff drowning in phone calls
-- Patients not returning for follow-ups
+"I'll be brief - we help businesses like yours solve one of three problems:
+- ${config.painPoints[0]}
+- ${config.painPoints[1]}
+- ${config.painPoints[2]}
 
 Which one hurts most right now?"
 
 4. ROI RESPONSE (match their answer):
 
-IF MISSED APPOINTMENTS:
-"Most practices lose $150-200 per no-show. If you have 10 a week, that's $8,000 a month walking out the door. We cut no-shows by 40% with automated reminders. That's $3,200 back in your pocket monthly."
+IF "${config.painPoints[0].toUpperCase()}":
+"${config.valueProps[0]}"
 
-IF PHONE OVERLOAD:
-"Your front desk probably handles 80+ calls a day. If half could be handled automatically - scheduling, refills, basic questions - that's 4 hours saved daily. That's one FTE worth of productivity back."
+IF "${config.painPoints[1].toUpperCase()}":
+"${config.valueProps[1]}"
 
-IF PATIENT RETENTION:
-"Practices lose 20% of patients annually just from lack of follow-up. For a 2,000 patient practice, that's 400 patients. At $500 lifetime value each, you're leaving $200K on the table."
+IF "${config.painPoints[2].toUpperCase()}":
+"${config.valueProps[2]}"
 
 5. CLOSE (15 seconds):
 "Want me to show you exactly how this works for ${facilityName}? I can get you a quick demo this week - takes 15 minutes."
@@ -248,7 +388,7 @@ serve(async (req) => {
     }
 
     // Handle POST request for triggering a call
-    const { facility_name, phone_number, analysis_data, override_business_hours } = await req.json();
+    const { facility_name, phone_number, analysis_data, override_business_hours, industry = 'healthcare' } = await req.json();
 
     if (!facility_name || !phone_number) {
       return new Response(
@@ -258,7 +398,8 @@ serve(async (req) => {
     }
 
     const formattedPhone = formatPhoneNumber(phone_number);
-    console.log(`Triggering compliant call for: ${facility_name} at ${formattedPhone}`);
+    const industryConfig = getIndustryConfig(industry);
+    console.log(`Triggering compliant ${industry} call for: ${facility_name} at ${formattedPhone}`);
 
     // 1. Check DNC list
     const { data: dncCheck } = await supabase.rpc('is_on_dnc_list', {
@@ -267,12 +408,11 @@ serve(async (req) => {
     });
 
     if (dncCheck) {
-      // Log the blocked call
       await supabase.rpc('log_compliance_action', {
         p_user_id: userId,
         p_action: 'call_blocked_dnc',
         p_category: 'dnc',
-        p_details: { phone_number: formattedPhone, facility_name },
+        p_details: { phone_number: formattedPhone, facility_name, industry },
         p_result: 'blocked'
       });
 
@@ -294,12 +434,11 @@ serve(async (req) => {
     // 3. Check business hours
     const businessHours = isWithinBusinessHours(timezone);
     if (!businessHours.isValid && !override_business_hours) {
-      // Log the compliance check
       await supabase.rpc('log_compliance_action', {
         p_user_id: userId,
         p_action: 'call_blocked_hours',
         p_category: 'business_hours',
-        p_details: { phone_number: formattedPhone, local_hour: businessHours.localHour, timezone, state },
+        p_details: { phone_number: formattedPhone, local_hour: businessHours.localHour, timezone, state, industry },
         p_result: 'blocked'
       });
 
@@ -341,12 +480,12 @@ serve(async (req) => {
       p_user_id: userId,
       p_action: 'dnc_check_passed',
       p_category: 'dnc',
-      p_details: { phone_number: formattedPhone, facility_name },
+      p_details: { phone_number: formattedPhone, facility_name, industry },
       p_result: 'passed'
     });
 
-    // Build dynamic prompt with compliance
-    let dynamicPrompt = getConsentPrompt(state, facility_name);
+    // Build dynamic industry-specific prompt
+    let dynamicPrompt = getIndustryPrompt(state, facility_name, industry);
     if (analysis_data) {
       if (analysis_data.recommended_pitch) {
         dynamicPrompt += `\n\nRecommended pitch: ${analysis_data.recommended_pitch}`;
@@ -356,8 +495,8 @@ serve(async (req) => {
       }
     }
 
-    // Create Retell LLM
-    console.log('Creating Retell LLM with compliance prompt...');
+    // Create Retell LLM with industry-specific prompt
+    console.log(`Creating Retell LLM with ${industry} industry prompt...`);
     const llmResponse = await fetch('https://api.retellai.com/create-retell-llm', {
       method: 'POST',
       headers: {
@@ -367,7 +506,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         general_prompt: dynamicPrompt,
-        begin_message: `Hello, this is Alex from ScrapeX Healthcare Solutions calling for ${facility_name}. Before we continue, I need to let you know that this call may be recorded for quality assurance. ${isTwoParty ? 'Do you consent to this recording?' : 'Is that okay with you?'}`,
+        begin_message: `Hello, this is Alex from ${industryConfig.persona} calling for ${facility_name}. Before we continue, I need to let you know that this call may be recorded for quality assurance. ${isTwoParty ? 'Do you consent to this recording?' : 'Is that okay with you?'}`,
         general_tools: [
           {
             type: 'end_call',
@@ -390,7 +529,7 @@ serve(async (req) => {
     const llmData = await llmResponse.json();
     const llmId = llmData.llm_id;
 
-    // Create Retell agent
+    // Create Retell agent with industry-specific name
     console.log('Creating Retell agent...');
     const agentResponse = await fetch('https://api.retellai.com/create-agent', {
       method: 'POST',
@@ -399,13 +538,13 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        agent_name: `ScrapeX Compliant Agent - ${facility_name.substring(0, 25)}`,
+        agent_name: `${industryConfig.persona} - ${facility_name.substring(0, 25)}`,
         voice_id: '11labs-Adrian',
         response_engine: { type: 'retell-llm', llm_id: llmId },
         language: 'en-US',
         enable_backchannel: true,
         enable_voicemail_detection: true,
-        voicemail_message: `Hi, this is Alex from ScrapeX Healthcare Solutions calling for ${facility_name}. We have insights that could help improve your operations. Please call us back at your earliest convenience. Thank you!`,
+        voicemail_message: `${industryConfig.voicemailIntro} calling for ${facility_name}. We have insights that could help improve your operations. Please call us back at your earliest convenience. Thank you!`,
       }),
     });
 
@@ -424,7 +563,7 @@ serve(async (req) => {
     const agentData = await agentResponse.json();
     const agentId = agentData.agent_id;
 
-    // Get outbound phone number - first try secret, then fetch from Retell
+    // Get outbound phone number
     let fromNumber = RETELL_FROM_NUMBER;
     
     if (!fromNumber) {
@@ -446,7 +585,6 @@ serve(async (req) => {
     }
 
     if (!fromNumber) {
-      // Cleanup created resources
       await fetch(`https://api.retellai.com/delete-agent/${agentId}`, {
         method: 'DELETE', headers: { 'Authorization': `Bearer ${RETELL_API_KEY}` },
       });
@@ -463,7 +601,7 @@ serve(async (req) => {
     }
 
     // Initiate the call
-    console.log(`Initiating call from ${fromNumber} to ${formattedPhone}...`);
+    console.log(`Initiating ${industry} call from ${fromNumber} to ${formattedPhone}...`);
     const callResponse = await fetch('https://api.retellai.com/v2/create-phone-call', {
       method: 'POST',
       headers: {
@@ -481,6 +619,7 @@ serve(async (req) => {
           state,
           timezone,
           two_party_consent: isTwoParty,
+          industry,
           source: 'scrapex_dashboard',
         },
         drop_if_machine_detected: false,
@@ -504,7 +643,7 @@ serve(async (req) => {
     const callData = await callResponse.json();
     const callId = callData.call_id;
 
-    // Store call record with compliance fields
+    // Store call record with industry field
     const { data: callRecord, error: insertError } = await supabase
       .from('call_records')
       .insert({
@@ -525,6 +664,7 @@ serve(async (req) => {
         notes: JSON.stringify({
           agent_id: agentId,
           llm_id: llmId,
+          industry,
           retell_metadata: callData,
           analysis_context: analysis_data || null,
           compliance: { state, timezone, two_party_consent: isTwoParty, dnc_checked: true }
@@ -545,7 +685,8 @@ serve(async (req) => {
       p_details: { 
         call_id: callId, 
         phone_number: formattedPhone, 
-        facility_name, 
+        facility_name,
+        industry,
         state, 
         timezone,
         two_party_consent: isTwoParty,
@@ -564,6 +705,7 @@ serve(async (req) => {
             call_id: callId,
             facility_name,
             phone_number: formattedPhone,
+            industry,
             state,
             timezone,
             two_party_consent: isTwoParty,
@@ -581,6 +723,8 @@ serve(async (req) => {
         success: true, 
         call_id: callId,
         agent_id: agentId,
+        industry,
+        industry_persona: industryConfig.persona,
         call_record: callRecord,
         compliance: {
           state,
@@ -590,7 +734,7 @@ serve(async (req) => {
           business_hours_valid: businessHours.isValid,
           agreement_verified: true
         },
-        message: 'Compliant Retell AI call initiated successfully',
+        message: `Compliant ${industryConfig.persona} call initiated successfully`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

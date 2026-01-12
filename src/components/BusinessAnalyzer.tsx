@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTriggerCall } from "@/hooks/use-trigger-call";
@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { INDUSTRY_CONFIGS, INDUSTRY_OPTIONS, detectIndustryFromContent, getIndustryConfig } from "@/lib/industry-config";
 import { 
   Search, 
   Loader2, 
@@ -32,7 +34,8 @@ import {
   TrendingUp,
   AlertCircle,
   Lightbulb,
-  CheckCircle2
+  CheckCircle2,
+  Factory
 } from "lucide-react";
 
 interface RevenueOpportunity {
@@ -56,6 +59,8 @@ interface FacilityAnalysis {
   key_decision_factors?: string[];
   competitive_position?: string;
   follow_up_timing?: string;
+  industry?: string;
+  industry_name?: string;
 }
 
 interface ScrapedData {
@@ -85,11 +90,15 @@ export default function BusinessAnalyzer() {
   const [url, setUrl] = useState("");
   const [facilityName, setFacilityName] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [currentStep, setCurrentStep] = useState<"idle" | "scraping" | "analyzing" | "complete">("idle");
+  const [currentStep, setCurrentStep] = useState<"idle" | "scraping" | "detecting" | "analyzing" | "complete">("idle");
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [analysisData, setAnalysisData] = useState<FacilityAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [useBackendApi, setUseBackendApi] = useState(true);
+  
+  // Industry selection state
+  const [selectedIndustry, setSelectedIndustry] = useState<string>("auto");
+  const [detectedIndustry, setDetectedIndustry] = useState<{ industry: string; confidence: 'high' | 'medium' | 'low'; matchedKeywords: string[] } | null>(null);
 
   // Poll for job completion from backend API
   const pollJobStatus = async (jobId: string, maxAttempts = 30): Promise<any> => {
