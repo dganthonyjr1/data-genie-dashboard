@@ -64,11 +64,31 @@ serve(async (req) => {
       );
     }
 
-    const { lead } = await req.json() as { lead: LeadData };
+    const body = await req.json();
+    
+    // Support both { lead: {...} } format and flat format for backwards compatibility
+    let lead: LeadData;
+    if (body.lead) {
+      lead = body.lead;
+    } else {
+      // Convert flat format to LeadData
+      lead = {
+        businessName: body.business_name || body.businessName || 'Unknown Business',
+        niche: body.niche || 'general',
+        painScore: body.pain_score || body.painScore || null,
+        revenueLeak: body.revenue_leak || body.revenueLeak || null,
+        reviewRating: body.review_rating || body.reviewRating,
+        reviewCount: body.review_count || body.reviewCount,
+        hasPhone: Boolean(body.phone || body.hasPhone),
+        hasEmail: Boolean(body.email || body.hasEmail),
+        hasWebsite: Boolean(body.website || body.hasWebsite),
+        evidence: body.evidence,
+      };
+    }
 
-    if (!lead) {
+    if (!lead || !lead.businessName) {
       return new Response(
-        JSON.stringify({ error: 'Lead data is required' }),
+        JSON.stringify({ error: 'Lead data with businessName is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

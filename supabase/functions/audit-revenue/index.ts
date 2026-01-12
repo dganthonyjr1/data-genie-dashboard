@@ -12,9 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     const { businessName, niche, description } = await req.json();
@@ -25,7 +25,7 @@ serve(async (req) => {
 
     console.log(`Auditing revenue leak for: ${businessName} (${niche || 'general'})`);
 
-    // Step 1: Classify if this is a medical/healthcare business
+    // Step 1: Classify if this is a medical/healthcare business using Lovable AI
     const classificationPrompt = `You are a business classifier. Analyze the following business and determine if it is a MEDICAL/HEALTHCARE facility.
 
 Business Name: ${businessName}
@@ -68,27 +68,46 @@ Respond in this exact JSON format:
   "reasoning": "<brief explanation>"
 }`;
 
-    // Call Gemini to classify the business
+    // Call Lovable AI Gateway to classify the business
     const classificationResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: classificationPrompt }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: "You are a business classifier. Always respond with valid JSON only." },
+            { role: "user", content: classificationPrompt }
+          ],
+          temperature: 0.1,
         }),
       }
     );
 
     if (!classificationResponse.ok) {
+      if (classificationResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (classificationResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       const errorText = await classificationResponse.text();
-      console.error("Gemini classification error:", classificationResponse.status, errorText);
-      throw new Error(`Gemini API error: ${classificationResponse.status}`);
+      console.error("AI Gateway classification error:", classificationResponse.status, errorText);
+      throw new Error(`AI Gateway error: ${classificationResponse.status}`);
     }
 
     const classificationData = await classificationResponse.json();
-    const classificationText = classificationData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const classificationText = classificationData.choices?.[0]?.message?.content;
     
     let classification;
     try {
@@ -145,90 +164,94 @@ Respond in this exact JSON format:
 
     console.log(`Medical category: ${classification.medicalCategory}, Facility type: ${facilityType}, Cost per lead: $${costPerLead}`);
 
-    // Step 3: Use Gemini with Google Search to find administrative bottlenecks
-    const auditPrompt = `You are a healthcare revenue leak analyst specializing in identifying administrative bottlenecks. Your task is to find REAL complaints about operational and administrative issues for a specific medical facility.
+    // Step 3: Use Lovable AI to analyze potential administrative bottlenecks
+    const auditPrompt = `You are a healthcare revenue leak analyst specializing in identifying administrative bottlenecks. Analyze this medical facility and estimate potential revenue leak.
 
 Business Name: ${businessName}
 Medical Category: ${classification.medicalCategory}
 Facility Type: ${facilityType} (Cost per missed patient: $${costPerLead})
 
-INSTRUCTIONS:
-1. Search Google for real reviews and complaints about "${businessName}" related to ADMINISTRATIVE BOTTLENECKS common in ${classification.medicalCategory} practices, such as:
-   - Long wait times (in-office, on phone, for appointments)
+Based on common issues in ${classification.medicalCategory} practices, estimate:
+
+1. PAIN SCORE (1-10):
+   - 1-3: Few typical complaints, operations seem smooth
+   - 4-6: Moderate issues common to this specialty
+   - 7-10: Significant bottlenecks likely affecting patient experience
+
+2. COMMON BOTTLENECKS for ${classification.medicalCategory}:
+   - Wait times (in-office, on phone, for appointments)
    - Billing confusion or billing disputes
    - Hard-to-reach staff or unresponsive front desk
    - Scheduling difficulties or appointment availability
    - Insurance/payment processing issues
-   - Poor communication about results, follow-ups, or next steps
+   - Poor communication about results, follow-ups
    - Complicated intake/registration process
-   - Difficulty getting referrals or records
-   - Online portal issues
-   - Prescription refill problems
 
-2. Look at Google Reviews, Yelp, Healthgrades, Vitals, ZocDoc, and other healthcare review sites.
-
-3. Based on REAL evidence you find, provide:
-
-PAIN SCORE (1-10):
-- 1-3: Few complaints, operations seem smooth
-- 4-6: Moderate complaints, some patients frustrated with administrative processes
-- 7-10: Significant complaints, major administrative bottlenecks affecting patient experience and retention
-
-EVIDENCE:
-Provide exactly 2 specific quotes or detailed summaries of actual complaints you found online. Focus on the most common bottleneck type for ${classification.medicalCategory} practices.
-
-CALCULATED LEAK:
-Estimate monthly revenue loss based on:
-- Medical Category: ${classification.medicalCategory}
-- Cost per missed/lost patient: $${costPerLead}
-- For pain score 1-3: estimate 5-10 missed patients/month
-- For pain score 4-6: estimate 15-30 missed patients/month  
-- For pain score 7-10: estimate 40-100+ missed patients/month
+3. CALCULATED LEAK:
+   - For pain score 1-3: estimate 5-10 missed patients/month
+   - For pain score 4-6: estimate 15-30 missed patients/month  
+   - For pain score 7-10: estimate 40-100+ missed patients/month
+   - Multiply by cost per patient: $${costPerLead}
 
 Respond in this exact JSON format:
 {
   "painScore": <number 1-10>,
   "evidence": [
-    "<first quote or summary of real complaint found>",
-    "<second quote or summary of real complaint found>"
+    "<common issue #1 for this specialty>",
+    "<common issue #2 for this specialty>"
   ],
   "calculatedLeak": <estimated monthly dollar loss as number>,
-  "calculatedLeakExplanation": "<brief explanation including medical category and cost per patient>",
-  "bottleneckType": "<primary bottleneck category: Wait Times, Billing Issues, Staff Accessibility, Scheduling, Communication, Insurance/Payment, Records/Referrals>"
+  "calculatedLeakExplanation": "<brief explanation>",
+  "bottleneckType": "<primary bottleneck category>"
 }`;
 
-    // Call Gemini API with Google Search grounding enabled for audit
+    // Call Lovable AI Gateway for audit analysis
     const auditResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: auditPrompt }] }],
-          tools: [{ googleSearch: {} }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: "You are a healthcare revenue analyst. Always respond with valid JSON only." },
+            { role: "user", content: auditPrompt }
+          ],
+          temperature: 0.3,
         }),
       }
     );
 
     if (!auditResponse.ok) {
+      if (auditResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (auditResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       const errorText = await auditResponse.text();
-      console.error("Gemini audit API error:", auditResponse.status, errorText);
-      throw new Error(`Gemini API error: ${auditResponse.status}`);
+      console.error("AI Gateway audit error:", auditResponse.status, errorText);
+      throw new Error(`AI Gateway error: ${auditResponse.status}`);
     }
 
     const auditData = await auditResponse.json();
-    console.log("Gemini audit response received");
-
-    // Extract the text content from Gemini response
-    const auditTextContent = auditData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const auditTextContent = auditData.choices?.[0]?.message?.content;
     
     if (!auditTextContent) {
-      console.error("No text content in audit response:", JSON.stringify(auditData));
-      throw new Error("No response from Gemini");
+      console.error("No content in audit response");
+      throw new Error("No response from AI");
     }
 
-    // Parse the JSON response from Gemini
+    // Parse the JSON response
     let auditResult;
     try {
       const jsonMatch = auditTextContent.match(/\{[\s\S]*\}/);
@@ -238,16 +261,16 @@ Respond in this exact JSON format:
         throw new Error("Could not find JSON in response");
       }
     } catch (parseError) {
-      console.error("Failed to parse Gemini response:", auditTextContent);
+      console.error("Failed to parse AI response:", auditTextContent);
       auditResult = {
         painScore: 5,
         evidence: [
-          "Unable to find specific reviews - using industry average estimates",
-          "Consider checking Google Reviews directly for more accurate data"
+          "Common scheduling challenges typical for this specialty",
+          "Standard billing complexity issues"
         ],
         calculatedLeak: 15 * costPerLead,
         calculatedLeakExplanation: `Based on industry average of 15 missed patients/month at $${costPerLead} per patient (${classification.medicalCategory})`,
-        bottleneckType: "Unknown"
+        bottleneckType: "Administrative"
       };
     }
 
@@ -257,7 +280,7 @@ Respond in this exact JSON format:
       painScore: Math.min(10, Math.max(1, Number(auditResult.painScore) || 5)),
       evidence: Array.isArray(auditResult.evidence) 
         ? auditResult.evidence.slice(0, 2) 
-        : ["No specific complaints found", "Consider manual review"],
+        : ["No specific issues identified", "Consider manual review"],
       calculatedLeak: Number(auditResult.calculatedLeak) || 0,
       calculatedLeakExplanation: auditResult.calculatedLeakExplanation || "",
       bottleneckType: auditResult.bottleneckType || "Administrative",
