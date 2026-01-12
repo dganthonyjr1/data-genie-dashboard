@@ -114,9 +114,7 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
         blobUrlToCleanup = blobUrl;
 
         setProxiedUrl(blobUrl);
-        console.log('[CallRecordingPlayer] Ready for playback, size:', normalizedBlob.size, 'type:', normalizedBlob.type);
       } catch (err) {
-        console.error('[CallRecordingPlayer] Error:', err);
         setError(err instanceof Error ? err.message : 'Failed to load recording');
       } finally {
         setIsProxying(false);
@@ -140,7 +138,6 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
       setIsPlaying(false);
       setCurrentTime(0);
 
-      console.log('[CallRecordingPlayer] Loading proxied URL');
       audio.load();
       setIsLoading(true);
     }
@@ -173,7 +170,6 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
     };
 
     const handleError = () => {
-      console.error('[CallRecordingPlayer] Audio error:', audio.error?.code, audio.error?.message);
       setError(`Failed to load recording: ${audio.error?.message || 'Unknown error'}`);
       setIsLoading(false);
       setIsPlaying(false);
@@ -207,8 +203,7 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
 
       await audio.play();
       setIsPlaying(true);
-    } catch (e) {
-      console.error('[CallRecordingPlayer] play() failed:', e);
+    } catch {
       setError('Playback failed. Try clicking Play again (browser blocked audio).');
       setIsPlaying(false);
     }
