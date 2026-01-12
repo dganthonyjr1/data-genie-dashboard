@@ -59,6 +59,8 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
       return;
     }
 
+    let blobUrlToCleanup: string | null = null;
+
     const proxyRecording = async () => {
       setIsProxying(true);
       setError(null);
@@ -66,24 +68,35 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
       try {
         console.log('[CallRecordingPlayer] Proxying recording URL:', recordingUrl);
         
-        const response = await supabase.functions.invoke('proxy-recording', {
-          body: { url: recordingUrl }
+        // Use direct fetch to get binary audio data
+        const { data: { session } } = await supabase.auth.getSession();
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/proxy-recording`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${session?.access_token || supabaseKey}`,
+          },
+          body: JSON.stringify({ url: recordingUrl }),
         });
 
-        if (response.error) {
-          throw new Error(response.error.message || 'Failed to proxy recording');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to proxy recording: ${response.status}`);
         }
 
-        // Create a blob URL from the response data
-        const blob = new Blob([response.data], { type: 'audio/wav' });
+        // Get the blob directly
+        const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
+        blobUrlToCleanup = blobUrl;
         setProxiedUrl(blobUrl);
-        console.log('[CallRecordingPlayer] Created blob URL for playback');
+        console.log('[CallRecordingPlayer] Created blob URL for playback, size:', blob.size);
       } catch (err) {
         console.error('[CallRecordingPlayer] Proxy error:', err);
-        // Fallback to direct URL
-        console.log('[CallRecordingPlayer] Falling back to direct URL');
-        setProxiedUrl(recordingUrl);
+        setError(err instanceof Error ? err.message : 'Failed to load recording');
       } finally {
         setIsProxying(false);
       }
@@ -93,8 +106,8 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
 
     // Cleanup blob URL on unmount
     return () => {
-      if (proxiedUrl && proxiedUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(proxiedUrl);
+      if (blobUrlToCleanup) {
+        URL.revokeObjectURL(blobUrlToCleanup);
       }
     };
   }, [isOpen, recordingUrl]);
