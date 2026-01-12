@@ -1,0 +1,83 @@
+[
+  {
+    "facility_name": "Transforming your care",
+    "url": "https://www.mayoclinic.org",
+    "analyzed_at": "2026-01-11T17:05:10.826576",
+    "analysis": {
+      "revenue_opportunities": [
+        "Improved online presence",
+        "Better contact methods"
+      ],
+      "operational_gaps": [
+        "Limited online booking"
+      ],
+      "lead_score": 71,
+      "urgency": "medium"
+    },
+    "lead_score": 71,
+    "urgency": "medium",
+    "revenue_opportunities": [
+      "Improved online presence",
+      "Better contact methods"
+    ],
+    "operational_gaps": [
+      "Limited online booking"
+    ],
+    "recommended_pitch": "We help healthcare facilities improve patient engagement.",
+    "note": "Basic analysis (AI not available)"
+  },
+  {
+    "facility_name": "We're here when you need us \u2014 for every care in the world.",
+    "url": "https://www.clevelandclinic.org",
+    "analyzed_at": "2026-01-11T17:05:10.826649",
+    "analysis": {
+      "revenue_opportunities": [
+        "Improved online presence",
+        "Better contact methods"
+      ],
+      "operational_gaps": [
+        "Limited online booking"
+      ],
+      "lead_score": 83,
+      "urgency": "medium"
+    },
+    "lead_score": 83,
+    "urgency": "medium",
+    "revenue_opportunities": [
+      "Improved online presence",
+      "Better contact methods"
+    ],
+    "operational_gaps": [
+      "Limited online booking"
+    ],
+    "recommended_pitch": "We help healthcare facilities improve patient engagement.",
+    "note": "Basic analysis (AI not available)"
+  },
+  {
+    "facility_name": "Saving Lives with Science",
+    "url": "https://www.ucsf.edu",
+    "analyzed_at": "2026-01-11T17:05:10.826693",
+    "analysis": {
+      "revenue_opportunities": [
+        "Improved online presence",
+        "Better contact methods"
+      ],
+      "operational_gaps": [
+        "Limited online booking"
+      ],
+      "lead_score": 71,
+      "urgency": "medium"
+    },
+    "lead_score": 71,
+    "urgency": "medium",
+    "revenue_opportunities": [
+      "Improved online presence",
+      "Better contact methods"
+    ],
+    "operational_gaps": [
+      "Limited online booking"
+    ],
+    "recommended_pitch": "We help healthcare facilities improve patient engagement.",
+    "note": "Basic analysis (AI not available)"
+  }
+]

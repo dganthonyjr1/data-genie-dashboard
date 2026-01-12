@@ -1,0 +1,145 @@
+[
+  {
+    "url": "https://www.mayoclinic.org",
+    "scraped_at": "2026-01-11T17:04:06.239251",
+    "facility_name": "Transforming your care",
+    "phone": [],
+    "address": null,
+    "hours": null,
+    "services": [
+      "Vision"
+    ],
+    "specialties": [],
+    "staff_info": {},
+    "insurance": {
+      "accepts_insurance": true,
+      "accepts_medicare": true,
+      "accepts_medicaid": false,
+      "accepts_tricare": false
+    },
+    "website_quality": {
+      "score": 6,
+      "max_score": 10,
+      "percentage": 60.0,
+      "checks": {
+        "has_title": true,
+        "has_meta_description": false,
+        "has_contact_info": false,
+        "has_address": false,
+        "has_images": true,
+        "has_services_info": false,
+        "is_mobile_responsive": true,
+        "has_ssl": true,
+        "has_social_links": true,
+        "has_navigation": true
+      }
+    },
+    "contact_methods": {
+      "phone": false,
+      "email": false,
+      "contact_form": false,
+      "online_booking": true
+    }
+  },
+  {
+    "url": "https://www.clevelandclinic.org",
+    "scraped_at": "2026-01-11T17:04:09.280583",
+    "facility_name": "We're here when you need us \u2014 for every care in the world.",
+    "phone": [
+      "(800) 223-2273",
+      "(866) 320-4573",
+      "(216) 444-2200"
+    ],
+    "address": null,
+    "hours": null,
+    "services": [
+      "Urgent Care"
+    ],
+    "specialties": [],
+    "staff_info": {},
+    "insurance": {
+      "accepts_insurance": true,
+      "accepts_medicare": false,
+      "accepts_medicaid": false,
+      "accepts_tricare": false
+    },
+    "website_quality": {
+      "score": 8,
+      "max_score": 10,
+      "percentage": 80.0,
+      "checks": {
+        "has_title": true,
+        "has_meta_description": true,
+        "has_contact_info": true,
+        "has_address": false,
+        "has_images": true,
+        "has_services_info": false,
+        "is_mobile_responsive": true,
+        "has_ssl": true,
+        "has_social_links": true,
+        "has_navigation": true
+      }
+    },
+    "contact_methods": {
+      "phone": true,
+      "email": false,
+      "contact_form": false,
+      "online_booking": true
+    }
+  },
+  {
+    "url": "https://www.stanford.edu/health",
+    "error": "404 Client Error: Not Found for url: https://www.stanford.edu/health",
+    "scraped_at": "2026-01-11T17:04:11.418538"
+  },
+  {
+    "url": "https://www.jhh.edu",
+    "error": "HTTPSConnectionPool(host='www.jhh.edu', port=443): Max retries exceeded with url: / (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7fdd8f774410>: Failed to resolve 'www.jhh.edu' ([Errno -2] Name or service not known)\"))",
+    "scraped_at": "2026-01-11T17:04:12.431799"
+  },
+  {
+    "url": "https://www.ucsf.edu",
+    "scraped_at": "2026-01-11T17:04:14.263528",
+    "facility_name": "Saving Lives with Science",
+    "phone": [],
+    "address": null,
+    "hours": null,
+    "services": [
+      "Pharmacy",
+      "Emergency",
+      "Vision",
+      "Dental"
+    ],
+    "specialties": [],
+    "staff_info": {},
+    "insurance": {
+      "accepts_insurance": false,
+      "accepts_medicare": false,
+      "accepts_medicaid": false,
+      "accepts_tricare": false
+    },
+    "website_quality": {
+      "score": 6,
+      "max_score": 10,
+      "percentage": 60.0,
+      "checks": {
+        "has_title": true,
+        "has_meta_description": false,
+        "has_contact_info": false,
+        "has_address": false,
+        "has_images": true,
+        "has_services_info": false,
+        "is_mobile_responsive": true,
+        "has_ssl": true,
+        "has_social_links": true,
+        "has_navigation": true
+      }
+    },
+    "contact_methods": {
+      "phone": false,
+      "email": false,
+      "contact_form": false,
+      "online_booking": true
+    }
+  }
+]
