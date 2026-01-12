@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.trigger-call]
 verify_jwt = false
+
+[functions.retell-webhook]
+verify_jwt = false
