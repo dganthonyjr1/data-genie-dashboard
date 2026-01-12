@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTriggerCall } from "@/hooks/use-trigger-call";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,9 @@ import {
   Lock,
   Bell,
   Database,
-  FileText
+  FileText,
+  Loader2,
+  PhoneCall
 } from "lucide-react";
 import { format, subMonths, subDays } from "date-fns";
 import { formatPhoneDisplay } from "@/lib/compliance-utils";
@@ -84,9 +87,13 @@ interface ComplianceMetrics {
 const Compliance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { triggerCall, isTriggering } = useTriggerCall();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [dateFilter, setDateFilter] = useState("month");
+  const [testCallResult, setTestCallResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showTestCallDialog, setShowTestCallDialog] = useState(false);
+  const [testPhoneNumber, setTestPhoneNumber] = useState("");
   
   // Data states
   const [callRecords, setCallRecords] = useState<any[]>([]);
@@ -364,6 +371,37 @@ const Compliance = () => {
     }
   };
 
+  const handleTestCall = async () => {
+    if (!testPhoneNumber.trim()) {
+      toast({ title: "Please enter a phone number", variant: "destructive" });
+      return;
+    }
+
+    setTestCallResult(null);
+    
+    const result = await triggerCall({
+      facilityName: "Retell Integration Test",
+      phoneNumber: testPhoneNumber,
+      analysisData: {
+        test_call: true,
+        initiated_from: "compliance_page",
+      },
+    });
+
+    if (result.success) {
+      setTestCallResult({
+        success: true,
+        message: `Test call initiated successfully! Call ID: ${result.callId || "pending"}`,
+      });
+      fetchData(); // Refresh to show new call record
+    } else {
+      setTestCallResult({
+        success: false,
+        message: result.reason || "Test call failed",
+      });
+    }
+  };
+
   const exportCallLogs = () => {
     const csv = [
       ["Date", "Time", "Facility", "Phone", "State", "Duration", "Outcome", "Consent", "Two-Party State", "Business Hours"].join(","),
@@ -499,6 +537,99 @@ const Compliance = () => {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
             <ComplianceStatsCards metrics={metrics} />
+            
+            {/* Test Call Section */}
+            <Card className="bg-card/50 border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PhoneCall className="h-5 w-5 text-primary" />
+                  Test Retell AI Integration
+                </CardTitle>
+                <CardDescription>
+                  Verify your AI calling system is properly configured and working
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!tcpaAccepted ? (
+                  <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-5 w-5 text-amber-500" />
+                      <div>
+                        <p className="font-medium text-amber-500">TCPA Certification Required</p>
+                        <p className="text-sm text-muted-foreground">
+                          Please accept the TCPA certification before testing calls.
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="ml-auto"
+                        onClick={() => setShowTcpaDialog(true)}
+                      >
+                        Accept Certification
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        placeholder="Enter phone number to test (e.g., 555-123-4567)"
+                        value={testPhoneNumber}
+                        onChange={(e) => setTestPhoneNumber(e.target.value)}
+                        className="max-w-md"
+                      />
+                      <Button 
+                        onClick={handleTestCall}
+                        disabled={isTriggering || !testPhoneNumber.trim()}
+                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90"
+                      >
+                        {isTriggering ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Testing...
+                          </>
+                        ) : (
+                          <>
+                            <Phone className="mr-2 h-4 w-4" />
+                            Test Call
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {testCallResult && (
+                      <div className={`p-4 rounded-lg ${
+                        testCallResult.success 
+                          ? "bg-green-500/10 border border-green-500/30" 
+                          : "bg-red-500/10 border border-red-500/30"
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          {testCallResult.success ? (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-500" />
+                          )}
+                          <div>
+                            <p className={`font-medium ${testCallResult.success ? "text-green-500" : "text-red-500"}`}>
+                              {testCallResult.success ? "Test Successful" : "Test Failed"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {testCallResult.message}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <p className="text-sm text-muted-foreground">
+                      This will initiate a real call via Retell AI to verify the integration. 
+                      Compliance checks (DNC list, business hours, consent rules) will be enforced.
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* DNC List Tab */}
