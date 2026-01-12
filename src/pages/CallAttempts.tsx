@@ -542,44 +542,45 @@ const CallAttempts = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Timestamp</TableHead>
-                          <TableHead>Facility</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Duration</TableHead>
-                          <TableHead>Lead Score</TableHead>
-                          <TableHead className="text-right">Recording</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[140px]">Timestamp</TableHead>
+                        <TableHead className="min-w-[150px]">Facility</TableHead>
+                        <TableHead className="w-[120px] hidden md:table-cell">Phone</TableHead>
+                        <TableHead className="w-[100px]">Status</TableHead>
+                        <TableHead className="w-[80px] hidden sm:table-cell">Duration</TableHead>
+                        <TableHead className="w-[70px] hidden lg:table-cell">Score</TableHead>
+                        <TableHead className="w-[100px] text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
                       <TableBody>
                         {filteredRecords.map((record) => (
                           <TableRow key={record.id}>
-                            <TableCell className="whitespace-nowrap">
-                              {format(new Date(record.created_at), "MMM d, yyyy HH:mm")}
+                            <TableCell className="whitespace-nowrap text-xs">
+                              {format(new Date(record.created_at), "MMM d, HH:mm")}
                             </TableCell>
-                            <TableCell className="font-medium max-w-[200px] truncate">
-                              {record.facility_name}
+                            <TableCell className="font-medium">
+                              <span className="block truncate max-w-[180px]" title={record.facility_name}>
+                                {record.facility_name}
+                              </span>
                             </TableCell>
-                            <TableCell className="font-mono text-sm">
+                            <TableCell className="font-mono text-xs hidden md:table-cell">
                               {record.phone_number}
                             </TableCell>
                             <TableCell>
                               {getStatusBadge(record.status, record.outcome)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">
                               {formatDuration(record.duration)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="hidden lg:table-cell">
                               {record.lead_score ? (
-                                <Badge variant="outline" className={
+                                <Badge variant="outline" className={`text-xs ${
                                   record.lead_score >= 80 ? 'border-green-500 text-green-400' :
                                   record.lead_score >= 60 ? 'border-yellow-500 text-yellow-400' :
                                   'border-gray-500 text-gray-400'
-                                }>
+                                }`}>
                                   {record.lead_score}
                                 </Badge>
                               ) : '-'}
@@ -589,26 +590,22 @@ const CallAttempts = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openRecordingPlayer(record)}
-                                className="gap-2"
+                                className="gap-1 px-2"
                               >
                                 {getRecordingUrl(record) ? (
-                                  <>
-                                    <Play className="h-4 w-4" />
-                                    Play
-                                  </>
+                                  <Play className="h-4 w-4" />
                                 ) : (
-                                  <>
-                                    <MessageSquare className="h-4 w-4" />
-                                    Details
-                                  </>
+                                  <MessageSquare className="h-4 w-4" />
                                 )}
+                                <span className="hidden sm:inline">
+                                  {getRecordingUrl(record) ? 'Play' : 'Info'}
+                                </span>
                               </Button>
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
-                  </div>
                 )}
               </CardContent>
             </Card>
@@ -635,65 +632,65 @@ const CallAttempts = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Timestamp</TableHead>
-                          <TableHead>Business</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Error</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredAttempts.map((attempt) => (
-                          <TableRow key={attempt.id}>
-                            <TableCell className="whitespace-nowrap">
-                              {format(new Date(attempt.created_at), "MMM d, yyyy HH:mm")}
-                            </TableCell>
-                            <TableCell className="font-medium max-w-[200px] truncate">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[140px]">Timestamp</TableHead>
+                        <TableHead className="min-w-[150px]">Business</TableHead>
+                        <TableHead className="w-[120px] hidden md:table-cell">Phone</TableHead>
+                        <TableHead className="w-[100px]">Status</TableHead>
+                        <TableHead className="w-[70px] hidden sm:table-cell">Type</TableHead>
+                        <TableHead className="hidden lg:table-cell">Error</TableHead>
+                        <TableHead className="w-[60px] text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAttempts.map((attempt) => (
+                        <TableRow key={attempt.id}>
+                          <TableCell className="whitespace-nowrap text-xs">
+                            {format(new Date(attempt.created_at), "MMM d, HH:mm")}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <span className="block truncate max-w-[180px]" title={attempt.business_name}>
                               {attempt.business_name}
-                            </TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {attempt.phone_number}
-                            </TableCell>
-                            <TableCell>
-                              {getStatusBadge(attempt.status)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {attempt.auto_triggered ? "Auto" : "Manual"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-[200px]">
-                              {attempt.error_message ? (
-                                <span className="text-xs text-red-400 truncate block" title={attempt.error_message}>
-                                  {attempt.error_message.substring(0, 50)}...
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {!isDemoMode && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteAttempt(attempt.id)}
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs hidden md:table-cell">
+                            {attempt.phone_number}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(attempt.status)}
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            <Badge variant="outline" className="text-xs">
+                              {attempt.auto_triggered ? "Auto" : "Manual"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-[150px] hidden lg:table-cell">
+                            {attempt.error_message ? (
+                              <span className="text-xs text-red-400 truncate block" title={attempt.error_message}>
+                                {attempt.error_message.substring(0, 30)}...
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {!isDemoMode && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteAttempt(attempt.id)}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>
