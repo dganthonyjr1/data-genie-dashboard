@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Phone, CheckCircle, XCircle, Clock, Search, Calendar, RefreshCw, Trash2, Play, Headphones, MessageSquare, BarChart3 } from "lucide-react";
+import { Phone, CheckCircle, XCircle, Clock, Search, Calendar, RefreshCw, Trash2, Play, Headphones, MessageSquare, BarChart3, Wifi, WifiOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -53,6 +53,7 @@ const CallAttempts = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("analytics");
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [selectedRecording, setSelectedRecording] = useState<{
     isOpen: boolean;
     recordingUrl: string | null;
@@ -112,7 +113,10 @@ const CallAttempts = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        setIsRealtimeConnected(status === 'SUBSCRIBED');
+        console.log('Realtime subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -350,10 +354,30 @@ const CallAttempts = () => {
               Track AI sales calls, recordings, and outcomes
             </p>
           </div>
-          <Button onClick={fetchData} variant="outline" size="sm">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-3">
+            {/* Real-time connection indicator */}
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+              isRealtimeConnected 
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+            }`}>
+              {isRealtimeConnected ? (
+                <>
+                  <Wifi className="h-3 w-3" />
+                  <span>Live</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-3 w-3" />
+                  <span>Connecting...</span>
+                </>
+              )}
+            </div>
+            <Button onClick={fetchData} variant="outline" size="sm">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Demo Mode Banner */}

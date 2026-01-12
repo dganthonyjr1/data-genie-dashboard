@@ -212,7 +212,7 @@ serve(async (req) => {
           .from('notifications')
           .insert({
             user_id: call.metadata?.user_id || updatedRecord.user_id,
-            job_id: updatedRecord.id, // Use call record ID as reference
+            job_id: updatedRecord.call_id, // Use call_id (UUID string) as reference
             type: 'call_completed',
             title: notificationTitle,
             message: notificationMessage,
