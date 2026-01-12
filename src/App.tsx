@@ -30,6 +30,7 @@ import PaymentSettings from "./pages/PaymentSettings";
 import Contact from "./pages/Contact";
 import SystemDiagnostics from "./pages/SystemDiagnostics";
 import Status from "./pages/Status";
+import Compliance from "./pages/Compliance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/diagnostics" element={<SystemDiagnostics />} />
             <Route path="/status" element={<Status />} />
+            <Route path="/settings/compliance" element={<Compliance />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

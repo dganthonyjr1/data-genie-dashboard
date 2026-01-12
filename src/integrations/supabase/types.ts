@@ -99,44 +99,194 @@ export type Database = {
       }
       call_records: {
         Row: {
+          business_hours_override: boolean | null
           call_id: string
+          callback_number: string | null
+          called_during_business_hours: boolean | null
+          consent_given: boolean | null
+          consent_response: string | null
           created_at: string
+          deleted_at: string | null
+          dnc_checked: boolean | null
           duration: number | null
           facility_name: string
           id: number
           lead_score: number | null
           notes: string | null
+          opted_out: boolean | null
           outcome: string | null
           phone_number: string
+          recording_access_log: Json | null
+          state: string | null
           status: string
+          timezone: string | null
+          two_party_consent_state: boolean | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          business_hours_override?: boolean | null
           call_id: string
+          callback_number?: string | null
+          called_during_business_hours?: boolean | null
+          consent_given?: boolean | null
+          consent_response?: string | null
           created_at?: string
+          deleted_at?: string | null
+          dnc_checked?: boolean | null
           duration?: number | null
           facility_name: string
           id?: never
           lead_score?: number | null
           notes?: string | null
+          opted_out?: boolean | null
           outcome?: string | null
           phone_number: string
+          recording_access_log?: Json | null
+          state?: string | null
           status?: string
+          timezone?: string | null
+          two_party_consent_state?: boolean | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          business_hours_override?: boolean | null
           call_id?: string
+          callback_number?: string | null
+          called_during_business_hours?: boolean | null
+          consent_given?: boolean | null
+          consent_response?: string | null
           created_at?: string
+          deleted_at?: string | null
+          dnc_checked?: boolean | null
           duration?: number | null
           facility_name?: string
           id?: never
           lead_score?: number | null
           notes?: string | null
+          opted_out?: boolean | null
           outcome?: string | null
           phone_number?: string
+          recording_access_log?: Json | null
+          state?: string | null
           status?: string
+          timezone?: string | null
+          two_party_consent_state?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      compliance_audit_log: {
+        Row: {
+          action: string
+          category: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          result: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          category: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          result?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          category?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          result?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_subject_requests: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          request_type: string
+          requested_at: string
+          response: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type: string
+          requested_at?: string
+          response?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type?: string
+          requested_at?: string
+          response?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dnc_list: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          id: string
+          phone_number: string
+          reason: string
+          source: string | null
+          state: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          phone_number: string
+          reason?: string
+          source?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          phone_number?: string
+          reason?: string
+          source?: string | null
+          state?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -184,6 +334,45 @@ export type Database = {
           urgency?: string | null
           url?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      legal_agreements: {
+        Row: {
+          accepted: boolean
+          accepted_at: string | null
+          agreement_type: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+          version: string
+        }
+        Insert: {
+          accepted?: boolean
+          accepted_at?: string | null
+          agreement_type: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+          version?: string
+        }
+        Update: {
+          accepted?: boolean
+          accepted_at?: string | null
+          agreement_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+          version?: string
         }
         Relationships: []
       }
@@ -526,7 +715,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_to_dnc_list: {
+        Args: {
+          p_phone_number: string
+          p_reason?: string
+          p_state?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      has_accepted_agreement: {
+        Args: { p_agreement_type: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_on_dnc_list: {
+        Args: { p_phone_number: string; p_user_id: string }
+        Returns: boolean
+      }
+      log_compliance_action: {
+        Args: {
+          p_action: string
+          p_category: string
+          p_details?: Json
+          p_result?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
