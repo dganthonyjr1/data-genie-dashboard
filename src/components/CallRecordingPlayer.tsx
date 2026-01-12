@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, Download, ExternalLink, X } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Download, ExternalLink, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CallRecordingPlayerProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProxying, setIsProxying] = useState(false);
+  const [proxiedUrl, setProxiedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Parse notes for transcript and analysis
@@ -45,14 +48,60 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
   const callSummary = parsedNotes?.call_summary || callAnalysis?.call_summary;
   const userSentiment = parsedNotes?.user_sentiment || callAnalysis?.user_sentiment;
 
+  // Proxy the recording URL to avoid CORS issues
   useEffect(() => {
-    if (isOpen && audioRef.current && recordingUrl) {
-      console.log('[CallRecordingPlayer] Loading recording URL:', recordingUrl);
+    if (!isOpen || !recordingUrl) {
+      setProxiedUrl(null);
+      return;
+    }
+
+    const proxyRecording = async () => {
+      setIsProxying(true);
+      setError(null);
+      
+      try {
+        console.log('[CallRecordingPlayer] Proxying recording URL:', recordingUrl);
+        
+        const response = await supabase.functions.invoke('proxy-recording', {
+          body: { url: recordingUrl }
+        });
+
+        if (response.error) {
+          throw new Error(response.error.message || 'Failed to proxy recording');
+        }
+
+        // Create a blob URL from the response data
+        const blob = new Blob([response.data], { type: 'audio/wav' });
+        const blobUrl = URL.createObjectURL(blob);
+        setProxiedUrl(blobUrl);
+        console.log('[CallRecordingPlayer] Created blob URL for playback');
+      } catch (err) {
+        console.error('[CallRecordingPlayer] Proxy error:', err);
+        // Fallback to direct URL
+        console.log('[CallRecordingPlayer] Falling back to direct URL');
+        setProxiedUrl(recordingUrl);
+      } finally {
+        setIsProxying(false);
+      }
+    };
+
+    proxyRecording();
+
+    // Cleanup blob URL on unmount
+    return () => {
+      if (proxiedUrl && proxiedUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(proxiedUrl);
+      }
+    };
+  }, [isOpen, recordingUrl]);
+
+  useEffect(() => {
+    if (isOpen && audioRef.current && proxiedUrl) {
+      console.log('[CallRecordingPlayer] Loading proxied URL');
       audioRef.current.load();
       setIsLoading(true);
-      setError(null);
     }
-  }, [isOpen, recordingUrl]);
+  }, [isOpen, proxiedUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -188,10 +237,15 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
           {/* Audio Player */}
           {recordingUrl ? (
             <div className="bg-muted/30 rounded-lg p-4 space-y-4">
-              <audio ref={audioRef} src={recordingUrl} preload="metadata" crossOrigin="anonymous" />
+              {proxiedUrl && <audio ref={audioRef} src={proxiedUrl} preload="metadata" />}
               
-              {isLoading ? (
-                <div className="text-center py-4 text-muted-foreground">Loading recording...</div>
+              {isProxying ? (
+                <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading recording...</span>
+                </div>
+              ) : isLoading && proxiedUrl ? (
+                <div className="text-center py-4 text-muted-foreground">Preparing playback...</div>
               ) : error ? (
                 <div className="text-center py-4 text-red-400">{error}</div>
               ) : (
