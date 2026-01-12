@@ -97,6 +97,96 @@ export type Database = {
           },
         ]
       }
+      call_records: {
+        Row: {
+          call_id: string
+          created_at: string
+          duration: number | null
+          facility_name: string
+          id: number
+          lead_score: number | null
+          notes: string | null
+          outcome: string | null
+          phone_number: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          call_id: string
+          created_at?: string
+          duration?: number | null
+          facility_name: string
+          id?: never
+          lead_score?: number | null
+          notes?: string | null
+          outcome?: string | null
+          phone_number: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          call_id?: string
+          created_at?: string
+          duration?: number | null
+          facility_name?: string
+          id?: never
+          lead_score?: number | null
+          notes?: string | null
+          outcome?: string | null
+          phone_number?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      facility_analysis: {
+        Row: {
+          analysis_details: Json | null
+          created_at: string
+          facility_name: string
+          id: number
+          lead_score: number | null
+          operational_gaps: Json | null
+          recommended_pitch: string | null
+          revenue_opportunities: Json | null
+          updated_at: string
+          urgency: string | null
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          analysis_details?: Json | null
+          created_at?: string
+          facility_name: string
+          id?: never
+          lead_score?: number | null
+          operational_gaps?: Json | null
+          recommended_pitch?: string | null
+          revenue_opportunities?: Json | null
+          updated_at?: string
+          urgency?: string | null
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          analysis_details?: Json | null
+          created_at?: string
+          facility_name?: string
+          id?: never
+          lead_score?: number | null
+          operational_gaps?: Json | null
+          recommended_pitch?: string | null
+          revenue_opportunities?: Json | null
+          updated_at?: string
+          urgency?: string | null
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
