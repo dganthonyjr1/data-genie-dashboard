@@ -55,7 +55,18 @@ serve(async (req) => {
     }
 
     const contentLength = response.headers.get('content-length');
-    const contentType = response.headers.get('content-type') || 'audio/wav';
+
+    const rawContentType = response.headers.get('content-type');
+    let contentType = rawContentType || 'audio/wav';
+
+    // Some CDNs return application/octet-stream even for audio; infer from the path.
+    if (!rawContentType || rawContentType.includes('application/octet-stream')) {
+      const pathname = urlObj.pathname.toLowerCase();
+      if (pathname.endsWith('.wav')) contentType = 'audio/wav';
+      else if (pathname.endsWith('.mp3')) contentType = 'audio/mpeg';
+      else if (pathname.endsWith('.m4a')) contentType = 'audio/mp4';
+      else if (pathname.endsWith('.ogg')) contentType = 'audio/ogg';
+    }
 
     console.log('[proxy-recording] Streaming response, size:', contentLength, 'type:', contentType);
 
