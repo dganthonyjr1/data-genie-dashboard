@@ -53,3 +53,12 @@ verify_jwt = false
 
 [functions.sync-to-ghl]
 verify_jwt = false
+
+[functions.scrape-facility]
+verify_jwt = false
+
+[functions.analyze-facility]
+verify_jwt = false
+
+[functions.trigger-call]
+verify_jwt = false
