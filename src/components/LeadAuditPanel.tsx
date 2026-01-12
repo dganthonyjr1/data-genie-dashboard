@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Activity, Stethoscope, ClipboardList, Phone, FileText, X, Loader2, TrendingDown } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useTriggerCall } from "@/hooks/use-trigger-call";
 
 interface AuditData {
   painScore: number;
@@ -38,42 +36,21 @@ export default function LeadAuditPanel({
   isLoading,
   onStartAudit,
 }: LeadAuditPanelProps) {
-  const { toast } = useToast();
-  const [isSendingCall, setIsSendingCall] = useState(false);
+  const { triggerCall, isTriggering } = useTriggerCall();
 
   const handleStartSalesCall = async () => {
     if (!auditData) return;
     
-    setIsSendingCall(true);
-    
-    try {
-      const { error } = await supabase.functions.invoke('trigger-sales-call', {
-        body: {
-          business_name: businessName,
-          phone_number: phoneNumber,
-          pain_score: auditData.painScore,
-          evidence_summary: auditData.evidence.join(" | "),
-          niche,
-          revenue_leak: auditData.calculatedLeak,
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Outreach Initiated",
-        description: "Patient acquisition call has been scheduled.",
-      });
-    } catch (error) {
-      console.error("Error triggering sales call:", error);
-      toast({
-        title: "Connection Error",
-        description: "Failed to initiate outreach. Please retry.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSendingCall(false);
-    }
+    await triggerCall({
+      facilityName: businessName,
+      phoneNumber: phoneNumber,
+      analysisData: {
+        pain_score: auditData.painScore,
+        evidence: auditData.evidence,
+        revenue_leak: auditData.calculatedLeak,
+        niche,
+      },
+    });
   };
 
   const getRiskLevel = (score: number) => {
@@ -254,9 +231,9 @@ export default function LeadAuditPanel({
                 onClick={handleStartSalesCall} 
                 className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700"
                 size="lg"
-                disabled={isSendingCall}
+                disabled={isTriggering}
               >
-                {isSendingCall ? (
+                {isTriggering ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Initiating...
