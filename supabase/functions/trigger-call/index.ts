@@ -7,6 +7,16 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
 
+const RETELL_AGENT_PROMPT = `You are a professional sales representative for a healthcare technology company. Your goal is to help healthcare facilities improve patient engagement and operational efficiency. 
+
+Start by briefly introducing yourself and your company. Then ask: 'Are you currently looking to improve patient outreach, appointment scheduling, or administrative efficiency?'
+
+Based on their response, present the specific solution identified in our analysis. Focus on the concrete benefits (time saved, revenue opportunities, operational improvements).
+
+If they show interest, offer to transfer them to a human team member for a deeper discussion. If they're not interested, thank them and ask if they'd like to receive information via email.
+
+Keep the call professional, concise, and focused on their specific needs.`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -23,7 +33,16 @@ serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const RETELL_API_KEY = Deno.env.get('RETELL_API_KEY');
     const MAKE_WEBHOOK_URL = Deno.env.get('MAKE_WEBHOOK_URL');
+
+    if (!RETELL_API_KEY) {
+      console.error('RETELL_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'Retell API not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const token = authHeader.replace('Bearer ', '');
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -75,7 +94,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Triggering call for: ${facility_name} at ${phone_number} for user ${userId}`);
+    console.log(`Triggering Retell call for: ${facility_name} at ${phone_number} for user ${userId}`);
 
     // Check TCPA compliance
     const tcpaCheck = checkTCPACompliance(phone_number);
@@ -90,25 +109,153 @@ serve(async (req) => {
       );
     }
 
-    // Generate unique call ID
-    const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const formattedPhone = formatPhoneNumber(phone_number);
 
-    // Simulate call outcome (in production, this would come from the external call provider)
-    const callOutcome = simulateCallOutcome();
+    // Build dynamic prompt with analysis context
+    let dynamicPrompt = RETELL_AGENT_PROMPT;
+    if (analysis_data) {
+      const contextParts: string[] = [];
+      if (analysis_data.recommended_pitch) {
+        contextParts.push(`\n\nRecommended pitch for this facility: ${analysis_data.recommended_pitch}`);
+      }
+      if (analysis_data.revenue_opportunities && analysis_data.revenue_opportunities.length > 0) {
+        contextParts.push(`\n\nKey revenue opportunities identified: ${analysis_data.revenue_opportunities.join(', ')}`);
+      }
+      if (analysis_data.operational_gaps && analysis_data.operational_gaps.length > 0) {
+        contextParts.push(`\n\nOperational gaps to address: ${analysis_data.operational_gaps.join(', ')}`);
+      }
+      if (analysis_data.lead_score) {
+        contextParts.push(`\n\nThis is a ${analysis_data.lead_score >= 80 ? 'high priority' : analysis_data.lead_score >= 60 ? 'medium priority' : 'standard'} lead with a score of ${analysis_data.lead_score}/100.`);
+      }
+      dynamicPrompt += contextParts.join('');
+    }
 
-    // Store call record
+    // Step 1: Create or get Retell agent
+    console.log('Creating Retell agent...');
+    const agentResponse = await fetch('https://api.retellai.com/create-agent', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RETELL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        agent_name: `ScrapeX Sales Agent - ${facility_name}`,
+        voice_id: 'eleven_turbo_v2', // Use ElevenLabs turbo voice
+        response_engine: {
+          type: 'retell-llm',
+          llm_id: null, // Will use default LLM
+        },
+        llm_websocket_url: null,
+        voice_model: 'eleven_turbo_v2',
+        voice_temperature: 0.7,
+        voice_speed: 1.0,
+        enable_backchannel: true,
+        ambient_sound: 'office',
+        language: 'en-US',
+        webhook_url: null,
+        boosted_keywords: ['healthcare', 'patient', 'scheduling', 'efficiency', 'revenue'],
+        enable_transcription_formatting: true,
+        general_prompt: dynamicPrompt,
+        begin_message: `Hello, this is Alex from ScrapeX Healthcare Solutions. Am I speaking with someone from ${facility_name}?`,
+        general_tools: [
+          {
+            type: 'transfer_call',
+            name: 'transfer_to_human',
+            description: 'Transfer the call to a human sales representative when the prospect shows strong interest',
+          },
+          {
+            type: 'end_call',
+            name: 'end_call',
+            description: 'End the call politely when the conversation is complete',
+          }
+        ],
+      }),
+    });
+
+    if (!agentResponse.ok) {
+      const errorText = await agentResponse.text();
+      console.error('Failed to create Retell agent:', agentResponse.status, errorText);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create Retell agent', details: errorText }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const agentData = await agentResponse.json();
+    const agentId = agentData.agent_id;
+    console.log(`Created Retell agent: ${agentId}`);
+
+    // Step 2: Initiate the phone call
+    console.log(`Initiating Retell call to ${formattedPhone}...`);
+    const callResponse = await fetch('https://api.retellai.com/v2/create-phone-call', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RETELL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from_number: null, // Retell will use default number
+        to_number: formattedPhone,
+        agent_id: agentId,
+        metadata: {
+          facility_name,
+          user_id: userId,
+          lead_score: analysis_data?.lead_score || null,
+          source: 'scrapex_dashboard',
+        },
+        retell_llm_dynamic_variables: {
+          facility_name,
+          recommended_pitch: analysis_data?.recommended_pitch || 'general healthcare solutions',
+        },
+        drop_if_machine_detected: false, // Leave voicemail if needed
+        enable_recording: true, // Enable call recording for QA
+      }),
+    });
+
+    if (!callResponse.ok) {
+      const errorText = await callResponse.text();
+      console.error('Failed to initiate Retell call:', callResponse.status, errorText);
+      
+      // Clean up the agent we created
+      try {
+        await fetch(`https://api.retellai.com/delete-agent/${agentId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${RETELL_API_KEY}` },
+        });
+      } catch (cleanupError) {
+        console.error('Failed to cleanup agent:', cleanupError);
+      }
+
+      return new Response(
+        JSON.stringify({ error: 'Failed to initiate call', details: errorText }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const callData = await callResponse.json();
+    console.log('Retell call initiated:', callData);
+
+    const callId = callData.call_id;
+    const callStatus = callData.call_status || 'initiated';
+
+    // Store call record in database
     const { data: callRecord, error: insertError } = await supabase
       .from('call_records')
       .insert({
         user_id: userId,
         call_id: callId,
         facility_name,
-        phone_number: formatPhoneNumber(phone_number),
-        status: callOutcome.status,
-        outcome: callOutcome.outcome,
-        duration: callOutcome.duration,
+        phone_number: formattedPhone,
+        status: callStatus,
+        outcome: 'pending',
+        duration: 0,
         lead_score: analysis_data?.lead_score || null,
-        notes: callOutcome.notes,
+        notes: JSON.stringify({
+          agent_id: agentId,
+          recording_url: callData.recording_url || null,
+          retell_metadata: callData,
+          analysis_context: analysis_data || null,
+        }),
       })
       .select()
       .single();
@@ -122,11 +269,13 @@ serve(async (req) => {
       try {
         const webhookPayload = {
           call_id: callId,
+          retell_agent_id: agentId,
           facility_name,
-          phone_number: formatPhoneNumber(phone_number),
+          phone_number: formattedPhone,
           analysis_data,
           user_id: userId,
           triggered_at: new Date().toISOString(),
+          provider: 'retell_ai',
         };
 
         const webhookResponse = await fetch(MAKE_WEBHOOK_URL, {
@@ -149,9 +298,13 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         call_id: callId,
+        agent_id: agentId,
+        call_status: callStatus,
+        recording_url: callData.recording_url || null,
         call_record: callRecord,
         tcpa_status: tcpaCheck,
-        message: 'Call triggered successfully'
+        message: 'Retell AI call initiated successfully',
+        provider: 'retell_ai',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -200,7 +353,6 @@ function checkTCPACompliance(phoneNumber: string): { can_call: boolean; reason?:
   }
 
   // In production, check against Do Not Call list
-  // For now, we simulate this check
   if (isOnDNCList(phoneNumber)) {
     return { can_call: false, reason: 'Number is on Do Not Call list' };
   }
@@ -211,35 +363,4 @@ function checkTCPACompliance(phoneNumber: string): { can_call: boolean; reason?:
 function isOnDNCList(phoneNumber: string): boolean {
   // Placeholder - in production, check against actual DNC database
   return false;
-}
-
-function simulateCallOutcome(): { status: string; outcome: string; duration: number; notes: string } {
-  const outcomes = [
-    { outcome: 'interested', weight: 25, notes: 'Prospect showed interest in services' },
-    { outcome: 'not_interested', weight: 20, notes: 'Prospect declined at this time' },
-    { outcome: 'no_answer', weight: 25, notes: 'Call went unanswered' },
-    { outcome: 'voicemail', weight: 20, notes: 'Left voicemail message' },
-    { outcome: 'callback_requested', weight: 10, notes: 'Requested callback at later time' },
-  ];
-
-  const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
-  let random = Math.random() * totalWeight;
-  
-  let selectedOutcome = outcomes[0];
-  for (const outcome of outcomes) {
-    random -= outcome.weight;
-    if (random <= 0) {
-      selectedOutcome = outcome;
-      break;
-    }
-  }
-
-  const isCompleted = ['interested', 'not_interested', 'callback_requested'].includes(selectedOutcome.outcome);
-  
-  return {
-    status: isCompleted ? 'completed' : (selectedOutcome.outcome === 'voicemail' ? 'completed' : 'no_answer'),
-    outcome: selectedOutcome.outcome,
-    duration: isCompleted ? Math.floor(Math.random() * 300) + 60 : (selectedOutcome.outcome === 'voicemail' ? 30 : 0),
-    notes: selectedOutcome.notes,
-  };
 }
