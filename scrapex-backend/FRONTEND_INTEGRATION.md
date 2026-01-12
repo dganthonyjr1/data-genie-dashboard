@@ -5,10 +5,10 @@
 Your backend is now live and accessible at:
 
 ```
-https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer
+https://scrapex-backend.onrender.com
 ```
 
-API Documentation: `https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/docs`
+API Documentation: `https://scrapex-backend.onrender.com/docs`
 
 ---
 
@@ -30,7 +30,7 @@ Your ScrapeX frontend needs to call the backend API to:
 Replace your "Analyze a Business" button handler with this code:
 
 ```javascript
-const BASE_URL = 'https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer';
+const BASE_URL = 'https://scrapex-backend.onrender.com';
 
 async function scrapeFacility(url) {
   try {
@@ -460,18 +460,18 @@ Test the API directly using curl:
 
 ```bash
 # Test health
-curl https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/health
+curl https://scrapex-backend.onrender.com/health
 
 # Test scrape
-curl -X POST https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/api/v1/scrape \
+curl -X POST https://scrapex-backend.onrender.com/api/v1/scrape \
   -H "Content-Type: application/json" \
   -d '{"url": "https://www.mayoclinic.org"}'
 
 # Get job status
-curl https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/api/v1/jobs/job_000001
+curl https://scrapex-backend.onrender.com/api/v1/jobs/job_000001
 
 # Trigger call
-curl -X POST https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/api/v1/call \
+curl -X POST https://scrapex-backend.onrender.com/api/v1/call \
   -H "Content-Type: application/json" \
   -d '{
     "facility_name": "Test Clinic",
@@ -508,6 +508,6 @@ Top performing facilities:
 
 ## Support
 
-For API documentation, visit: `https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/docs`
+For API documentation, visit: `https://scrapex-backend.onrender.com/docs`
 
 For issues or questions, check the server logs or contact support.

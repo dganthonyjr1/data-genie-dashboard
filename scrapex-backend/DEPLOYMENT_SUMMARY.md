@@ -9,12 +9,12 @@ Your ScrapeX backend is now deployed and running on a public server.
 ## Public API URL
 
 ```
-https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer
+https://scrapex-backend.onrender.com
 ```
 
-**API Documentation:** https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/docs
+**API Documentation:** https://scrapex-backend.onrender.com/docs
 
-**Health Check:** https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/health
+**Health Check:** https://scrapex-backend.onrender.com/health
 
 ---
 
@@ -197,15 +197,15 @@ LOG_LEVEL=INFO
 
 ```bash
 # Health check
-curl https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/health
+curl https://scrapex-backend.onrender.com/health
 
 # Scrape a facility
-curl -X POST https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/api/v1/scrape \
+curl -X POST https://scrapex-backend.onrender.com/api/v1/scrape \
   -H "Content-Type: application/json" \
   -d '{"url": "https://www.mayoclinic.org"}'
 
 # Trigger a call
-curl -X POST https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/api/v1/call \
+curl -X POST https://scrapex-backend.onrender.com/api/v1/call \
   -H "Content-Type: application/json" \
   -d '{
     "facility_name": "Test Clinic",
@@ -253,7 +253,7 @@ See `FRONTEND_INTEGRATION.md` for complete examples.
 ## Support
 
 ### Documentation
-- API Docs: `https://8000-ik9i2dchjtkl1r0wo65x9-9b119bb8.us2.manus.computer/docs`
+- API Docs: `https://scrapex-backend.onrender.com/docs`
 - Integration Guide: `FRONTEND_INTEGRATION.md`
 - README: `README.md`
 
@@ -276,7 +276,7 @@ See `FRONTEND_INTEGRATION.md` for complete examples.
                      │
 ┌────────────────────▼────────────────────────────┐
 │   Public API Endpoint (FastAPI Server)          │
-│   https://8000-ik9i2dchjtkl1r0wo65x9-...        │
+│   https://scrapex-backend.onrender.com          │
 └────────────────────┬────────────────────────────┘
                      │
         ┌────────────┼────────────┐
