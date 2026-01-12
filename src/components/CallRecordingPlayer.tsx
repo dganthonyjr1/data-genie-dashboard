@@ -454,8 +454,8 @@ const CallRecordingPlayer = ({ isOpen, onClose, recordingUrl, callData }: CallRe
           {transcript && (
             <div className="space-y-2">
               <h4 className="font-medium text-sm">Transcript</h4>
-              <ScrollArea className="h-48 bg-muted/30 rounded-lg p-3">
-                <div className="space-y-2 text-sm">
+              <ScrollArea className="h-48 bg-muted/30 rounded-lg">
+                <div className="p-3 space-y-2 text-sm">
                   {Array.isArray(transcript) ? (
                     transcript.map((entry: any, index: number) => (
                       <div key={index} className={`${entry.role === 'agent' ? 'text-primary' : 'text-foreground'}`}>
