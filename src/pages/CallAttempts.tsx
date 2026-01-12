@@ -65,6 +65,60 @@ const CallAttempts = () => {
     fetchData();
   }, []);
 
+  // Real-time subscription for call_records updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('call-records-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'call_records',
+        },
+        (payload) => {
+          console.log('Real-time call update:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newRecord = payload.new as CallRecord;
+            setCallRecords(prev => [newRecord, ...prev]);
+            toast({
+              title: "📞 New Call",
+              description: `Call to ${newRecord.facility_name} initiated`,
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedRecord = payload.new as CallRecord;
+            setCallRecords(prev => 
+              prev.map(record => 
+                record.call_id === updatedRecord.call_id ? updatedRecord : record
+              )
+            );
+            
+            // Show toast for significant updates
+            if (updatedRecord.status === 'completed' || updatedRecord.outcome) {
+              const outcomeText = updatedRecord.outcome === 'interested' 
+                ? '🎉 Lead interested!' 
+                : updatedRecord.outcome === 'voicemail'
+                  ? '📞 Voicemail left'
+                  : `Call ${updatedRecord.status}`;
+              toast({
+                title: outcomeText,
+                description: `${updatedRecord.facility_name} - ${updatedRecord.duration || 0}s`,
+              });
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const deletedRecord = payload.old as CallRecord;
+            setCallRecords(prev => prev.filter(r => r.call_id !== deletedRecord.call_id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
