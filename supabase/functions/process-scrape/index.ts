@@ -70,6 +70,18 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
+    // Validate caller's authorization
+    const authHeader = req.headers.get('Authorization');
+    let callerUserId: string | null = null;
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (!authError && user) {
+        callerUserId = user.id;
+      }
+    }
+
     // Fetch job details
     const { data: job, error: jobError } = await supabase
       .from('scraping_jobs')
@@ -84,6 +96,19 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Security check: Verify caller owns this job (unless it's an internal/scheduled call)
+    // Internal calls (from scheduled jobs) won't have a user token but that's acceptable
+    // For user-initiated calls, verify ownership to prevent unauthorized job processing
+    if (callerUserId && callerUserId !== job.user_id) {
+      console.error(`Unauthorized: User ${callerUserId} attempted to process job ${jobId} owned by ${job.user_id}`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: You do not own this job' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log(`Job ${jobId} ownership verified. Caller: ${callerUserId || 'system/scheduled'}, Owner: ${job.user_id}`);
 
     // Update status to processing
     await supabase
