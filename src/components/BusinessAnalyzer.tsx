@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTriggerCall } from "@/hooks/use-trigger-call";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -77,10 +78,10 @@ interface ScrapedData {
 
 export default function BusinessAnalyzer() {
   const { toast } = useToast();
+  const { triggerCall, isTriggering } = useTriggerCall();
   const [url, setUrl] = useState("");
   const [facilityName, setFacilityName] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isCalling, setIsCalling] = useState(false);
   const [currentStep, setCurrentStep] = useState<"idle" | "scraping" | "analyzing" | "complete">("idle");
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [analysisData, setAnalysisData] = useState<FacilityAnalysis | null>(null);
@@ -209,58 +210,11 @@ export default function BusinessAnalyzer() {
       return;
     }
 
-    setIsCalling(true);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Not logged in",
-          description: "Please log in to trigger calls",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const callResponse = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trigger-call`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            facility_name: scrapedData.facility_name,
-            phone_number: phoneNumber,
-            analysis_data: analysisData,
-          }),
-        }
-      );
-
-      if (!callResponse.ok) {
-        const errorData = await callResponse.json();
-        throw new Error(errorData.error || errorData.reason || "Failed to trigger call");
-      }
-
-      const callResult = await callResponse.json();
-
-      toast({
-        title: "Call Triggered",
-        description: `Call initiated for ${scrapedData.facility_name}. Status: ${callResult.call_record?.status || "pending"}`,
-      });
-
-    } catch (err) {
-      console.error("Error triggering call:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to trigger call";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsCalling(false);
-    }
+    await triggerCall({
+      facilityName: scrapedData.facility_name,
+      phoneNumber: phoneNumber,
+      analysisData: analysisData,
+    });
   };
 
   const getLeadScoreColor = (score: number) => {
@@ -434,11 +388,11 @@ export default function BusinessAnalyzer() {
               <div className="flex flex-wrap gap-3">
                 <Button
                   onClick={handleTriggerCall}
-                  disabled={isCalling || !scrapedData.extracted?.phones?.length}
+                  disabled={isTriggering || !scrapedData.extracted?.phones?.length}
                   size="lg"
                   className="bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90"
                 >
-                  {isCalling ? (
+                  {isTriggering ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Triggering Call...

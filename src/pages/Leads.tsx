@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { EmailVerificationBadge, BulkEmailVerifier } from "@/components/EmailVerification";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTriggerCall } from "@/hooks/use-trigger-call";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import LeadScoreCard from "@/components/LeadScoreCard";
@@ -131,6 +132,7 @@ const Leads = () => {
   const [isCRMExportOpen, setIsCRMExportOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { triggerCall, isTriggering } = useTriggerCall();
 
   // State for lead predictions
   const [leadPredictions, setLeadPredictions] = useState<Record<string, LeadPrediction>>({});
@@ -353,46 +355,33 @@ const Leads = () => {
     setNewLead({ businessName: "", phoneNumber: "", niche: "", monthlyRevenue: "" });
     setIsAddModalOpen(false);
 
-    // Auto-trigger AI Sales Call via secure Edge Function
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Lead added (call needs sign-in)",
-          description: "Sign in to start the AI sales call.",
-        });
-        navigate("/login");
-        return;
-      }
+    // Auto-trigger AI Sales Call via unified Retell AI function with compliance
+    const result = await triggerCall({
+      facilityName: manualLead.businessName,
+      phoneNumber: manualLead.phoneNumber,
+      analysisData: {
+        pain_score: 0,
+        evidence_summary: "New lead added",
+        niche: manualLead.niche,
+        monthly_revenue: manualLead.monthlyRevenue,
+        revenue_leak: manualLead.revenueLeak,
+      },
+    });
 
-      const { error } = await supabase.functions.invoke('trigger-sales-call', {
-        body: {
-          business_name: manualLead.businessName,
-          phone_number: manualLead.phoneNumber,
-          pain_score: 0,
-          evidence_summary: "New lead added",
-          niche: manualLead.niche,
-          monthly_revenue: manualLead.monthlyRevenue,
-          revenue_leak: manualLead.revenueLeak,
-        },
-      });
-
-      if (error) throw error;
-
+    if (result.success) {
       toast({
         title: "Lead Added & Call Initiated",
         description: `${manualLead.businessName} added and AI Sales Call started automatically`,
       });
-    } catch (error) {
-      console.error("Sales call trigger error:", error);
+    } else if (!result.requiresAgreement && !result.complianceBlocked) {
+      // Only show this if it wasn't already handled by the hook
       toast({
-        title: "Lead Added (Call Failed)",
-        description: "Lead was added, but failed to start AI Sales Call automatically.",
-        variant: "destructive",
+        title: "Lead Added",
+        description: `${manualLead.businessName} added. Call could not be started: ${result.reason || "Unknown error"}`,
       });
-    } finally {
-      setIsAddingLead(false);
     }
+
+    setIsAddingLead(false);
   };
 
   const handleEditLead = (lead: Lead) => {
@@ -467,47 +456,21 @@ const Leads = () => {
       return;
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to start a call.",
-        variant: "destructive",
-      });
-      navigate("/login");
-      return;
-    }
-
     setCallingLeadId(lead.id);
-    try {
-      const { error } = await supabase.functions.invoke('trigger-sales-call', {
-        body: {
-          business_name: lead.businessName,
-          phone_number: lead.phoneNumber,
-          pain_score: lead.painScore || 0,
-          evidence_summary: lead.evidenceSummary || "No audit data available",
-          niche: lead.niche,
-          monthly_revenue: lead.monthlyRevenue || 0,
-          revenue_leak: lead.revenueLeak || 0,
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "AI Sales Call Initiated",
-        description: `Starting call to ${lead.businessName}`,
-      });
-    } catch (error) {
-      console.error("Error starting call:", error);
-      toast({
-        title: "Call Failed",
-        description: "Could not initiate the AI sales call",
-        variant: "destructive",
-      });
-    } finally {
-      setCallingLeadId(null);
-    }
+    
+    await triggerCall({
+      facilityName: lead.businessName,
+      phoneNumber: lead.phoneNumber,
+      analysisData: {
+        pain_score: lead.painScore || 0,
+        evidence_summary: lead.evidenceSummary || "No audit data available",
+        niche: lead.niche,
+        monthly_revenue: lead.monthlyRevenue || 0,
+        revenue_leak: lead.revenueLeak || 0,
+      },
+    });
+    
+    setCallingLeadId(null);
   };
 
   const handleDeleteLead = (lead: Lead) => {
