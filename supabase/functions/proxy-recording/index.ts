@@ -39,13 +39,11 @@ serve(async (req) => {
       );
     }
 
-    console.log('[proxy-recording] Fetching recording from:', url);
+    console.log('[proxy-recording] Streaming recording from:', url);
 
-    // Fetch the recording
+    // Fetch with streaming - don't buffer the entire response
     const response = await fetch(url, {
-      headers: {
-        'Accept': 'audio/*',
-      },
+      headers: { 'Accept': 'audio/*' },
     });
 
     if (!response.ok) {
@@ -56,20 +54,20 @@ serve(async (req) => {
       );
     }
 
-    // Get the audio data
-    const audioData = await response.arrayBuffer();
+    const contentLength = response.headers.get('content-length');
     const contentType = response.headers.get('content-type') || 'audio/wav';
 
-    console.log('[proxy-recording] Successfully fetched recording, size:', audioData.byteLength, 'type:', contentType);
+    console.log('[proxy-recording] Streaming response, size:', contentLength, 'type:', contentType);
 
-    // Return the audio with proper CORS headers
-    return new Response(audioData, {
+    // Stream the response directly - much faster than buffering
+    return new Response(response.body, {
       status: 200,
       headers: {
         ...corsHeaders,
         'Content-Type': contentType,
-        'Content-Length': audioData.byteLength.toString(),
-        'Cache-Control': 'public, max-age=3600',
+        ...(contentLength && { 'Content-Length': contentLength }),
+        'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+        'Accept-Ranges': 'bytes',
       },
     });
 
