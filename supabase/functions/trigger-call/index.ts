@@ -451,6 +451,7 @@ serve(async (req) => {
         from_number: fromNumber,
         to_number: formattedPhone,
         agent_id: agentId,
+        webhook_url: `${SUPABASE_URL}/functions/v1/retell-webhook`,
         metadata: {
           facility_name,
           user_id: userId,
