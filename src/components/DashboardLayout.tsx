@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall, Play, Square, CreditCard, Activity, Shield } from "lucide-react";
+import { LayoutDashboard, Database, FileText, Settings, LogOut, Sparkles, CalendarClock, Layers, BookOpen, Users, PhoneCall, Play, Square, CreditCard, Activity, Shield, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useBackgroundDiagnostics } from "@/hooks/use-background-diagnostics";
@@ -28,6 +28,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Scrape", href: "/scrape", icon: Globe },
     { name: "Leads", href: "/leads", icon: Users },
     { name: "Call Attempts", href: "/call-attempts", icon: PhoneCall },
     { name: "Jobs", href: "/jobs", icon: Database },

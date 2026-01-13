@@ -17,6 +17,7 @@ import Results from "./pages/Results";
 import ResultsViewer from "./pages/ResultsViewer";
 import Settings from "./pages/Settings";
 import BulkScrape from "./pages/BulkScrape";
+import Scrape from "./pages/Scrape";
 import SourceCode from "./pages/SourceCode";
 import ApiSettings from "./pages/ApiSettings";
 import WebhooksSettings from "./pages/WebhooksSettings";
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/settings/webhooks" element={<WebhooksSettings />} />
             <Route path="/api-docs" element={<ApiDocs />} />
             <Route path="/bulk-scrape" element={<BulkScrape />} />
+            <Route path="/scrape" element={<Scrape />} />
             <Route path="/source-code" element={<SourceCode />} />
             <Route path="/audit-report" element={<AuditReport />} />
             <Route path="/leads" element={<Leads />} />
