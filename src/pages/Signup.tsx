@@ -1,3 +1,4 @@
+// Version: 1.0.1 - Signup redirect fix test
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { useForm } from "react-hook-form";
