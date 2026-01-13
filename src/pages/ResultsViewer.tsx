@@ -178,6 +178,25 @@ export default function SimpleResultsViewer() {
 
 
 
+        {/* Analysis Insights */}
+        {result.analysis_insights && result.analysis_insights.length > 0 && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="text-lg">Analysis Insights</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {result.analysis_insights.map((insight: string, index: number) => (
+                  <li key={index} className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span className="text-sm">{insight}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Business Information */}
         <Card>
           <CardHeader>
