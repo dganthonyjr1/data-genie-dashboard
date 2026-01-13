@@ -197,7 +197,6 @@ const Index = () => {
           </p>
 
           <div className="max-w-3xl mx-auto mb-8">
-            <DataDisclaimer />
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">

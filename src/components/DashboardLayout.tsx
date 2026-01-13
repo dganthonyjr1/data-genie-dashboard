@@ -214,6 +214,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <NotificationBell />
           </div>
           {children}
+          
+          {/* Footer Disclaimer */}
+          <div className="mt-12 pt-6 border-t border-border text-center">
+            <p className="text-xs text-muted-foreground">
+              Data extracted from publicly available sources only. Results depend on what businesses publicly display.
+            </p>
+          </div>
         </div>
       </main>
     </div>
