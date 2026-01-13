@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { Button } from "@/components/ui/button";
+import { DataDisclaimer } from "@/components/DataDisclaimer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -62,7 +63,7 @@ const Index = () => {
 
   const stats = [
     { value: "150+", label: "Countries Supported" },
-    { value: "85-90%", label: "Contact Accuracy" },
+    { value: "Public Data", label: "Extraction Source" },
     { value: "<3s", label: "Average Scrape Time" },
     { value: "Auto", label: "AI Sales Calls" },
   ];
@@ -194,6 +195,10 @@ const Index = () => {
             Extract business data, identify revenue opportunities, and trigger AI-powered sales calls—without 
             switching between tools. One platform. One price. Faster, simpler, more affordable.
           </p>
+
+          <div className="max-w-3xl mx-auto mb-8">
+            <DataDisclaimer />
+          </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             <Button 

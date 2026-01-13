@@ -16,6 +16,7 @@ import { Download, FileJson, FileSpreadsheet, Loader2, Upload, FileText, X, Eye 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { UrlPreviewModal } from "@/components/UrlPreviewModal";
+import { DataDisclaimer } from "@/components/DataDisclaimer";
 
 const formSchema = z.object({
   urls: z.string().min(1, "Please enter at least one URL"),
@@ -684,6 +685,8 @@ const BulkScrape = () => {
               Process multiple URLs at once and export results
             </p>
           </div>
+
+          <DataDisclaimer />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="bg-card/80 backdrop-blur-sm border-border/50">

@@ -41,6 +41,7 @@ import {
 import { format, subDays, startOfDay, isWithinInterval } from "date-fns";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { INDUSTRY_CONFIGS } from "@/lib/industry-config";
+import { DataDisclaimer } from "@/components/DataDisclaimer";
 
 interface Job {
   id: string;
@@ -293,6 +294,9 @@ const Dashboard = () => {
             </Button>
           )}
         </div>
+
+        {/* Data Disclaimer */}
+        <DataDisclaimer />
 
         {/* Demo Mode Banner */}
         {isDemoMode && (
