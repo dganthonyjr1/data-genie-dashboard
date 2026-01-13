@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { backendApi } from "@/services/backendApi";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,18 +209,38 @@ const NewJob = () => {
 
       if (error) throw error;
 
-      const { error: scrapeError } = await supabase.functions.invoke('process-scrape', {
-        body: { jobId: jobData.id }
-      });
-
-      if (scrapeError) {
-        console.error('Error starting scrape:', scrapeError);
-        toast({ title: "Job created but scraping failed", description: "The job was created but could not be processed", variant: "destructive" });
-      } else {
-        toast({
-          title: "Job created successfully",
-          description: scheduleEnabled ? `Your scraping job is being processed and will run ${scheduleFrequency}` : "Your scraping job is being processed",
+      // Call backend API directly
+      try {
+        const backendJob = await backendApi.createScrapeJob({
+          url: data.url,
+          business_name: null,
+          business_type: data.scrapeType,
         });
+
+        // Poll for completion
+        const result = await backendApi.waitForJobCompletion(backendJob.job_id);
+
+        // Update Supabase job with results
+        await supabase
+          .from('scraping_jobs')
+          .update({
+            status: result.status,
+            results: [result.result],
+            results_count: result.status === 'completed' ? 1 : 0,
+          })
+          .eq('id', jobData.id);
+
+        toast({
+          title: "Job completed successfully",
+          description: scheduleEnabled ? `Your scraping job is complete and will run ${scheduleFrequency}` : "Your scraping job is complete",
+        });
+      } catch (scrapeError) {
+        console.error('Error starting scrape:', scrapeError);
+        await supabase
+          .from('scraping_jobs')
+          .update({ status: 'failed' })
+          .eq('id', jobData.id);
+        toast({ title: "Job created but scraping failed", description: scrapeError instanceof Error ? scrapeError.message : "The job could not be processed", variant: "destructive" });
       }
 
       navigate("/jobs");
