@@ -3,52 +3,32 @@ import { useNavigate } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/DashboardLayout";
-import UsageTracking from "@/components/UsageTracking";
-import BusinessAnalyzer from "@/components/BusinessAnalyzer";
-import WelcomeOnboarding from "@/components/WelcomeOnboarding";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  BarChart, 
-  Bar, 
-  LineChart, 
-  Line, 
-  PieChart, 
-  Pie, 
-  Cell,
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
-} from "recharts";
-import { 
   Briefcase, 
   CheckCircle2, 
   Clock, 
-  TrendingUp,
-  Activity,
   Plus,
-  BookOpen,
-  Play,
   Phone,
-  Users,
+  Mail,
   Globe,
-  Factory
+  ExternalLink,
+  Facebook,
+  Linkedin,
+  Twitter,
+  Instagram,
+  Youtube
 } from "lucide-react";
-import { format, subDays, startOfDay, isWithinInterval } from "date-fns";
-import { useDemoMode } from "@/contexts/DemoModeContext";
-import { INDUSTRY_CONFIGS } from "@/lib/industry-config";
 import { DataDisclaimer } from "@/components/DataDisclaimer";
 
 interface Job {
   id: string;
   status: string;
   created_at: string;
-  updated_at: string;
-  scrape_type: string;
+  results: any[];
+  url: string;
 }
 
 interface Stats {
@@ -56,14 +36,27 @@ interface Stats {
   completed: number;
   failed: number;
   pending: number;
-  successRate: number;
-  avgProcessingTime: number;
+}
+
+interface ScrapedBusiness {
+  jobId: string;
+  businessName: string;
+  url: string;
+  phone: string[];
+  email: string[];
+  socialMedia: {
+    facebook?: string;
+    linkedin?: string;
+    twitter?: string;
+    instagram?: string;
+    youtube?: string;
+    tiktok?: string;
+  };
 }
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isDemoMode, demoStats } = useDemoMode();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats>({
@@ -71,10 +64,8 @@ const Dashboard = () => {
     completed: 0,
     failed: 0,
     pending: 0,
-    successRate: 0,
-    avgProcessingTime: 0,
   });
-
+  const [scrapedBusinesses, setScrapedBusinesses] = useState<ScrapedBusiness[]>([]);
 
   useEffect(() => {
     fetchJobsAndStats();
@@ -98,12 +89,39 @@ const Dashboard = () => {
       if (error) throw error;
 
       setJobs(data || []);
-      calculateStats(data || []);
+
+      // Calculate stats
+      const total = data?.length || 0;
+      const completed = data?.filter(j => j.status === "completed").length || 0;
+      const failed = data?.filter(j => j.status === "failed").length || 0;
+      const pending = data?.filter(j => j.status === "pending" || j.status === "processing").length || 0;
+
+      setStats({ total, completed, failed, pending });
+
+      // Extract scraped business data
+      const businesses: ScrapedBusiness[] = [];
+      data?.forEach(job => {
+        if (job.status === "completed" && job.results && job.results.length > 0) {
+          const result = job.results[0];
+          if (result.social_media && Object.keys(result.social_media).length > 0) {
+            businesses.push({
+              jobId: job.id,
+              businessName: result.business_name || "Unknown Business",
+              url: result.url || job.url,
+              phone: result.phone || [],
+              email: result.email || [],
+              socialMedia: result.social_media || {}
+            });
+          }
+        }
+      });
+
+      setScrapedBusinesses(businesses);
     } catch (error) {
       console.error("Error fetching jobs:", error);
       toast({
-        title: "Error loading dashboard",
-        description: "Please try again later",
+        title: "Error loading data",
+        description: "Failed to load dashboard data",
         variant: "destructive",
       });
     } finally {
@@ -111,152 +129,16 @@ const Dashboard = () => {
     }
   };
 
-  const calculateStats = (jobsData: Job[]) => {
-    const total = jobsData.length;
-    const completed = jobsData.filter(j => j.status === "completed").length;
-    const failed = jobsData.filter(j => j.status === "failed").length;
-    const pending = jobsData.filter(j => j.status === "pending" || j.status === "in_progress").length;
-    const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    // Calculate average processing time for completed jobs
-    const completedJobs = jobsData.filter(j => j.status === "completed");
-    const totalTime = completedJobs.reduce((acc, job) => {
-      const start = new Date(job.created_at).getTime();
-      const end = new Date(job.updated_at).getTime();
-      return acc + (end - start);
-    }, 0);
-    const avgProcessingTime = completedJobs.length > 0 
-      ? Math.round(totalTime / completedJobs.length / 1000) // Convert to seconds
-      : 0;
-
-    setStats({
-      total,
-      completed,
-      failed,
-      pending,
-      successRate,
-      avgProcessingTime,
-    });
-  };
-
-  // Demo mode data
-  const getDemoTrendData = () => {
-    const trends = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = subDays(new Date(), i);
-      trends.push({
-        date: format(date, "MMM dd"),
-        total: Math.floor(Math.random() * 30) + 15,
-        completed: Math.floor(Math.random() * 25) + 12,
-        failed: Math.floor(Math.random() * 3),
-      });
+  const getSocialIcon = (platform: string) => {
+    switch (platform.toLowerCase()) {
+      case 'facebook': return <Facebook className="h-4 w-4" />;
+      case 'linkedin': return <Linkedin className="h-4 w-4" />;
+      case 'twitter': return <Twitter className="h-4 w-4" />;
+      case 'instagram': return <Instagram className="h-4 w-4" />;
+      case 'youtube': return <Youtube className="h-4 w-4" />;
+      default: return <Globe className="h-4 w-4" />;
     }
-    return trends;
   };
-
-  const getDemoTypeData = () => [
-    { name: "Google Business Profiles", value: 89 },
-    { name: "Complete Business Data", value: 45 },
-    { name: "Bulk Business Search", value: 22 },
-  ];
-
-  const getDemoSuccessRateByType = () => [
-    { name: "Google Business Profiles", successRate: 97, completed: 86, total: 89 },
-    { name: "Complete Business Data", successRate: 91, completed: 41, total: 45 },
-    { name: "Bulk Business Search", successRate: 95, completed: 21, total: 22 },
-  ];
-
-  // Data for charts
-  const displayStats = isDemoMode ? {
-    total: demoStats.totalJobs,
-    completed: demoStats.completedJobs,
-    failed: demoStats.failedJobs,
-    pending: demoStats.pendingJobs,
-    successRate: demoStats.successRate,
-    avgProcessingTime: demoStats.avgProcessingTime,
-  } : stats;
-
-  const statusData = [
-    { name: "Completed", value: displayStats.completed, color: "#10b981" },
-    { name: "Failed", value: displayStats.failed, color: "#ef4444" },
-    { name: "Pending", value: displayStats.pending, color: "#eab308" },
-  ];
-
-  // Get job trends for the last 7 days
-  const getLast7DaysTrends = () => {
-    const trends = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = subDays(new Date(), i);
-      const dayStart = startOfDay(date);
-      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-      
-      const dayJobs = jobs.filter(job => 
-        isWithinInterval(new Date(job.created_at), { start: dayStart, end: dayEnd })
-      );
-      
-      trends.push({
-        date: format(date, "MMM dd"),
-        total: dayJobs.length,
-        completed: dayJobs.filter(j => j.status === "completed").length,
-        failed: dayJobs.filter(j => j.status === "failed").length,
-      });
-    }
-    return trends;
-  };
-
-  // Get job type distribution
-  const getJobTypeDistribution = () => {
-    const typeCount: Record<string, number> = {};
-    jobs.forEach(job => {
-      typeCount[job.scrape_type] = (typeCount[job.scrape_type] || 0) + 1;
-    });
-    
-    return Object.entries(typeCount).map(([type, count]) => ({
-      name: type.split("_").map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(" "),
-      value: count,
-    }));
-  };
-
-  // Get success rate by scrape type
-  const getSuccessRateByType = () => {
-    const typeStats: Record<string, { completed: number; total: number }> = {};
-    jobs.forEach(job => {
-      if (!typeStats[job.scrape_type]) {
-        typeStats[job.scrape_type] = { completed: 0, total: 0 };
-      }
-      typeStats[job.scrape_type].total++;
-      if (job.status === "completed") {
-        typeStats[job.scrape_type].completed++;
-      }
-    });
-    
-    return Object.entries(typeStats).map(([type, data]) => ({
-      name: type.split("_").map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(" "),
-      successRate: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
-      completed: data.completed,
-      total: data.total,
-    }));
-  };
-
-  const formatTime = (seconds: number) => {
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) {
-      const minutes = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${minutes}m ${secs}s`;
-    }
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  };
-
-  const trendData = isDemoMode ? getDemoTrendData() : getLast7DaysTrends();
-  const typeData = isDemoMode ? getDemoTypeData() : getJobTypeDistribution();
-  const successByTypeData = isDemoMode ? getDemoSuccessRateByType() : getSuccessRateByType();
 
   if (loading) {
     return (
@@ -268,420 +150,185 @@ const Dashboard = () => {
     );
   }
 
-  // Check if this is a new user with no jobs
-  const isNewUser = !isDemoMode && jobs.length === 0;
-
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold font-orbitron bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
               Dashboard
             </h1>
-            <p className="text-muted-foreground mt-2">
-              {isNewUser ? "Get started with your first scraping job" : "Analyze businesses and trigger AI sales calls"}
+            <p className="text-muted-foreground mt-1">
+              Overview of your scraping jobs and extracted data
             </p>
           </div>
-          {!isNewUser && (
-            <Button
-              onClick={() => navigate("/new-job")}
-              className="bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 transition-opacity"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Job
-            </Button>
-          )}
+          <Button onClick={() => navigate("/new-job")} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Job
+          </Button>
         </div>
 
-        {/* Data Disclaimer */}
-        <DataDisclaimer />
-
-        {/* Demo Mode Banner */}
-        {isDemoMode && (
-          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-lg p-4 flex items-center gap-3">
-            <Play className="h-5 w-5 text-green-500 fill-green-500" />
-            <div>
-              <p className="font-medium text-green-400">Demo Mode Active</p>
-              <p className="text-sm text-muted-foreground">Showing sample data for investor demonstrations</p>
-            </div>
-          </div>
-        )}
-
-        {/* Show Welcome Onboarding for new users */}
-        {isNewUser ? (
-          <WelcomeOnboarding />
-        ) : (
-          <>
-            {/* Business Analyzer - Main Feature */}
-            <BusinessAnalyzer />
+        <DataDisclaimer variant="compact" />
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-card/50 border-border/50">
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Jobs</CardTitle>
               <Briefcase className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{displayStats.total}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                All time scraping jobs
-              </p>
+              <div className="text-2xl font-bold">{stats.total}</div>
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 border-border/50">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-500">{displayStats.successRate}%</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {displayStats.completed} completed jobs
-              </p>
+              <div className="text-2xl font-bold">{stats.completed}</div>
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 border-border/50">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Processing Time</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatTime(displayStats.avgProcessingTime)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Per completed job
-              </p>
+              <div className="text-2xl font-bold">{stats.pending}</div>
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 border-border/50">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Failed</CardTitle>
+              <Clock className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-500">{displayStats.pending}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Currently processing
-              </p>
+              <div className="text-2xl font-bold">{stats.failed}</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Demo Mode Additional Stats */}
-        {isDemoMode && (
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-                <Users className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">{demoStats.totalLeads.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Businesses discovered
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-accent/10 to-secondary/10 border-accent/30">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Calls Initiated</CardTitle>
-                <Phone className="h-4 w-4 text-accent" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-accent">{demoStats.callsInitiated}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {demoStats.callsCompleted} completed ({((demoStats.callsCompleted / demoStats.callsInitiated) * 100).toFixed(0)}%)
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-500">{demoStats.conversionRate}%</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Leads to customers
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Industry Support Banner */}
-        <Card className="bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 border-primary/30">
-          <CardContent className="py-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Factory className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="font-semibold">Multi-Industry AI Sales Platform</p>
-                  <p className="text-sm text-muted-foreground">
-                    Scrape and analyze businesses across 8+ industries with auto-detection
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {Object.entries(INDUSTRY_CONFIGS).slice(0, 5).map(([id, config]) => (
-                  <Badge key={id} variant="outline" className="py-1">
-                    <span className="mr-1">{config.icon}</span>
-                    {config.name}
-                  </Badge>
-                ))}
-                <Badge variant="secondary" className="py-1">+3 more</Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Charts Row */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Job Trends Chart */}
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-              <CardTitle>Job Trends (Last 7 Days)</CardTitle>
-              <CardDescription>
-                Daily job creation and completion rates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis 
-                    dataKey="date" 
-                    className="text-xs"
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <YAxis 
-                    className="text-xs"
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px"
-                    }}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="total" 
-                    stroke="#6366f1" 
-                    strokeWidth={2}
-                    name="Total"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="completed" 
-                    stroke="#10b981" 
-                    strokeWidth={2}
-                    name="Completed"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="failed" 
-                    stroke="#ef4444" 
-                    strokeWidth={2}
-                    name="Failed"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Status Distribution Chart */}
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-              <CardTitle>Status Distribution</CardTitle>
-              <CardDescription>
-                Breakdown of job statuses
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => 
-                      `${name}: ${(percent * 100).toFixed(0)}%`
-                    }
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px"
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Job Type Distribution */}
-        {typeData.length > 0 && (
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-              <CardTitle>Scrape Type Distribution</CardTitle>
-              <CardDescription>
-                Most used scraping types
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={typeData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis 
-                    dataKey="name" 
-                    className="text-xs"
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <YAxis 
-                    className="text-xs"
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px"
-                    }}
-                  />
-                  <Bar 
-                    dataKey="value" 
-                    fill="url(#colorGradient)"
-                    radius={[8, 8, 0, 0]}
-                  />
-                  <defs>
-                    <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#ec4899" />
-                      <stop offset="100%" stopColor="#06b6d4" />
-                    </linearGradient>
-                  </defs>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Success Rate by Scrape Type */}
-        {successByTypeData.length > 0 && (
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-              <CardTitle>Success Rate by Scrape Type</CardTitle>
-              <CardDescription>
-                Compare performance across different scraping methods
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {successByTypeData.map((item, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{item.name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {item.successRate}% ({item.completed}/{item.total})
-                      </span>
+        {/* Scraped Business Social Media Data */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Scraped Business Social Media</CardTitle>
+            <CardDescription>
+              Social media links extracted from {scrapedBusinesses.length} businesses
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {scrapedBusinesses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No social media data available yet. Start scraping businesses to see their social profiles here.
+              </p>
+            ) : (
+              <div className="space-y-6">
+                {scrapedBusinesses.map((business, index) => (
+                  <div key={index} className="border-b border-border pb-4 last:border-0">
+                    {/* Business Header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-semibold text-lg">{business.businessName}</h3>
+                        <a 
+                          href={business.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline flex items-center gap-1"
+                        >
+                          {business.url}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => navigate(`/results/${business.jobId}`)}
+                      >
+                        View Full Details
+                      </Button>
                     </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${item.successRate}%`,
-                          background: item.successRate >= 80 
-                            ? '#10b981' 
-                            : item.successRate >= 50 
-                              ? '#eab308' 
-                              : '#ef4444'
-                        }}
-                      />
+
+                    {/* Contact Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                      {business.phone.length > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <span>{business.phone[0]}</span>
+                          {business.phone.length > 1 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{business.phone.length - 1} more
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      {business.email.length > 0 && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <span>{business.email[0]}</span>
+                          {business.email.length > 1 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{business.email.length - 1} more
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Social Media Links */}
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(business.socialMedia).map(([platform, url]) => {
+                        if (!url) return null;
+                        return (
+                          <a
+                            key={platform}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 bg-muted/50 hover:bg-muted rounded-md transition-colors"
+                          >
+                            {getSocialIcon(platform)}
+                            <span className="text-sm capitalize">{platform}</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-
-        {/* Usage Tracking */}
-        <UsageTracking />
-
-        {/* Quick Actions */}
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Access your most used features
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={() => navigate("/scrape")}
-                className="bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 flex items-center gap-2"
-              >
-                <Globe className="h-4 w-4" />
-                Universal Scraper
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate("/new-job")}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Create New Job
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate("/jobs")}
-                className="flex items-center gap-2"
-              >
-                <Briefcase className="h-4 w-4" />
-                View All Jobs
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate("/results")}
-                className="flex items-center gap-2"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                View Results
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate("/api-docs")}
-                className="flex items-center gap-2"
-              >
-                <BookOpen className="h-4 w-4" />
-                API Docs
-              </Button>
-            </div>
+            )}
           </CardContent>
         </Card>
-          </>
-        )}
+
+        {/* Quick Actions */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate("/new-job")}>
+            <CardHeader>
+              <CardTitle className="text-base">Start New Scrape</CardTitle>
+              <CardDescription>Scrape a new business website</CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate("/results")}>
+            <CardHeader>
+              <CardTitle className="text-base">View All Results</CardTitle>
+              <CardDescription>Browse all scraped data</CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate("/bulk-scrape")}>
+            <CardHeader>
+              <CardTitle className="text-base">Bulk Scrape</CardTitle>
+              <CardDescription>Process multiple URLs at once</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );
