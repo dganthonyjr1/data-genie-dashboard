@@ -176,7 +176,7 @@ export default function SimpleResultsViewer() {
           </Button>
         </div>
 
-        <DataDisclaimer variant="compact" />
+
 
         {/* Business Information */}
         <Card>
@@ -201,9 +201,7 @@ export default function SimpleResultsViewer() {
                 </Button>
               </div>
             )}
-            {result.description && (
-              <p className="text-sm text-muted-foreground">{result.description}</p>
-            )}
+
           </CardContent>
         </Card>
 
@@ -325,20 +323,14 @@ export default function SimpleResultsViewer() {
           </Card>
         )}
 
-        {/* Data Completeness */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold">Data Completeness</p>
-                <p className="text-xs text-muted-foreground">Based on publicly available information</p>
-              </div>
-              <Badge variant={result.data_completeness_score >= 70 ? "default" : "secondary"}>
-                {result.data_completeness_score || 0}%
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+
+      </div>
+
+      {/* Footer Disclaimer */}
+      <div className="mt-8 pb-6 text-center">
+        <p className="text-xs text-muted-foreground max-w-3xl mx-auto">
+          Data extracted from publicly available sources only. Results depend on what businesses publicly display on their websites. We cannot guarantee finding all contact information as many businesses do not publicly list emails, owner names, or other details.
+        </p>
       </div>
     </DashboardLayout>
   );
