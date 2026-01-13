@@ -34,10 +34,13 @@ import {
   BookOpen,
   Play,
   Phone,
-  Users
+  Users,
+  Globe,
+  Factory
 } from "lucide-react";
 import { format, subDays, startOfDay, isWithinInterval } from "date-fns";
 import { useDemoMode } from "@/contexts/DemoModeContext";
+import { INDUSTRY_CONFIGS } from "@/lib/industry-config";
 
 interface Job {
   id: string;
@@ -409,6 +412,32 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Industry Support Banner */}
+        <Card className="bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 border-primary/30">
+          <CardContent className="py-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Factory className="h-8 w-8 text-primary" />
+                <div>
+                  <p className="font-semibold">Multi-Industry AI Sales Platform</p>
+                  <p className="text-sm text-muted-foreground">
+                    Scrape and analyze businesses across 8+ industries with auto-detection
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(INDUSTRY_CONFIGS).slice(0, 5).map(([id, config]) => (
+                  <Badge key={id} variant="outline" className="py-1">
+                    <span className="mr-1">{config.icon}</span>
+                    {config.name}
+                  </Badge>
+                ))}
+                <Badge variant="secondary" className="py-1">+3 more</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Charts Row */}
         <div className="grid gap-4 md:grid-cols-2">
           {/* Job Trends Chart */}
@@ -605,6 +634,13 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => navigate("/scrape")}
+                className="bg-gradient-to-r from-pink-500 to-cyan-500 hover:opacity-90 flex items-center gap-2"
+              >
+                <Globe className="h-4 w-4" />
+                Universal Scraper
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => navigate("/new-job")}
