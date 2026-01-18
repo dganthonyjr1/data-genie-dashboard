@@ -88,19 +88,28 @@ const Dashboard = () => {
 
       if (error) throw error;
 
-      setJobs(data || []);
+      // Map data to Job type with proper type handling
+      const mappedJobs: Job[] = (data || []).map(job => ({
+        id: job.id,
+        status: job.status,
+        created_at: job.created_at,
+        results: Array.isArray(job.results) ? job.results : [],
+        url: job.url
+      }));
+      
+      setJobs(mappedJobs);
 
       // Calculate stats
-      const total = data?.length || 0;
-      const completed = data?.filter(j => j.status === "completed").length || 0;
-      const failed = data?.filter(j => j.status === "failed").length || 0;
-      const pending = data?.filter(j => j.status === "pending" || j.status === "processing").length || 0;
+      const total = mappedJobs.length;
+      const completed = mappedJobs.filter(j => j.status === "completed").length;
+      const failed = mappedJobs.filter(j => j.status === "failed").length;
+      const pending = mappedJobs.filter(j => j.status === "pending" || j.status === "processing").length;
 
       setStats({ total, completed, failed, pending });
 
       // Extract scraped business data
       const businesses: ScrapedBusiness[] = [];
-      data?.forEach(job => {
+      mappedJobs.forEach(job => {
         if (job.status === "completed" && job.results && job.results.length > 0) {
           const result = job.results[0];
           if (result.social_media && Object.keys(result.social_media).length > 0) {
