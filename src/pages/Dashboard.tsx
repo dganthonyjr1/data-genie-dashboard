@@ -10,7 +10,6 @@ import {
   Briefcase, 
   CheckCircle2, 
   Clock, 
-  Plus,
   Phone,
   Mail,
   Globe,
@@ -163,19 +162,13 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold font-orbitron bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
-              Dashboard
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Overview of your scraping jobs and extracted data
-            </p>
-          </div>
-          <Button onClick={() => navigate("/new-job")} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Job
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold font-orbitron bg-gradient-to-r from-pink-500 to-cyan-500 bg-clip-text text-transparent">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Overview of your scraping jobs and extracted data
+          </p>
         </div>
 
 
@@ -222,6 +215,24 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Start Scraping CTA */}
+        <Card className="bg-gradient-to-r from-pink-500/10 to-cyan-500/10 border-primary/20">
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <h2 className="text-xl font-semibold mb-2">Ready to extract business data?</h2>
+            <p className="text-muted-foreground mb-4 text-center">
+              Scrape any business website to get contact info, social media links, and more
+            </p>
+            <Button 
+              size="lg" 
+              onClick={() => navigate("/scrape")}
+              className="gap-2 bg-gradient-to-r from-pink-500 to-cyan-500 hover:from-pink-600 hover:to-cyan-600"
+            >
+              <Globe className="h-5 w-5" />
+              Start Scraping
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Scraped Business Social Media Data */}
         <Card>
@@ -315,29 +326,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate("/new-job")}>
-            <CardHeader>
-              <CardTitle className="text-base">Start New Scrape</CardTitle>
-              <CardDescription>Scrape a new business website</CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate("/results")}>
-            <CardHeader>
-              <CardTitle className="text-base">View All Results</CardTitle>
-              <CardDescription>Browse all scraped data</CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate("/bulk-scrape")}>
-            <CardHeader>
-              <CardTitle className="text-base">Bulk Scrape</CardTitle>
-              <CardDescription>Process multiple URLs at once</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
       </div>
     </DashboardLayout>
   );
