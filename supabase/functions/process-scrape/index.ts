@@ -180,28 +180,30 @@ serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Scraping error:', error);
 
       await supabase
         .from('scraping_jobs')
         .update({
           status: 'failed',
-          results: [{ error: error.message }],
+          results: [{ error: errorMessage }],
           results_count: 0,
         })
         .eq('id', jobId);
 
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: errorMessage }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error processing job:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
