@@ -231,6 +231,13 @@ const Dashboard = () => {
               <Globe className="h-5 w-5" />
               Start Scraping
             </Button>
+            <Button
+              variant="link"
+              onClick={() => navigate("/results")}
+              className="mt-2 text-muted-foreground hover:text-foreground"
+            >
+              View past results →
+            </Button>
           </CardContent>
         </Card>
 
