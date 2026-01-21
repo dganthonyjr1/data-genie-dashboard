@@ -241,25 +241,29 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Scraped Business Social Media Data */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Scraped Business Social Media</CardTitle>
-            <CardDescription>
-              Social media links extracted from {scrapedBusinesses.length} businesses
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {scrapedBusinesses.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No social media data available yet. Start scraping businesses to see their social profiles here.
-              </p>
-            ) : (
-              <div className="space-y-6">
-                {scrapedBusinesses.map((business, index) => (
-                  <div key={index} className="border-b border-border pb-4 last:border-0">
+        {/* Last Scraped Business Preview */}
+        {scrapedBusinesses.length > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Last Scraped Business</CardTitle>
+                <CardDescription>Most recent extraction</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate("/results")}
+              >
+                View All Results
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const business = scrapedBusinesses[0];
+                return (
+                  <div className="space-y-4">
                     {/* Business Header */}
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-lg">{business.businessName}</h3>
                         <a 
@@ -277,12 +281,12 @@ const Dashboard = () => {
                         variant="outline"
                         onClick={() => navigate(`/results/${business.jobId}`)}
                       >
-                        View Full Details
+                        View Details
                       </Button>
                     </div>
 
                     {/* Contact Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {business.phone.length > 0 && (
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="h-4 w-4 text-muted-foreground" />
@@ -327,11 +331,11 @@ const Dashboard = () => {
                       })}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
 
       </div>
     </DashboardLayout>
